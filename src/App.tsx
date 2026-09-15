@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AppProvider, useApp } from "./context/AppContext";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AppProvider, useApp, type WorkspaceActions } from "./context/AppContext";
 import { ToastProvider } from "./context/ToastContext";
 import { useAuth } from "./hooks/useAuth";
 import { useNavigation, type Route } from "./hooks/useNavigation";
@@ -174,6 +174,19 @@ export default function App() {
   const [accountOpen, setAccountOpen] = useState(false);
   useTheme();
 
+  // Stable across renders so AppProvider's memo doesn't churn on every
+  // App re-render (the hook's callbacks are themselves stable).
+  const wsActions = useMemo<WorkspaceActions>(
+    () => ({
+      updateSettings: ws.updateSettings,
+      renameWorkspace: ws.renameWorkspace,
+      markOnboarded: ws.markOnboarded,
+      error: ws.error,
+      clearError: ws.clearError
+    }),
+    [ws.updateSettings, ws.renameWorkspace, ws.markOnboarded, ws.error, ws.clearError]
+  );
+
   const user = auth.user;
   const signedIn = !auth.loading && !!user;
   const viewingShared = !!user && !!ws.active && ws.active.ownerId !== user.id;
@@ -206,7 +219,7 @@ export default function App() {
     );
   } else {
     body = (
-      <AppProvider key={ws.active.id} workspaceId={ws.active.id}>
+      <AppProvider key={ws.active.id} workspace={ws.active} actions={wsActions}>
         <DataErrorToast />
         <SignedIn route={route} navigate={navigate} />
       </AppProvider>

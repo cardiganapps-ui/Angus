@@ -54,7 +54,7 @@ function revealBottom(el: HTMLElement | null) {
 }
 
 export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: () => void }) {
-  const { sales, payments, installments, contacts, projects, addInstallment, removeInstallment } =
+  const { sales, payments, installments, contacts, projects, addInstallments, removeInstallments } =
     useApp();
   const { showSuccess } = useToast();
 
@@ -101,16 +101,17 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
     if (!sale || !canGenerate || working) return;
     setWorking(true);
     const rows = generateInstallmentSchedule(sale.amount, parsedCount, firstDue, frequency);
-    for (const row of rows) {
-      await addInstallment({
+    // One request for the whole plan: either every cuota lands or none does.
+    await addInstallments(
+      rows.map((row) => ({
         id: makeId(),
         saleId: sale.id,
         amount: row.amount,
         dueDate: row.dueDate,
         notes: "",
         createdAt: todayISO()
-      });
-    }
+      }))
+    );
     haptic.success();
     showSuccess("Plan de pagos creado");
     setPlanForm(false);
@@ -120,9 +121,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
   async function deletePlan() {
     if (!sale || working) return;
     setWorking(true);
-    for (const status of plan) {
-      await removeInstallment(status.installment.id);
-    }
+    await removeInstallments(plan.map((status) => status.installment.id));
     haptic.warn();
     showSuccess("Plan de pagos eliminado");
     setConfirmingPlan(false);

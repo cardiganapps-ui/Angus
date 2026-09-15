@@ -6,7 +6,9 @@ import type {
   Payment,
   Project,
   Sale,
-  ScheduleEvent
+  ScheduleEvent,
+  Workspace,
+  WorkspaceSettings
 } from "../types";
 import { useCloudStore } from "../hooks/useCloudStore";
 import {
@@ -20,8 +22,23 @@ import {
 } from "../data/rows";
 import { importLocalData } from "../lib/importLocal";
 
+/** What App hands the provider for the active workspace's own row. */
+export interface WorkspaceActions {
+  updateSettings: (id: string, patch: Partial<WorkspaceSettings>) => Promise<void>;
+  renameWorkspace: (id: string, name: string) => Promise<void>;
+  markOnboarded: (id: string) => Promise<void>;
+  /** A rejected (and reverted) workspace write, surfaced like store errors. */
+  error: string | null;
+  clearError: () => void;
+}
+
 interface AppContextValue {
   workspaceId: string;
+  workspace: Workspace;
+  settings: WorkspaceSettings;
+  updateSettings: (patch: Partial<WorkspaceSettings>) => Promise<void>;
+  renameWorkspace: (name: string) => Promise<void>;
+  markOnboarded: () => Promise<void>;
   loading: boolean;
   error: string | null;
   clearError: () => void;
@@ -55,8 +72,11 @@ interface AppContextValue {
 
   installments: Installment[];
   addInstallment: (i: Installment) => Promise<void>;
+  /** A whole plan in one request. */
+  addInstallments: (rows: Installment[]) => Promise<void>;
   updateInstallment: (id: string, patch: Partial<Installment>) => Promise<void>;
   removeInstallment: (id: string) => Promise<void>;
+  removeInstallments: (ids: string[]) => Promise<void>;
 
   expenses: Expense[];
   addExpense: (e: Expense) => Promise<void>;
@@ -69,7 +89,16 @@ const AppContext = createContext<AppContextValue | null>(null);
 // All data is scoped to one workspace. Mount with `key={workspaceId}` so a
 // switch remounts the stores (and shows the skeleton) instead of mixing
 // two workspaces' rows in one list.
-export function AppProvider({ workspaceId, children }: { workspaceId: string; children: ReactNode }) {
+export function AppProvider({
+  workspace,
+  actions,
+  children
+}: {
+  workspace: Workspace;
+  actions: WorkspaceActions;
+  children: ReactNode;
+}) {
+  const workspaceId = workspace.id;
   const projects = useCloudStore(workspaceId, projectStore);
   const contacts = useCloudStore(workspaceId, contactStore);
   const events = useCloudStore(workspaceId, eventStore);
@@ -104,8 +133,14 @@ export function AppProvider({ workspaceId, children }: { workspaceId: string; ch
   const value = useMemo<AppContextValue>(
     () => ({
       workspaceId,
+      workspace,
+      settings: workspace.settings,
+      updateSettings: (patch: Partial<WorkspaceSettings>) => actions.updateSettings(workspaceId, patch),
+      renameWorkspace: (name: string) => actions.renameWorkspace(workspaceId, name),
+      markOnboarded: () => actions.markOnboarded(workspaceId),
       loading,
       error:
+        actions.error ??
         projects.error ??
         contacts.error ??
         events.error ??
@@ -114,6 +149,7 @@ export function AppProvider({ workspaceId, children }: { workspaceId: string; ch
         installments.error ??
         expenses.error,
       clearError: () => {
+        actions.clearError();
         projects.clearError();
         contacts.clearError();
         events.clearError();
@@ -161,14 +197,28 @@ export function AppProvider({ workspaceId, children }: { workspaceId: string; ch
       removePayment: payments.remove,
       installments: installments.items,
       addInstallment: installments.add,
+      addInstallments: installments.addMany,
       updateInstallment: installments.update,
       removeInstallment: installments.remove,
+      removeInstallments: installments.removeMany,
       expenses: expenses.items,
       addExpense: expenses.add,
       updateExpense: expenses.update,
       removeExpense: expenses.remove
     }),
-    [workspaceId, loading, projects, contacts, events, sales, payments, installments, expenses]
+    [
+      workspaceId,
+      workspace,
+      actions,
+      loading,
+      projects,
+      contacts,
+      events,
+      sales,
+      payments,
+      installments,
+      expenses
+    ]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

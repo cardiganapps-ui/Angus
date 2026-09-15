@@ -120,3 +120,44 @@ export interface ScheduleEvent {
   notes: string;
   createdAt: string; // ISO
 }
+
+/* ── Workspace settings ──
+   Per-studio preferences stored as jsonb on `workspaces.settings`.
+   Always read through utils/settings.ts → mergeSettings(), which fills
+   defaults and drops anything it doesn't recognize. */
+
+export type Practice =
+  | "pieces"
+  | "commissions"
+  | "classes"
+  | "workshops"
+  | "expos"
+  | "murals"
+  | "illustration"
+  | "other";
+
+export type QuickAction = "sale" | "expense" | "event" | "project" | "contact";
+export type ThemePreference = "light" | "dark" | "system";
+export type TextScale = "sm" | "md" | "lg";
+
+export interface WorkspaceSettings {
+  artistName: string; // "Andrea" → "Buenos días, Andrea"
+  practice: Practice[]; // what she does; gates dashboard sections
+  mediums: string[]; // free-text chips, suggested from her pieces
+  monthlyIncomeGoal: number | null; // MXN collected per month she aims for
+  defaultPaymentMethod: PaymentMethod;
+  defaultDepositPercent: number; // 1–99, the anticipo she usually asks for
+  defaultInstallmentFrequency: "monthly" | "biweekly";
+  budgets: Partial<Record<ExpenseCategory, number>>; // monthly limits
+  theme: ThemePreference;
+  textScale: TextScale;
+  quickActions: QuickAction[]; // FAB speed-dial order on Hoy
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  ownerId: string;
+  settings: WorkspaceSettings;
+  onboardedAt: string | null; // ISO timestamp
+}
