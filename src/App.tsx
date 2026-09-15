@@ -6,6 +6,7 @@ import { useNavigation, type Route } from "./hooks/useNavigation";
 import { useTheme } from "./hooks/useTheme";
 import { useWorkspaces } from "./hooks/useWorkspaces";
 import { AccountSheet } from "./components/AccountSheet";
+import { ChangePasswordSheet } from "./components/ChangePasswordSheet";
 import { EmptyState } from "./components/EmptyState";
 import { BottomTabs, TAB_ORDER } from "./components/BottomTabs";
 import { DataErrorToast } from "./components/DataErrorToast";
@@ -227,6 +228,12 @@ export default function App() {
   return (
     <Shell route={route} navigate={navigate} tabs={signedIn} topbarRight={topbarRight}>
       {body}
+      {/* Arrived from a password-reset link: go straight to choosing a new
+          one rather than dropping her into the app with a session she
+          can't reproduce next time. */}
+      {auth.recovering && user && (
+        <ChangePasswordSheet updatePassword={auth.updatePassword} onClose={auth.clearRecovering} />
+      )}
       {accountOpen && user && (
         <AccountSheet
           email={user.email ?? ""}

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { AuthState } from "../hooks/useAuth";
 import { SegmentedControl } from "../components/SegmentedControl";
 
-type Mode = "signin" | "signup" | "magic";
+type Mode = "signin" | "signup" | "magic" | "reset";
 
 const AUTH_TABS = [
   { k: "signin", l: "Entrar" },
@@ -17,7 +17,8 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const canSubmit = email.trim().length > 3 && (mode === "magic" || password.length >= 8);
+  const needsPassword = mode === "signin" || mode === "signup";
+  const canSubmit = email.trim().length > 3 && (!needsPassword || password.length >= 8);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -31,6 +32,9 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
     else if (mode === "signup") {
       err = await auth.signUp(addr, password);
       if (!err) setNotice("Cuenta creada. Si no entras automáticamente, revisa tu correo para confirmarla.");
+    } else if (mode === "reset") {
+      err = await auth.sendPasswordReset(addr);
+      if (!err) setNotice("Si ese correo tiene cuenta, te enviamos un enlace para crear una contraseña nueva.");
     } else {
       err = await auth.sendMagicLink(addr);
       if (!err) setNotice("Te enviamos un enlace. Ábrelo desde este teléfono para entrar.");
@@ -77,7 +81,7 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
             />
           </div>
 
-          {mode !== "magic" && (
+          {needsPassword && (
             <div className="input-group">
               <label className="input-label" htmlFor="auth-password">
                 Contraseña
@@ -100,7 +104,15 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
           {notice && <div className="auth-notice">{notice}</div>}
 
           <button className="btn btn-primary" type="submit" disabled={!canSubmit || busy}>
-            {busy ? "Un momento…" : mode === "signin" ? "Entrar" : mode === "signup" ? "Crear cuenta" : "Enviar enlace"}
+            {busy
+              ? "Un momento…"
+              : mode === "signin"
+                ? "Entrar"
+                : mode === "signup"
+                  ? "Crear cuenta"
+                  : mode === "reset"
+                    ? "Enviar enlace de recuperación"
+                    : "Enviar enlace"}
           </button>
         </form>
 
@@ -108,13 +120,27 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
           className="btn btn-ghost auth-alt"
           type="button"
           onClick={() => {
-            setMode(mode === "magic" ? "signin" : "magic");
+            setMode(mode === "signin" || mode === "signup" ? "magic" : "signin");
             setError(null);
             setNotice(null);
           }}
         >
-          {mode === "magic" ? "Usar contraseña" : "Entrar con enlace por correo"}
+          {mode === "signin" || mode === "signup" ? "Entrar con enlace por correo" : "Usar contraseña"}
         </button>
+
+        {mode === "signin" && (
+          <button
+            className="btn btn-ghost auth-alt"
+            type="button"
+            onClick={() => {
+              setMode("reset");
+              setError(null);
+              setNotice(null);
+            }}
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
+        )}
       </div>
     </div>
   );
