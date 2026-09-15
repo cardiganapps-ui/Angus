@@ -52,11 +52,14 @@ const WEEKDAYS = [
 export function EventSheet({
   event,
   initialDate,
+  initialKind,
   onClose
 }: {
   event: ScheduleEvent | null;
   /** Pre-fill the date when creating from a calendar day. */
   initialDate?: string;
+  /** Pre-select the kind (Expos creates expos). */
+  initialKind?: EventKind;
   onClose: () => void;
 }) {
   const {
@@ -76,7 +79,8 @@ export function EventSheet({
   const parent: EventSeries | null = event?.seriesId ? (allSeries.find((s) => s.id === event.seriesId) ?? null) : null;
 
   const [title, setTitle] = useState(event?.title ?? "");
-  const [kind, setKind] = useState<EventKind>(event?.kind ?? "class");
+  const [kind, setKind] = useState<EventKind>(event?.kind ?? initialKind ?? "class");
+  const [budget, setBudget] = useState(event?.budget?.toString() ?? "");
   const [date, setDate] = useState(event?.date ?? initialDate ?? todayISO());
   const [startTime, setStartTime] = useState(event?.startTime ?? "");
   const [endTime, setEndTime] = useState(event?.endTime ?? "");
@@ -107,6 +111,7 @@ export function EventSheet({
     location: location.trim(),
     projectId: projectId || null,
     contactId: contactId || null,
+    budget: kind === "expo" && budget ? Number(budget) : null,
     notes: notes.trim()
   };
   const seriesShape = (from: string): Omit<EventSeries, "id" | "createdAt"> => ({
@@ -316,6 +321,17 @@ export function EventSheet({
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {kind === "expo" && (
+        <div className="input-group">
+          <label className="input-label" htmlFor="event-budget">Presupuesto (MXN)</label>
+          <div className="money-input-wrap">
+            <span className="money-input-symbol">$</span>
+            <input id="event-budget" className="input money-input" type="number" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" />
+          </div>
+          <div className="input-help">Stand, transporte, impresiones. Para saber si la expo se paga sola.</div>
         </div>
       )}
 

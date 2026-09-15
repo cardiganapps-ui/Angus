@@ -13,9 +13,12 @@ import { haptic } from "../lib/haptics";
 
 export function ExpenseSheet({
   expense,
+  initialEventId,
   onClose
 }: {
   expense: Expense | null;
+  /** Pre-link a new expense to an expo. */
+  initialEventId?: string;
   onClose: () => void;
 }) {
   const { addExpense, updateExpense, removeExpense, projects, events, rules } = useApp();
@@ -27,7 +30,7 @@ export function ExpenseSheet({
   const [method, setMethod] = useState<PaymentMethod | "">(expense?.method ?? "");
   const rule = expense?.recurringRuleId ? rules.find((r) => r.id === expense.recurringRuleId) : null;
   const [projectId, setProjectId] = useState(expense?.projectId ?? "");
-  const [eventId, setEventId] = useState(expense?.eventId ?? "");
+  const [eventId, setEventId] = useState(expense?.eventId ?? initialEventId ?? "");
   const [notes, setNotes] = useState(expense?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
 

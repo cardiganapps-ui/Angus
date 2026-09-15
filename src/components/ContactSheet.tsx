@@ -12,10 +12,13 @@ import { haptic } from "../lib/haptics";
 
 export function ContactSheet({
   contact,
-  onClose
+  onClose,
+  onDeleted
 }: {
   contact: Contact | null;
   onClose: () => void;
+  /** Called instead of onClose after a delete, so a detail sheet underneath closes too. */
+  onDeleted?: () => void;
 }) {
   const { addContact, updateContact, removeContact } = useApp();
   const { showSuccess } = useToast();
@@ -59,7 +62,7 @@ export function ContactSheet({
     removeContact(contact.id);
     haptic.warn();
     showSuccess("Contacto eliminado");
-    onClose();
+    (onDeleted ?? onClose)();
   }
 
   return (
@@ -72,7 +75,7 @@ export function ContactSheet({
           submitting={submitting}
           onSave={handleSave}
           onDelete={contact ? handleDelete : undefined}
-          confirmText="¿Eliminar este contacto?"
+          confirmText="¿Eliminar este contacto? Sus ventas y eventos quedan sin contacto ligado."
         />
       }
     >

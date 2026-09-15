@@ -16,9 +16,15 @@ export interface ProjectRow {
   title: string;
   medium: string;
   status: Project["status"];
+  availability: Project["availability"];
   start_date: string | null;
   due_date: string | null;
   price: number | string | null;
+  cost: number | string | null;
+  dimensions: string;
+  year: number | null;
+  edition: string;
+  location: string;
   contact_id: string | null;
   notes: string;
   created_at: string;
@@ -46,6 +52,7 @@ export interface EventRow {
   location: string;
   project_id: string | null;
   contact_id: string | null;
+  budget: number | string | null;
   series_id: string | null;
   cancelled: boolean;
   detached: boolean;
@@ -79,9 +86,15 @@ export const projectStore: CloudStoreConfig<Project, ProjectRow> = {
     title: r.title,
     medium: r.medium,
     status: r.status,
+    availability: r.availability,
     startDate: r.start_date,
     dueDate: r.due_date,
     price: r.price === null ? null : Number(r.price),
+    cost: r.cost === null ? null : Number(r.cost),
+    dimensions: r.dimensions,
+    year: r.year,
+    edition: r.edition,
+    location: r.location,
     contactId: r.contact_id,
     notes: r.notes,
     createdAt: r.created_at.slice(0, 10)
@@ -92,9 +105,15 @@ export const projectStore: CloudStoreConfig<Project, ProjectRow> = {
     if (p.title !== undefined) row.title = p.title;
     if (p.medium !== undefined) row.medium = p.medium;
     if (p.status !== undefined) row.status = p.status;
+    if (p.availability !== undefined) row.availability = p.availability;
     if (p.startDate !== undefined) row.start_date = p.startDate;
     if (p.dueDate !== undefined) row.due_date = p.dueDate;
     if (p.price !== undefined) row.price = p.price;
+    if (p.cost !== undefined) row.cost = p.cost;
+    if (p.dimensions !== undefined) row.dimensions = p.dimensions;
+    if (p.year !== undefined) row.year = p.year;
+    if (p.edition !== undefined) row.edition = p.edition;
+    if (p.location !== undefined) row.location = p.location;
     if (p.contactId !== undefined) row.contact_id = p.contactId;
     if (p.notes !== undefined) row.notes = p.notes;
     return row;
@@ -140,6 +159,7 @@ export const eventStore: CloudStoreConfig<ScheduleEvent, EventRow> = {
     location: r.location,
     projectId: r.project_id,
     contactId: r.contact_id,
+    budget: r.budget === null || r.budget === undefined ? null : Number(r.budget),
     seriesId: r.series_id,
     cancelled: r.cancelled,
     detached: r.detached,
@@ -157,6 +177,7 @@ export const eventStore: CloudStoreConfig<ScheduleEvent, EventRow> = {
     if (e.location !== undefined) row.location = e.location;
     if (e.projectId !== undefined) row.project_id = e.projectId;
     if (e.contactId !== undefined) row.contact_id = e.contactId;
+    if (e.budget !== undefined) row.budget = e.budget;
     if (e.seriesId !== undefined) row.series_id = e.seriesId;
     if (e.cancelled !== undefined) row.cancelled = e.cancelled;
     if (e.detached !== undefined) row.detached = e.detached;

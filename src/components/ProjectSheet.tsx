@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
-import type { Project, ProjectStatus } from "../types";
-import { PROJECT_STATUS } from "../data/constants";
+import type { Availability, Project, ProjectStatus } from "../types";
+import { AVAILABILITY, MEDIUM_SUGGESTIONS, PROJECT_STATUS } from "../data/constants";
+import { ChipSelect } from "./ChipSelect";
+import { suggestMediums } from "../utils/settings";
 import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
@@ -22,7 +24,7 @@ export function ProjectSheet({
   project: Project | null;
   onClose: () => void;
 }) {
-  const { addProject, updateProject, removeProject, contacts, sales, payments, expenses } =
+  const { addProject, updateProject, removeProject, contacts, sales, payments, expenses, projects, settings } =
     useApp();
   const { showSuccess } = useToast();
   const [title, setTitle] = useState(project?.title ?? "");
@@ -31,12 +33,20 @@ export function ProjectSheet({
   const [startDate, setStartDate] = useState(project?.startDate ?? "");
   const [dueDate, setDueDate] = useState(project?.dueDate ?? "");
   const [price, setPrice] = useState(project?.price?.toString() ?? "");
+  const [availability, setAvailability] = useState<Availability>(project?.availability ?? "available");
+  const [cost, setCost] = useState(project?.cost?.toString() ?? "");
+  const [dimensions, setDimensions] = useState(project?.dimensions ?? "");
+  const [year, setYear] = useState(project?.year?.toString() ?? "");
+  const [edition, setEdition] = useState(project?.edition ?? "");
+  const [location, setLocation] = useState(project?.location ?? "");
+  const [showSheet, setShowSheet] = useState(!!project && !!(project.dimensions || project.year || project.edition || project.location));
   const [contactId, setContactId] = useState(project?.contactId ?? "");
   const [notes, setNotes] = useState(project?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   const safeClose = submitting ? null : onClose;
   const canSave = title.trim().length > 0;
+  const mediumChips = [...new Set([...settings.mediums, ...suggestMediums(projects)])].slice(0, 6);
   const contactOptions = [...contacts]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => ({ value: c.id, label: c.name }));
@@ -56,6 +66,12 @@ export function ProjectSheet({
       startDate: startDate || null,
       dueDate: dueDate || null,
       price: price ? Number(price) : null,
+      availability,
+      cost: cost ? Number(cost) : null,
+      dimensions: dimensions.trim(),
+      year: year && Number.isInteger(Number(year)) ? Number(year) : null,
+      edition: edition.trim(),
+      location: location.trim(),
       contactId: contactId || null,
       notes: notes.trim()
     };
@@ -65,7 +81,7 @@ export function ProjectSheet({
       addProject({ id: makeId(), createdAt: todayISO(), ...patch });
     }
     haptic.success();
-    showSuccess(project ? "Proyecto actualizado" : "Proyecto creado");
+    showSuccess(project ? "Pieza actualizada" : "Pieza creada");
     onClose();
   }
 
@@ -73,7 +89,7 @@ export function ProjectSheet({
     if (!project) return;
     removeProject(project.id);
     haptic.warn();
-    showSuccess("Proyecto eliminado");
+    showSuccess("Pieza eliminada");
     onClose();
   }
 
@@ -87,7 +103,7 @@ export function ProjectSheet({
           submitting={submitting}
           onSave={handleSave}
           onDelete={project ? handleDelete : undefined}
-          confirmText="¿Eliminar este proyecto?"
+          confirmText="¿Eliminar esta pieza? Sus ventas y gastos quedan sin pieza ligada."
         />
       }
     >
@@ -134,7 +150,21 @@ export function ProjectSheet({
 
       <div className="input-group">
         <label className="input-label" htmlFor="project-medium">Técnica / medio</label>
-        <input id="project-medium" className="input" value={medium} onChange={(e) => setMedium(e.target.value)} placeholder="Óleo, acrílico, grabado..." />
+        <input id="project-medium" className="input" value={medium} onChange={(e) => setMedium(e.target.value)} placeholder="Óleo, acrílico, grabado..." list="project-medium-list" />
+        <datalist id="project-medium-list">
+          {[...new Set([...settings.mediums, ...suggestMediums(projects), ...MEDIUM_SUGGESTIONS])].map((m) => (
+            <option value={m} key={m} />
+          ))}
+        </datalist>
+        {mediumChips.length > 0 && (
+          <div className="chip-row" style={{ marginTop: 8 }}>
+            {mediumChips.map((m) => (
+              <button type="button" key={m} className={`chip ${medium === m ? "active" : ""}`} onClick={() => setMedium(m)}>
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="input-group">
@@ -167,6 +197,49 @@ export function ProjectSheet({
           <input id="project-price" className="input money-input" type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
         </div>
       </div>
+
+      <div className="input-group">
+        <span className="input-label">Disponibilidad</span>
+        <ChipSelect options={AVAILABILITY} value={availability} onChange={setAvailability} ariaLabel="Disponibilidad" />
+      </div>
+
+      {showSheet ? (
+        <>
+          <div className="form-row">
+            <div className="input-group">
+              <label className="input-label" htmlFor="project-dimensions">Medidas</label>
+              <input id="project-dimensions" className="input" value={dimensions} onChange={(e) => setDimensions(e.target.value)} placeholder="60 × 80 cm" />
+            </div>
+            <div className="input-group">
+              <label className="input-label" htmlFor="project-year">Año</label>
+              <input id="project-year" className="input" type="number" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} placeholder="2026" />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="input-group">
+              <label className="input-label" htmlFor="project-edition">Edición</label>
+              <input id="project-edition" className="input" value={edition} onChange={(e) => setEdition(e.target.value)} placeholder="Única, 3/10…" />
+            </div>
+            <div className="input-group">
+              <label className="input-label" htmlFor="project-cost">Costo estimado</label>
+              <div className="money-input-wrap">
+                <span className="money-input-symbol">$</span>
+                <input id="project-cost" className="input money-input" type="number" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0" />
+              </div>
+            </div>
+          </div>
+          <div className="input-group">
+            <label className="input-label" htmlFor="project-location">Dónde está</label>
+            <input id="project-location" className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Taller, galería X, casa de…" />
+          </div>
+        </>
+      ) : (
+        <div className="input-group">
+          <button type="button" className="btn btn-ghost btn-mini" onClick={() => setShowSheet(true)}>
+            + Ficha de la pieza (medidas, año, edición, lugar)
+          </button>
+        </div>
+      )}
 
       <div className="input-group">
         <span className="input-label">Cliente / galería</span>

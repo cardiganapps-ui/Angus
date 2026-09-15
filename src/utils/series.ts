@@ -60,6 +60,7 @@ export function missingOccurrences(
       location: series.location,
       projectId: series.projectId,
       contactId: series.contactId,
+      budget: null,
       seriesId: series.id,
       cancelled: false,
       detached: false,

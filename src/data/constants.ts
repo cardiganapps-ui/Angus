@@ -1,4 +1,5 @@
 import type {
+  Availability,
   ContactRelationship,
   EventKind,
   ExpenseCategory,
@@ -23,6 +24,49 @@ export const PROJECT_STATUS: { value: ProjectStatus; label: string }[] = [
   { value: "on_hold", label: "En pausa" },
   { value: "completed", label: "Terminado" }
 ];
+
+/* Inventory state of a piece. Green = available (a good thing on a
+   shelf), amber = reserved (pending), teal = sold (the "done" money
+   state), gray = not for sale / gifted. */
+export const AVAILABILITY: { value: Availability; label: string }[] = [
+  { value: "available", label: "Disponible" },
+  { value: "reserved", label: "Apartada" },
+  { value: "sold", label: "Vendida" },
+  { value: "not_for_sale", label: "No se vende" },
+  { value: "gifted", label: "Regalada" }
+];
+
+export const AVAILABILITY_BADGE: Record<Availability, string> = {
+  available: "badge-green",
+  reserved: "badge-amber",
+  sold: "badge-teal",
+  not_for_sale: "badge-gray",
+  gifted: "badge-gray"
+};
+
+export const PROJECT_STATUS_BADGE: Record<ProjectStatus, string> = {
+  idea: "badge-purple",
+  in_progress: "badge-teal",
+  on_hold: "badge-amber",
+  completed: "badge-green"
+};
+
+export const CONTACT_RELATIONSHIP_BADGE: Record<ContactRelationship, string> = {
+  lead: "badge-amber",
+  client: "badge-teal",
+  gallery: "badge-purple",
+  supplier: "badge-gray",
+  collaborator: "badge-green",
+  other: "badge-gray"
+};
+
+export const LEAD_STAGE_BADGE: Record<LeadStage, string> = {
+  new: "badge-gray",
+  contacted: "badge-blue",
+  negotiating: "badge-amber",
+  won: "badge-green",
+  lost: "badge-red"
+};
 
 export const CONTACT_RELATIONSHIP: { value: ContactRelationship; label: string }[] = [
   { value: "lead", label: "Prospecto" },

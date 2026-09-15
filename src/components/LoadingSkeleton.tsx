@@ -43,6 +43,12 @@ export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
           <span className="sk-bar" style={{ display: "block", height: 40, borderRadius: 100 }} />
         </div>
       )}
+      {(route === "projects" || route === "contacts") && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <span className="sk-bar" style={{ display: "block", height: 44, borderRadius: 100, marginBottom: 10 }} />
+          <span className="sk-bar" style={{ display: "block", height: 36, borderRadius: 100, width: "80%" }} />
+        </div>
+      )}
       {(route === "forecast" || route === "reports") && (
         <>
           <div className="section">

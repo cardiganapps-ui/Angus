@@ -31,7 +31,8 @@ const GROUPS: NavGroup[] = [
     title: "Tu práctica",
     items: [
       { route: "projects", label: "Obra", icon: "palette" },
-      { route: "contacts", label: "Contactos", icon: "users" }
+      { route: "contacts", label: "Contactos", icon: "users" },
+      { route: "expos", label: "Expos", icon: "map-pin", practice: ["expos"] }
     ]
   },
   {
@@ -59,7 +60,7 @@ export function Drawer({
   onClose: (() => void) | null;
   rail?: boolean;
 }) {
-  const { settings, workspace, projects, contacts, rules } = useApp();
+  const { settings, workspace, projects, contacts, rules, events } = useApp();
   const session = useSession();
   const { exiting, animatedClose } = useSheetExit(true, onClose);
   useEscape(rail ? null : animatedClose);
@@ -69,7 +70,8 @@ export function Drawer({
   const counts: Partial<Record<Route, number>> = {
     projects: projects.length,
     contacts: contacts.length,
-    recurring: rules.filter((r) => r.active).length
+    recurring: rules.filter((r) => r.active).length,
+    expos: events.filter((e) => e.kind === "expo" && !e.cancelled).length
   };
 
   const go = useCallback(

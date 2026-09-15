@@ -25,10 +25,13 @@ const TERMS_HELP: Record<PaymentTerms, string> = {
 
 export function SaleSheet({
   sale,
+  initialEventId,
   onClose,
   onDeleted
 }: {
   sale: Sale | null;
+  /** Pre-link a new sale to an expo. */
+  initialEventId?: string;
   onClose: () => void;
   /** Called instead of onClose after a delete, so a detail sheet
       stacked underneath can close itself too. */
@@ -61,7 +64,7 @@ export function SaleSheet({
   });
   const [projectId, setProjectId] = useState(sale?.projectId ?? "");
   const [contactId, setContactId] = useState(sale?.contactId ?? "");
-  const [eventId, setEventId] = useState(sale?.eventId ?? "");
+  const [eventId, setEventId] = useState(sale?.eventId ?? initialEventId ?? "");
   const [notes, setNotes] = useState(sale?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
 
