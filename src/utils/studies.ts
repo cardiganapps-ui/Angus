@@ -1,6 +1,29 @@
 import type { Assignment, Course, Expense, ScheduleEvent } from "../types";
 import { daysBetween, formatWithWeekday, relativeDayLabel } from "./dates";
 import { fromCents, sumMoney, toCents } from "./money";
+import type { RankedRow } from "./insights";
+
+/** What each course cost her in a period, biggest first, with its share of the total. */
+export function courseSpend(courses: Course[], expenses: Expense[], from: string, to: string): RankedRow[] {
+  const byCourse = new Map<string, { cents: number; count: number }>();
+  for (const e of expenses) {
+    if (!e.courseId || e.date < from || e.date > to) continue;
+    const cur = byCourse.get(e.courseId) ?? { cents: 0, count: 0 };
+    cur.cents += toCents(e.amount);
+    cur.count += 1;
+    byCourse.set(e.courseId, cur);
+  }
+  const total = [...byCourse.values()].reduce((n, r) => n + r.cents, 0);
+  return [...byCourse.entries()]
+    .map(([id, r]) => ({
+      id,
+      label: courses.find((c) => c.id === id)?.name ?? "Curso",
+      amount: fromCents(r.cents),
+      count: r.count,
+      share: total === 0 ? 0 : r.cents / total
+    }))
+    .sort((a, b) => b.amount - a.amount || a.label.localeCompare(b.label));
+}
 
 /* ── Estudios ──
    Derived facts about the courses she takes: which sessions belong to a

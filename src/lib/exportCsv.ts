@@ -1,5 +1,6 @@
-import type { Contact, Expense, Payment, Project, Sale, ScheduleEvent } from "../types";
+import type { Assignment, Contact, Course, Expense, Payment, Project, Sale, ScheduleEvent } from "../types";
 import {
+  ASSIGNMENT_STATUS,
   EXPENSE_CATEGORY,
   INCOME_CATEGORY,
   PAYMENT_METHOD,
@@ -93,6 +94,27 @@ export function expensesCsv(
       e.eventId ? (event.get(e.eventId) ?? "") : "",
       e.recurringRuleId ? "Sí" : "",
       e.notes
+    ]);
+  }
+  return toCsv(rows);
+}
+
+/** Her tareas due in the period (undated ones ride along when created in it). */
+export function assignmentsCsv(assignments: Assignment[], courses: Course[], projects: Project[], from: string, to: string): string {
+  const course = new Map(courses.map((c) => [c.id, c.name]));
+  const piece = new Map(projects.map((p) => [p.id, p.title]));
+  const rows: (string | number | null)[][] = [["Entrega", "Título", "Curso", "Estado", "Entregada el", "Calificación", "Pieza", "Retroalimentación"]];
+  const inPeriod = (a: Assignment) => (a.dueDate ? inRange(a.dueDate, from, to) : inRange(a.createdAt, from, to));
+  for (const a of [...assignments].filter(inPeriod).sort((x, y) => (x.dueDate ?? x.createdAt).localeCompare(y.dueDate ?? y.createdAt))) {
+    rows.push([
+      a.dueDate ?? "",
+      a.title,
+      course.get(a.courseId) ?? "",
+      labelFor(ASSIGNMENT_STATUS, a.status),
+      a.completedAt ?? "",
+      a.grade,
+      a.projectId ? (piece.get(a.projectId) ?? "") : "",
+      a.feedback
     ]);
   }
   return toCsv(rows);

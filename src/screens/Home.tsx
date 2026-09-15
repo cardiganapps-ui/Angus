@@ -41,6 +41,8 @@ import { AssignmentSheet } from "../components/AssignmentSheet";
 import { QuickCaptureSheet } from "../components/notes/QuickCaptureSheet";
 import { NoteEditor } from "../components/NoteEditor";
 import { dueAssignments } from "../utils/studies";
+import { useNotes } from "../hooks/useNotes";
+import { notePreview, relativeTime } from "../utils/noteText";
 import { haptic } from "../lib/haptics";
 
 /* ── Home ──
@@ -99,6 +101,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   const { sales, payments, installments, expenses, contacts, projects, events, settings, groups, attendance, courses, assignments } =
     useApp();
   const [sheet, setSheet] = useState<OpenSheet>(null);
+  const { notes, sessionNote } = useNotes();
 
   const today = todayISO();
   const attention = attentionItems(
@@ -108,6 +111,13 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   // Homework that isn't urgent yet still deserves a quiet line.
   const dueSoon = dueAssignments(assignments, today);
   const entregasSemana = dueSoon.today.length + dueSoon.soon.length;
+  // The student block: today's class, the note she was last in.
+  const studying = courses.some((c) => c.status === "active" || c.status === "upcoming");
+  const todaySession = events
+    .filter((e) => !e.cancelled && e.courseId !== null && e.date === today)
+    .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))[0];
+  const lastNote = studying || notes.length > 0 ? [...notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] : undefined;
+  const courseName = (id: string | null) => (id ? courses.find((c) => c.id === id)?.name : undefined);
   const pulse = moneyPulse(sales, payments, expenses, today);
   const delta = netDelta(pulse.netChange, today);
   const goal = goalProgress(pulse.income, settings.monthlyIncomeGoal);
@@ -212,8 +222,15 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   // next thing on her calendar.
   const nextExpo =
     snapshot.nextExpo && snapshot.nextExpo.id !== snapshot.nextEvent?.id ? snapshot.nextExpo : null;
+  // Today's class already headlines the Tus estudios card — don't list it twice.
+  const shownInStudies = (studying || entregasSemana > 0) && todaySession ? todaySession.id : null;
+  const nextAgenda = snapshot.nextEvent && snapshot.nextEvent.id !== shownInStudies ? snapshot.nextEvent : null;
   const nextStudy =
-    snapshot.nextStudySession && snapshot.nextStudySession.id !== snapshot.nextEvent?.id ? snapshot.nextStudySession : null;
+    snapshot.nextStudySession &&
+    snapshot.nextStudySession.id !== snapshot.nextEvent?.id &&
+    snapshot.nextStudySession.id !== shownInStudies
+      ? snapshot.nextStudySession
+      : null;
 
   return (
     <div className="page">
@@ -429,37 +446,21 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
             </button>
           </div>
 
-          {snapshot.nextEvent ? (
+          {nextAgenda || nextStudy || nextExpo ? (
             <>
-              <EventRow
-                event={snapshot.nextEvent}
-                lead={snapshot.nextEvent.courseId ? "Tu próxima clase" : "Próximo"}
-                onOpen={() => goTo(snapshot.nextEvent?.courseId ? "studies" : "schedule")}
-              />
+              {nextAgenda && (
+                <EventRow
+                  event={nextAgenda}
+                  lead={nextAgenda.courseId ? "Tu próxima clase" : "Próximo"}
+                  onOpen={() => goTo(nextAgenda.courseId ? "studies" : "schedule")}
+                />
+              )}
               {nextStudy && <EventRow event={nextStudy} lead="Tu próxima clase" onOpen={() => goTo("studies")} />}
               {nextExpo && (
                 <EventRow event={nextExpo} lead="Próxima expo" onOpen={() => goTo("schedule")} />
               )}
-              {entregasSemana > 0 && (
-                <button type="button" className="row-item" onClick={() => goTo("studies")}>
-                  <span className="event-dot" style={{ background: "var(--red)" }} />
-                  <div className="row-content">
-                    <div className="row-title">
-                      {entregasSemana} {entregasSemana === 1 ? "entrega" : "entregas"} esta semana
-                    </div>
-                    <div className="row-sub">
-                      {dueSoon.today.length > 0
-                        ? `${dueSoon.today.length} ${dueSoon.today.length === 1 ? "vence hoy" : "vencen hoy"}`
-                        : `La primera: ${dueSoon.soon[0]?.title ?? ""}`}
-                    </div>
-                  </div>
-                  <span className="row-chevron">
-                    <Icon name="chevron-right" size={16} />
-                  </span>
-                </button>
-              )}
             </>
-          ) : (
+          ) : snapshot.nextEvent ? null : (
             <button type="button" className="row-item" onClick={() => goTo("schedule")}>
               <div className="row-content">
                 <div className="row-title">Nada agendado</div>
@@ -472,6 +473,83 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
           )}
         </div>
       </div>
+
+      {(studying || entregasSemana > 0) && (
+        <div className="section">
+          <div className="section-header">
+            <span className="section-title">Tus estudios</span>
+          </div>
+          <div className="card">
+            {todaySession && (
+              <div className="row-item" style={{ cursor: "default" }}>
+                <span className="event-dot" style={{ background: "var(--purple)" }} />
+                <button type="button" className="row-content btn-tap" style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer" }} onClick={() => goTo("studies")}>
+                  <div className="row-title">{courseName(todaySession.courseId) ?? todaySession.title}</div>
+                  <div className="row-sub">
+                    Hoy{todaySession.startTime ? ` · ${todaySession.startTime}` : ""}
+                    {todaySession.location ? ` · ${todaySession.location}` : ""}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className={`row-icon-btn btn-tap ${notes.some((n) => n.eventId === todaySession.id) ? "row-icon-btn--on" : ""}`}
+                  aria-label="Apuntes de hoy"
+                  onClick={async () => {
+                    haptic.tap();
+                    const note = await sessionNote(todaySession);
+                    if (note) setSheet({ kind: "note", note });
+                  }}
+                >
+                  <Icon name="edit" size={16} strokeWidth={2.2} />
+                </button>
+              </div>
+            )}
+            {entregasSemana > 0 && (
+              <button type="button" className="row-item" onClick={() => goTo("studies")}>
+                <span className="event-dot" style={{ background: "var(--red)" }} />
+                <div className="row-content">
+                  <div className="row-title">
+                    {entregasSemana} {entregasSemana === 1 ? "entrega" : "entregas"} esta semana
+                  </div>
+                  <div className="row-sub">
+                    {dueSoon.today.length > 0
+                      ? `${dueSoon.today.length} ${dueSoon.today.length === 1 ? "vence hoy" : "vencen hoy"}`
+                      : `La primera: ${dueSoon.soon[0]?.title ?? ""}`}
+                  </div>
+                </div>
+                <span className="row-chevron">
+                  <Icon name="chevron-right" size={16} />
+                </span>
+              </button>
+            )}
+            {lastNote ? (
+              <button type="button" className="row-item" onClick={() => setSheet({ kind: "note", note: lastNote })}>
+                <span className="event-dot" style={{ background: "var(--accent)" }} />
+                <div className="row-content">
+                  <div className="row-title">{lastNote.title || "Sin título"}</div>
+                  <div className="row-sub">Sigue con tu nota · {relativeTime(lastNote.updatedAt)}{notePreview(lastNote.content, 60) ? ` · ${notePreview(lastNote.content, 60)}` : ""}</div>
+                </div>
+                <span className="row-chevron">
+                  <Icon name="chevron-right" size={16} />
+                </span>
+              </button>
+            ) : (
+              !todaySession &&
+              entregasSemana === 0 && (
+                <button type="button" className="row-item" onClick={() => goTo("notes")}>
+                  <div className="row-content">
+                    <div className="row-title">Sin apuntes todavía</div>
+                    <div className="row-sub">Toca el lápiz en una sesión o escribe una nota rápida.</div>
+                  </div>
+                  <span className="row-chevron">
+                    <Icon name="chevron-right" size={16} />
+                  </span>
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      )}
 
       <QuickAddFab onPick={(action) => setSheet(QUICK_SHEET[action])} />
 

@@ -29,6 +29,8 @@ export type ContactRelationship =
   | "gallery"
   | "supplier"
   | "collaborator"
+  | "teacher"
+  | "school"
   | "other";
 
 export type LeadStage = "new" | "contacted" | "negotiating" | "won" | "lost";

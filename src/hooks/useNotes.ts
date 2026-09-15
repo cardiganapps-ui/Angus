@@ -1,10 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { supabase } from "../lib/supabase";
-import type { Note, NoteTag, NoteVersion } from "../types";
+import type { Note, NoteTag, NoteVersion, ScheduleEvent } from "../types";
 import { deleteFile } from "../lib/files";
+import { NOTE_TEMPLATES, applyTemplate } from "../data/noteTemplates";
 import { makeId } from "../utils/id";
-import { todayISO } from "../utils/dates";
+import { formatWithWeekday, todayISO } from "../utils/dates";
 
 /* ── useNotes ──
    The note operations the editor and the list need, on top of the
@@ -56,6 +57,18 @@ export function useNotes() {
       return ok ? note : null;
     },
     [addNote]
+  );
+
+  /** The note for one class session: the existing one, or a fresh one from the class template. */
+  const sessionNote = useCallback(
+    async (session: ScheduleEvent): Promise<Note | null> => {
+      const existing = notes.find((n) => n.eventId === session.id);
+      if (existing) return existing;
+      const tpl = NOTE_TEMPLATES.find((t) => t.id === "class");
+      const applied = tpl ? applyTemplate(tpl, formatWithWeekday(session.date)) : { title: "", content: "" };
+      return createNote({ ...applied, courseId: session.courseId, eventId: session.id });
+    },
+    [notes, createNote]
   );
 
   const snapshot = useCallback(async (id: string, title: string, content: string, debounceSeconds = 60) => {
@@ -209,6 +222,7 @@ export function useNotes() {
     noteTagLinks,
     tagsByNote,
     createNote,
+    sessionNote,
     saveNote,
     restoreNote,
     togglePin,

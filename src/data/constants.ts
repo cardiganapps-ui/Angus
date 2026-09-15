@@ -64,6 +64,8 @@ export const CONTACT_RELATIONSHIP_BADGE: Record<ContactRelationship, string> = {
   gallery: "badge-purple",
   supplier: "badge-gray",
   collaborator: "badge-green",
+  teacher: "badge-blue",
+  school: "badge-blue",
   other: "badge-gray"
 };
 
@@ -81,6 +83,8 @@ export const CONTACT_RELATIONSHIP: { value: ContactRelationship; label: string }
   { value: "gallery", label: "Galería" },
   { value: "supplier", label: "Proveedor" },
   { value: "collaborator", label: "Colaborador" },
+  { value: "teacher", label: "Maestro/a" },
+  { value: "school", label: "Escuela" },
   { value: "other", label: "Otro" }
 ];
 

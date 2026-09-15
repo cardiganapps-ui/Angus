@@ -23,7 +23,8 @@ import { PeriodPicker } from "../components/PeriodPicker";
 import { BarChart } from "../components/charts/BarChart";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
-import { downloadCsv, expensesCsv, paymentsCsv, salesCsv } from "../lib/exportCsv";
+import { assignmentsCsv, downloadCsv, expensesCsv, paymentsCsv, salesCsv } from "../lib/exportCsv";
+import { courseSpend } from "../utils/studies";
 import { haptic } from "../lib/haptics";
 
 /* ── Reportes ──
@@ -32,7 +33,7 @@ import { haptic } from "../lib/haptics";
    the year, who bought, how leads converted, and a CSV for whoever does
    her taxes. Everything here is read from utils/insights + accounting. */
 export function Reports() {
-  const { sales, payments, expenses, projects, contacts, events } = useApp();
+  const { sales, payments, expenses, projects, contacts, events, courses, assignments } = useApp();
   const { showSuccess, showToast } = useToast();
   const [period, setPeriod] = useState<Period>(() => currentPeriod("year"));
   const range = periodRange(period);
@@ -48,6 +49,7 @@ export function Reports() {
   const clients = useMemo(() => topClients(sales, payments, contacts, range.from, range.to), [sales, payments, contacts, range.from, range.to]);
   const funnel = useMemo(() => leadFunnel(contacts, range.from, range.to), [contacts, range.from, range.to]);
   const daysToCollect = useMemo(() => avgDaysToCollect(sales, payments, range.from, range.to), [sales, payments, range.from, range.to]);
+  const studies = useMemo(() => courseSpend(courses, expenses, range.from, range.to), [courses, expenses, range.from, range.to]);
 
   const empty = summary.income === 0 && summary.expenses === 0 && summary.salesCount === 0;
   const currentMonth = todayISO().slice(0, 7);
@@ -56,11 +58,13 @@ export function Reports() {
   function exportAll() {
     haptic.tap();
     const tag = `${range.from}_${range.to}`;
+    const withTareas = assignments.length > 0;
     const ok =
       downloadCsv(`angus-ventas-${tag}.csv`, salesCsv(sales, payments, contacts, projects, range.from, range.to)) &&
       downloadCsv(`angus-pagos-${tag}.csv`, paymentsCsv(payments, sales, contacts, range.from, range.to)) &&
-      downloadCsv(`angus-gastos-${tag}.csv`, expensesCsv(expenses, projects, events, range.from, range.to));
-    if (ok) showSuccess("Tres archivos CSV descargados");
+      downloadCsv(`angus-gastos-${tag}.csv`, expensesCsv(expenses, projects, events, range.from, range.to)) &&
+      (!withTareas || downloadCsv(`angus-tareas-${tag}.csv`, assignmentsCsv(assignments, courses, projects, range.from, range.to)));
+    if (ok) showSuccess(withTareas ? "Cuatro archivos CSV descargados" : "Tres archivos CSV descargados");
     else showToast("Tu navegador no permitió la descarga.", "error");
   }
 
@@ -160,6 +164,9 @@ export function Reports() {
           {clients.length > 0 && (
             <Ranked title="Quién compró" rows={clients} unit={(r) => `${r.count} ${r.count === 1 ? "venta" : "ventas"}`} />
           )}
+          {studies.length > 0 && (
+            <Ranked title="Lo que invertiste en estudiar" rows={studies} unit={(r) => `${r.count} ${r.count === 1 ? "pago" : "pagos"}`} />
+          )}
 
           <div className="section">
             <div className="section-header">
@@ -202,7 +209,7 @@ export function Reports() {
             </span>
             <div className="row-content">
               <div className="row-title">Descargar CSV · {range.label}</div>
-              <div className="row-sub">Ventas, pagos y gastos, listos para Excel o tu contador.</div>
+              <div className="row-sub">Ventas, pagos, gastos{assignments.length > 0 ? " y tareas" : ""}, listos para Excel o tu contador.</div>
             </div>
             <span className="row-chevron" aria-hidden="true">
               <Icon name="chevron-right" size={16} />

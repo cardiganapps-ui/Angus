@@ -5,6 +5,9 @@ import type { Contact, LeadStage } from "../types";
 import {
   CONTACT_RELATIONSHIP,
   CONTACT_RELATIONSHIP_BADGE,
+  COURSE_KIND,
+  COURSE_STATUS,
+  COURSE_STATUS_BADGE,
   EVENT_KIND,
   EVENT_KIND_BADGE,
   LEAD_STAGE,
@@ -30,12 +33,13 @@ import { haptic } from "../lib/haptics";
    what they owe, their sales, upcoming sessions, and — for a lead —
    one-tap follow-up actions. Editing still goes through ContactSheet. */
 
-type Tab = "info" | "sales" | "agenda" | "classes";
+type Tab = "info" | "sales" | "agenda" | "classes" | "studies";
 const TAB_ITEMS = [
   { k: "info", l: "Info" },
   { k: "sales", l: "Ventas" },
   { k: "agenda", l: "Agenda" },
-  { k: "classes", l: "Clases" }
+  { k: "classes", l: "Clases" },
+  { k: "studies", l: "Estudios" }
 ];
 
 function waLink(phone: string): string | null {
@@ -47,7 +51,7 @@ function waLink(phone: string): string | null {
 }
 
 export function ContactDetailSheet({ contactId, onClose }: { contactId: string; onClose: () => void }) {
-  const { contacts, sales, payments, events, updateContact, groups, enrollments, attendance } = useApp();
+  const { contacts, sales, payments, events, updateContact, groups, enrollments, attendance, courses } = useApp();
   const { showSuccess } = useToast();
   const [tab, setTab] = useState<Tab>("info");
   const [editing, setEditing] = useState(false);
@@ -87,7 +91,9 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
         .filter((x): x is { enrollment: (typeof enrollments)[number]; group: NonNullable<typeof x.group> } => !!x.group),
     [enrollments, groups, contactId]
   );
-  const tabItems = myGroups.length ? TAB_ITEMS : TAB_ITEMS.filter((t) => t.k !== "classes");
+  // Courses this person teaches her (or that this school hosts).
+  const taught = useMemo(() => courses.filter((c) => c.teacherContactId === contactId), [courses, contactId]);
+  const tabItems = TAB_ITEMS.filter((t) => (t.k === "classes" ? myGroups.length > 0 : t.k === "studies" ? taught.length > 0 : true));
 
   if (!contact) return null;
 
@@ -272,6 +278,24 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {tab === "studies" && (
+          <div className="money-list" style={{ marginTop: 14 }}>
+            {taught.map((c) => (
+              <div className="row-item" key={c.id} style={{ cursor: "default" }}>
+                <div className="row-content">
+                  <div className="row-title">{c.name}</div>
+                  <div className="row-sub">
+                    {labelFor(COURSE_KIND, c.kind)}
+                    {c.institution ? ` · ${c.institution}` : ""}
+                    {c.startDate ? ` · desde ${formatShort(c.startDate)}` : ""}
+                  </div>
+                </div>
+                <span className={`badge ${COURSE_STATUS_BADGE[c.status]}`}>{labelFor(COURSE_STATUS, c.status)}</span>
+              </div>
+            ))}
           </div>
         )}
 

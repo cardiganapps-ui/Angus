@@ -4,6 +4,7 @@ import {
   assignmentProgress,
   courseCost,
   courseSessions,
+  courseSpend,
   courseTareas,
   courseTimeline,
   coursesByStatus,
@@ -79,6 +80,22 @@ describe("courseCost", () => {
       remaining: 500
     });
     expect(courseCost(course({ paymentPlan: "free", cost: null }), paid).total).toBe(0);
+  });
+
+  it("ranks courses by what they cost in a period", () => {
+    const list = [course({ id: "c1", name: "Maestría" }), course({ id: "c2", name: "Taller de grabado" })];
+    const spent = [
+      { ...expense(3000, "c1"), date: "2026-09-01" },
+      { ...expense(3000, "c1"), id: "x2", date: "2026-10-01" },
+      { ...expense(800, "c2"), date: "2026-09-10" },
+      { ...expense(500, null), date: "2026-09-10" },
+      { ...expense(999, "c1"), id: "x-out", date: "2026-08-30" }
+    ];
+    expect(courseSpend(list, spent, "2026-09-01", "2026-10-31")).toEqual([
+      { id: "c1", label: "Maestría", amount: 6000, count: 2, share: 6000 / 6800 },
+      { id: "c2", label: "Taller de grabado", amount: 800, count: 1, share: 800 / 6800 }
+    ]);
+    expect(courseSpend(list, [], "2026-09-01", "2026-09-30")).toEqual([]);
   });
 
   it("leaves the total unknown when it can't be derived, but still reports what was paid", () => {

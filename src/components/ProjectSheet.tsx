@@ -13,6 +13,11 @@ import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
 import { projectMargins } from "../utils/accounting";
 import { formatMXNShort, formatMXNShortSigned } from "../utils/money";
+import { useDocuments } from "../hooks/useDocuments";
+import { DocumentList } from "./DocumentList";
+import { DocumentViewer } from "./DocumentViewer";
+import { UploadSheet } from "./UploadSheet";
+import type { Document } from "../types";
 import { haptic } from "../lib/haptics";
 
 const STATUS_ITEMS = PROJECT_STATUS.map((s) => ({ k: s.value, l: s.label }));
@@ -52,6 +57,10 @@ export function ProjectSheet({
   const [courseId, setCourseId] = useState(project?.courseId ?? initialCourseId ?? "");
   const [notes, setNotes] = useState(project?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const { documentsFor, remove: removeDocument } = useDocuments();
+  const [docOpen, setDocOpen] = useState<Document | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const photos = project ? documentsFor({ projectId: project.id }) : [];
 
   const safeClose = submitting ? null : onClose;
   const canSave = title.trim().length > 0;
@@ -277,10 +286,25 @@ export function ProjectSheet({
         </div>
       )}
 
+      {project && (
+        <div className="input-group">
+          <div className="section-header" style={{ padding: "0 0 8px" }}>
+            <span className="input-label" style={{ marginBottom: 0 }}>Fotos y archivos</span>
+            <button type="button" className="see-all btn-tap" onClick={() => setUploadOpen(true)}>+ Agregar</button>
+          </div>
+          <div className="money-list">
+            <DocumentList documents={photos} onOpen={(d) => (d.kind === "link" && d.url ? window.open(d.url, "_blank", "noopener") : setDocOpen(d))} emptyBody="Fotos del proceso, de la pieza terminada, o el PDF de la ficha." />
+          </div>
+        </div>
+      )}
+
       <div className="input-group">
         <label className="input-label" htmlFor="project-notes">Notas</label>
         <textarea id="project-notes" className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
+
+      {uploadOpen && project && <UploadSheet links={{ projectId: project.id, courseId: project.courseId }} onClose={() => setUploadOpen(false)} />}
+      {docOpen && <DocumentViewer doc={docOpen} onClose={() => setDocOpen(null)} onDelete={removeDocument} />}
     </Sheet>
   );
 }

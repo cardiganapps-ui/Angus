@@ -24,7 +24,6 @@ import { DocumentViewer } from "./DocumentViewer";
 import { UploadSheet } from "./UploadSheet";
 import { LinkSheet } from "./LinkSheet";
 import type { Document } from "../types";
-import { NOTE_TEMPLATES, applyTemplate } from "../data/noteTemplates";
 import { notePreview, relativeTime } from "../utils/noteText";
 import { haptic } from "../lib/haptics";
 
@@ -50,7 +49,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
   const [expense, setExpense] = useState<Expense | null | "new">(null);
   const [tarea, setTarea] = useState<Assignment | null | "new">(null);
   const [noteOpen, setNoteOpen] = useState<Note | null>(null);
-  const { notes, createNote } = useNotes();
+  const { notes, createNote, sessionNote } = useNotes();
   const { documentsFor, remove: removeDocument } = useDocuments();
   const [docOpen, setDocOpen] = useState<Document | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -79,15 +78,8 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
   // "Apuntes" on a session: open its note, or start one from the class template.
   async function openSessionNote(s: ScheduleEvent) {
     if (!course) return;
-    const existing = notes.find((n) => n.eventId === s.id);
-    if (existing) {
-      setNoteOpen(existing);
-      return;
-    }
-    const tpl = NOTE_TEMPLATES.find((t) => t.id === "class");
-    const applied = tpl ? applyTemplate(tpl, formatWithWeekday(s.date)) : { title: "", content: "" };
-    const created = await createNote({ ...applied, courseId: course.id, eventId: s.id });
-    if (created) setNoteOpen(created);
+    const note = await sessionNote({ ...s, courseId: s.courseId ?? course.id });
+    if (note) setNoteOpen(note);
   }
   async function newCourseNote() {
     if (!course) return;

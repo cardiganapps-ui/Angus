@@ -1,7 +1,10 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
-import type { Course } from "../types";
+import type { Course, CourseKind } from "../types";
 import { COURSE_KIND, COURSE_KIND_BADGE, labelFor } from "../data/constants";
+import { SearchField } from "../components/SearchField";
+import { matches } from "../utils/text";
+import { haptic } from "../lib/haptics";
 import { courseCost, courseSessions, courseTareas, coursesByStatus, dueAssignments, nextSession } from "../utils/studies";
 import { formatMXNShort } from "../utils/money";
 import { addDays, formatWithWeekday, todayISO } from "../utils/dates";
@@ -19,9 +22,19 @@ export function Studies() {
   const { courses, events, expenses, assignments } = useApp();
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [kind, setKind] = useState<"all" | CourseKind>("all");
   const today = todayISO();
 
-  const buckets = useMemo(() => coursesByStatus(courses, today), [courses, today]);
+  const filtered = useMemo(() => {
+    let list = courses;
+    if (query.trim()) list = list.filter((c) => matches(`${c.name} ${c.institution} ${c.location}`, query));
+    if (kind !== "all") list = list.filter((c) => c.kind === kind);
+    return list;
+  }, [courses, query, kind]);
+  const filtering = query.trim() !== "" || kind !== "all";
+  const buckets = useMemo(() => coursesByStatus(filtered, today), [filtered, today]);
+  const kindsInUse = useMemo(() => COURSE_KIND.filter((k) => courses.some((c) => c.kind === k.value)), [courses]);
   const weekEnd = addDays(today, 6);
   const sessionsThisWeek = useMemo(
     () => events.filter((e) => !e.cancelled && e.courseId !== null && e.date >= today && e.date <= weekEnd).length,
@@ -80,6 +93,22 @@ export function Studies() {
         <h1 className="page-title">Estudios</h1>
       </div>
 
+      {courses.length > 2 && (
+        <>
+          <SearchField value={query} onChange={setQuery} placeholder="Buscar curso o escuela…" ariaLabel="Buscar cursos" />
+          {kindsInUse.length > 1 && (
+            <div className="filter-row" role="group" aria-label="Filtrar por tipo">
+              <FilterChip active={kind === "all"} onClick={() => setKind("all")}>Todos</FilterChip>
+              {kindsInUse.map((k) => (
+                <FilterChip key={k.value} active={kind === k.value} onClick={() => setKind(k.value)}>
+                  {k.label}
+                </FilterChip>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       {courses.length === 0 ? (
         <div className="section">
           <div className="card">
@@ -88,6 +117,12 @@ export function Studies() {
               title="Sin cursos todavía"
               body="Agrega la clase, taller o maestría que estás tomando. Angus agenda las sesiones, te recuerda las entregas y lleva lo que has pagado."
             />
+          </div>
+        </div>
+      ) : filtered.length === 0 && filtering ? (
+        <div className="section">
+          <div className="card">
+            <EmptyState icon="search" title="Nada coincide" body="Prueba con otra palabra o quita el filtro." />
           </div>
         </div>
       ) : (
@@ -126,5 +161,21 @@ export function Studies() {
       {creating && <CourseSheet course={null} onClose={() => setCreating(false)} />}
       {open && <CourseDetailSheet courseId={open} onClose={() => setOpen(null)} />}
     </div>
+  );
+}
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      className={`chip ${active ? "active" : ""}`}
+      aria-pressed={active}
+      onClick={() => {
+        haptic.tap();
+        onClick();
+      }}
+    >
+      {children}
+    </button>
   );
 }
