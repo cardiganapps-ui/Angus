@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type {
+  Assignment,
   Attendance,
   ClassEnrollment,
   ClassGroup,
@@ -18,6 +19,7 @@ import type {
 } from "../types";
 import { useCloudStore } from "../hooks/useCloudStore";
 import {
+  assignmentStore,
   attendanceStore,
   classEnrollmentStore,
   classGroupStore,
@@ -134,8 +136,13 @@ interface AppContextValue {
   courses: Course[];
   addCourse: (c: Course) => Promise<boolean>;
   updateCourse: (id: string, patch: Partial<Course>) => Promise<void>;
-  /** Deletes the course and its schedule (series + sessions); expenses, rules, notes and pieces stay unlinked. */
+  /** Deletes the course and its schedule (series + sessions) and tareas; expenses, rules, notes and pieces stay unlinked. */
   removeCourse: (id: string) => Promise<void>;
+
+  assignments: Assignment[];
+  addAssignment: (a: Assignment) => Promise<boolean>;
+  updateAssignment: (id: string, patch: Partial<Assignment>) => Promise<void>;
+  removeAssignment: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -166,6 +173,7 @@ export function AppProvider({
   const enrollments = useCloudStore(workspaceId, classEnrollmentStore);
   const attendance = useCloudStore(workspaceId, attendanceStore);
   const courses = useCloudStore(workspaceId, courseStore);
+  const assignments = useCloudStore(workspaceId, assignmentStore);
 
   const loading =
     projects.loading ||
@@ -180,7 +188,8 @@ export function AppProvider({
     groups.loading ||
     enrollments.loading ||
     attendance.loading ||
-    courses.loading;
+    courses.loading ||
+    assignments.loading;
 
   // Materialize due recurring rules into real rows. Runs once the data
   // is in, and again whenever a rule or its rows change; the unique
@@ -289,7 +298,8 @@ export function AppProvider({
         groups.error ??
         enrollments.error ??
         attendance.error ??
-        courses.error,
+        courses.error ??
+        assignments.error,
       clearError: () => {
         actions.clearError();
         projects.clearError();
@@ -305,6 +315,7 @@ export function AppProvider({
         enrollments.clearError();
         attendance.clearError();
         courses.clearError();
+        assignments.clearError();
       },
       refreshAll: async () => {
         failedMaterialization.current = null;
@@ -322,7 +333,8 @@ export function AppProvider({
           groups.reload(),
           enrollments.reload(),
           attendance.reload(),
-          courses.reload()
+          courses.reload(),
+          assignments.reload()
         ]);
       },
       projects: projects.items,
@@ -447,7 +459,12 @@ export function AppProvider({
           attendance.dropLocal((a) => sessionIds.has(a.eventId));
         }
         await courses.remove(id);
-      }
+        assignments.dropLocal((a) => a.courseId === id);
+      },
+      assignments: assignments.items,
+      addAssignment: assignments.add,
+      updateAssignment: assignments.update,
+      removeAssignment: assignments.remove
     }),
     [
       workspaceId,
@@ -466,7 +483,8 @@ export function AppProvider({
       groups,
       enrollments,
       attendance,
-      courses
+      courses,
+      assignments
     ]
   );
 

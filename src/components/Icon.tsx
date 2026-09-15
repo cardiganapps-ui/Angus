@@ -37,7 +37,8 @@ export type IconName =
   | "message"
   | "user"
   | "pause"
-  | "play";
+  | "play"
+  | "clipboard";
 
 const PATHS: Record<IconName, string> = {
   home: "M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -85,7 +86,8 @@ const PATHS: Record<IconName, string> = {
   message: "M4 5h16v11H9l-5 4z",
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-3.9 3.6-7 8-7s8 3.1 8 7z",
   pause: "M8 5v14M16 5v14",
-  play: "M7 4l12 8-12 8z"
+  play: "M7 4l12 8-12 8z",
+  clipboard: "M9 4h6a1 1 0 0 1 1 1v2H8V5a1 1 0 0 1 1-1zM8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 13l2 2 4-4"
 };
 
 export function Icon({

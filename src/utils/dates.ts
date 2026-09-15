@@ -116,9 +116,12 @@ export function addMonths(iso: string, months: number): string {
 }
 
 export function daysUntil(iso: string): number {
-  const today = parseISODate(todayISO());
-  const target = parseISODate(iso);
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  return daysBetween(todayISO(), iso);
+}
+
+/** Signed whole days from `from` to `to` (negative when `to` is earlier). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((parseISODate(to).getTime() - parseISODate(from).getTime()) / 86_400_000);
 }
 
 /** Month key "YYYY-MM" shifted by N months (negative goes back). */

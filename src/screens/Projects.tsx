@@ -34,7 +34,7 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    production status and availability, sort. Grouped by status so
    "what am I working on" is the first thing on screen. */
 export function Projects() {
-  const { projects, contacts } = useApp();
+  const { projects, contacts, courses } = useApp();
   const [editing, setEditing] = useState<Project | null | "new">(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -130,7 +130,8 @@ export function Projects() {
             <div className="card">
               {g.items.map((project, i) => {
                 const contact = contacts.find((c) => c.id === project.contactId);
-                const meta = [project.medium, project.dimensions, project.year ? String(project.year) : "", contact?.name ?? ""]
+                const course = project.courseId ? courses.find((c) => c.id === project.courseId) : undefined;
+                const meta = [project.medium, project.dimensions, project.year ? String(project.year) : "", contact?.name ?? "", course ? `Para ${course.name}` : ""]
                   .filter(Boolean)
                   .join(" · ");
                 return (
@@ -157,6 +158,7 @@ export function Projects() {
                             {labelFor(AVAILABILITY, project.availability)}
                           </span>
                         )}
+                        {course && <span className="badge badge-purple">Curso</span>}
                       </span>
                       {project.price !== null && <span className="row-amount">{formatMXNShort(project.price)}</span>}
                     </div>

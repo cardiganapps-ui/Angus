@@ -19,15 +19,23 @@ const STATUS_ITEMS = PROJECT_STATUS.map((s) => ({ k: s.value, l: s.label }));
 
 export function ProjectSheet({
   project,
-  onClose
+  initialTitle,
+  initialCourseId,
+  onClose,
+  onCreated
 }: {
   project: Project | null;
+  initialTitle?: string;
+  /** Pre-links a new piece to a course she takes (a tarea's piece). */
+  initialCourseId?: string;
   onClose: () => void;
+  /** Called with the new id after a create instead of onClose, so the caller can pick it. */
+  onCreated?: (id: string) => void;
 }) {
-  const { addProject, updateProject, removeProject, contacts, sales, payments, expenses, projects, settings } =
+  const { addProject, updateProject, removeProject, contacts, courses, sales, payments, expenses, projects, settings } =
     useApp();
   const { showSuccess } = useToast();
-  const [title, setTitle] = useState(project?.title ?? "");
+  const [title, setTitle] = useState(project?.title ?? initialTitle ?? "");
   const [medium, setMedium] = useState(project?.medium ?? "");
   const [status, setStatus] = useState<ProjectStatus>(project?.status ?? "idea");
   const [startDate, setStartDate] = useState(project?.startDate ?? "");
@@ -41,6 +49,7 @@ export function ProjectSheet({
   const [location, setLocation] = useState(project?.location ?? "");
   const [showSheet, setShowSheet] = useState(!!project && !!(project.dimensions || project.year || project.edition || project.location));
   const [contactId, setContactId] = useState(project?.contactId ?? "");
+  const [courseId, setCourseId] = useState(project?.courseId ?? initialCourseId ?? "");
   const [notes, setNotes] = useState(project?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,6 +57,10 @@ export function ProjectSheet({
   const canSave = title.trim().length > 0;
   const mediumChips = [...new Set([...settings.mediums, ...suggestMediums(projects)])].slice(0, 6);
   const contactOptions = [...contacts]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => ({ value: c.id, label: c.name }));
+  const courseOptions = courses
+    .filter((c) => c.status === "active" || c.status === "upcoming" || c.id === courseId)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => ({ value: c.id, label: c.name }));
   // Only for a piece that already has money attached — a brand-new one
@@ -73,16 +86,22 @@ export function ProjectSheet({
       edition: edition.trim(),
       location: location.trim(),
       contactId: contactId || null,
+      courseId: courseId || null,
       notes: notes.trim()
     };
     if (project) {
-      updateProject(project.id, patch);
+      void updateProject(project.id, patch);
     } else {
-      addProject({ id: makeId(), createdAt: todayISO(), courseId: null, ...patch });
+      const id = makeId();
+      void addProject({ id, createdAt: todayISO(), ...patch }).then((ok) => {
+        if (!onCreated) return;
+        if (ok) onCreated(id);
+        else setSubmitting(false);
+      });
     }
     haptic.success();
     showSuccess(project ? "Pieza actualizada" : "Pieza creada");
-    onClose();
+    if (project || !onCreated) onClose();
   }
 
   function handleDelete() {
@@ -250,6 +269,13 @@ export function ProjectSheet({
           onChange={setContactId}
         />
       </div>
+
+      {courseOptions.length > 0 && (
+        <div className="input-group">
+          <span className="input-label">Para el curso</span>
+          <PickerField title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
+        </div>
+      )}
 
       <div className="input-group">
         <label className="input-label" htmlFor="project-notes">Notas</label>

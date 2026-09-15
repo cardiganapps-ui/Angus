@@ -1,4 +1,5 @@
 import type {
+  Assignment,
   Attendance,
   ClassGroup,
   Contact,
@@ -20,7 +21,7 @@ import { fromCents, remainder, sumMoney, toCents } from "./money";
    screen looks up titles from context. That keeps it testable without a
    DOM and keeps the Spanish in one layer. */
 
-export type AttentionKind = "installment" | "followup" | "deadline" | "class";
+export type AttentionKind = "installment" | "followup" | "deadline" | "class" | "assignment";
 
 export interface AttentionItem {
   /** Stable React key — kind + the row it came from. */
@@ -35,6 +36,8 @@ export interface AttentionItem {
   projectId?: string;
   eventId?: string;
   groupId?: string;
+  assignmentId?: string;
+  courseId?: string;
   amount?: number;
 }
 
@@ -48,7 +51,12 @@ export interface AttentionSources {
   events?: ScheduleEvent[];
   groups?: ClassGroup[];
   attendance?: Attendance[];
+  /** Optional: tareas for the courses she takes. */
+  assignments?: Assignment[];
 }
+
+/** A tarea earns a row this many days before it's due — closer than a piece's deadline, it's homework. */
+const ASSIGNMENT_HORIZON_DAYS = 2;
 
 /* One prioritized list of everything asking for her attention, so she
    doesn't have to tour four screens to find out whether she's behind.
@@ -65,8 +73,24 @@ export function attentionItems(
   today: string,
   horizonDays = 7
 ): AttentionItem[] {
-  const { sales, payments, installments, contacts, projects, events = [], groups = [], attendance = [] } = sources;
+  const { sales, payments, installments, contacts, projects, events = [], groups = [], attendance = [], assignments = [] } = sources;
   const items: AttentionItem[] = [];
+
+  // Homework due within two days, or already late.
+  for (const a of assignments) {
+    if (!a.dueDate || a.status === "done") continue;
+    const days = daysUntil(a.dueDate);
+    if (days > ASSIGNMENT_HORIZON_DAYS) continue;
+    items.push({
+      key: `assignment:${a.id}`,
+      kind: "assignment",
+      date: a.dueDate,
+      daysUntil: days,
+      assignmentId: a.id,
+      courseId: a.courseId,
+      projectId: a.projectId ?? undefined
+    });
+  }
 
   // A class session today (or a past one) whose list hasn't been taken.
   if (groups.length) {

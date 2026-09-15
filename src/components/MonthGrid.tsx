@@ -18,12 +18,15 @@ export function MonthGrid({
   month, // any ISO date inside the month
   selected,
   events,
+  marks = [],
   onSelect,
   onMonthChange
 }: {
   month: string;
   selected: string;
   events: ScheduleEvent[];
+  /** Extra dots that aren't events (a tarea's due date). */
+  marks?: { date: string; color: string }[];
   onSelect: (iso: string) => void;
   onMonthChange: (iso: string) => void;
 }) {
@@ -33,15 +36,18 @@ export function MonthGrid({
 
   const byDay = useMemo(() => {
     const map = new Map<string, string[]>();
+    const put = (date: string, color: string) => {
+      const list = map.get(date) ?? [];
+      if (!list.includes(color)) list.push(color);
+      map.set(date, list);
+    };
     for (const e of events) {
       if (e.cancelled) continue;
-      const list = map.get(e.date) ?? [];
-      const color = colorOf.get(e.kind) ?? "var(--charcoal-xl)";
-      if (!list.includes(color)) list.push(color);
-      map.set(e.date, list);
+      put(e.date, colorOf.get(e.kind) ?? "var(--charcoal-xl)");
     }
+    for (const m of marks) put(m.date, m.color);
     return map;
-  }, [events, colorOf]);
+  }, [events, marks, colorOf]);
 
   // Monday-first grid start.
   const firstDow = (parseISODate(from).getDay() + 6) % 7;

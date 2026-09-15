@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
-import type { Contact, Project, QuickAction, ScheduleEvent } from "../types";
+import type { Assignment, Contact, Project, QuickAction, ScheduleEvent } from "../types";
 import type { Route } from "../hooks/useNavigation";
 import { EVENT_KIND, LEAD_STAGE, labelFor } from "../data/constants";
 import {
@@ -37,6 +37,8 @@ import { ExpenseSheet } from "../components/ExpenseSheet";
 import { EventSheet } from "../components/EventSheet";
 import { QuickAddFab } from "../components/QuickAddFab";
 import { AttendanceSheet } from "../components/AttendanceSheet";
+import { AssignmentSheet } from "../components/AssignmentSheet";
+import { dueAssignments } from "../utils/studies";
 import { haptic } from "../lib/haptics";
 
 /* ── Home ──
@@ -64,13 +66,15 @@ const ATTENTION_ICON: Record<AttentionItem["kind"], IconName> = {
   installment: "banknote",
   followup: "users",
   deadline: "clock",
-  class: "graduation"
+  class: "graduation",
+  assignment: "clipboard"
 };
 
 type OpenSheet =
   | { kind: "sale"; id: string }
   | { kind: "contact"; contact: Contact | null }
   | { kind: "project"; project: Project | null }
+  | { kind: "assignment"; assignment: Assignment | null }
   | { kind: "newSale" }
   | { kind: "newExpense" }
   | { kind: "newEvent" }
@@ -82,16 +86,23 @@ const QUICK_SHEET: Record<QuickAction, OpenSheet> = {
   expense: { kind: "newExpense" },
   event: { kind: "newEvent" },
   project: { kind: "project", project: null },
-  contact: { kind: "contact", contact: null }
+  contact: { kind: "contact", contact: null },
+  assignment: { kind: "assignment", assignment: null }
 };
 
 export function Home({ navigate }: { navigate: (route: Route) => void }) {
-  const { sales, payments, installments, expenses, contacts, projects, events, settings, groups, attendance } =
+  const { sales, payments, installments, expenses, contacts, projects, events, settings, groups, attendance, courses, assignments } =
     useApp();
   const [sheet, setSheet] = useState<OpenSheet>(null);
 
   const today = todayISO();
-  const attention = attentionItems({ sales, payments, installments, contacts, projects, events, groups, attendance }, today);
+  const attention = attentionItems(
+    { sales, payments, installments, contacts, projects, events, groups, attendance, assignments },
+    today
+  );
+  // Homework that isn't urgent yet still deserves a quiet line.
+  const dueSoon = dueAssignments(assignments, today);
+  const entregasSemana = dueSoon.today.length + dueSoon.soon.length;
   const pulse = moneyPulse(sales, payments, expenses, today);
   const delta = netDelta(pulse.netChange, today);
   const goal = goalProgress(pulse.income, settings.monthlyIncomeGoal);
@@ -107,6 +118,15 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
      that order, because the name is what she scans for. */
   function describe(item: AttentionItem): { title: string; detail: string; when: string } {
     const relative = relativeDayLabel(item.daysUntil);
+    if (item.kind === "assignment") {
+      const tarea = assignments.find((a) => a.id === item.assignmentId);
+      const course = courses.find((c) => c.id === item.courseId);
+      return {
+        title: tarea?.title ?? "Tarea",
+        detail: `Entregar · ${course?.name ?? "Curso"}`,
+        when: item.daysUntil < 0 ? `Venció ${relative.toLowerCase()}` : relative
+      };
+    }
     if (item.kind === "class") {
       const group = groups.find((g) => g.id === item.groupId);
       const session = events.find((e) => e.id === item.eventId);
@@ -148,6 +168,11 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
      sale's detail sheet, the contact's sheet, the project's sheet. */
   function openItem(item: AttentionItem) {
     haptic.tap();
+    if (item.kind === "assignment") {
+      const tarea = assignments.find((a) => a.id === item.assignmentId);
+      if (tarea) setSheet({ kind: "assignment", assignment: tarea });
+      return;
+    }
     if (item.kind === "class" && item.groupId && item.eventId) {
       setSheet({ kind: "attendance", groupId: item.groupId, eventId: item.eventId });
       return;
@@ -410,6 +435,24 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
               {nextExpo && (
                 <EventRow event={nextExpo} lead="Próxima expo" onOpen={() => goTo("schedule")} />
               )}
+              {entregasSemana > 0 && (
+                <button type="button" className="row-item" onClick={() => goTo("studies")}>
+                  <span className="event-dot" style={{ background: "var(--red)" }} />
+                  <div className="row-content">
+                    <div className="row-title">
+                      {entregasSemana} {entregasSemana === 1 ? "entrega" : "entregas"} esta semana
+                    </div>
+                    <div className="row-sub">
+                      {dueSoon.today.length > 0
+                        ? `${dueSoon.today.length} ${dueSoon.today.length === 1 ? "vence hoy" : "vencen hoy"}`
+                        : `La primera: ${dueSoon.soon[0]?.title ?? ""}`}
+                    </div>
+                  </div>
+                  <span className="row-chevron">
+                    <Icon name="chevron-right" size={16} />
+                  </span>
+                </button>
+              )}
             </>
           ) : (
             <button type="button" className="row-item" onClick={() => goTo("schedule")}>
@@ -446,6 +489,9 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
       )}
       {sheet?.kind === "project" && (
         <ProjectSheet project={sheet.project} onClose={() => setSheet(null)} />
+      )}
+      {sheet?.kind === "assignment" && (
+        <AssignmentSheet assignment={sheet.assignment} onClose={() => setSheet(null)} />
       )}
     </div>
   );

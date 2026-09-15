@@ -1,4 +1,5 @@
 import type {
+  Assignment,
   Attendance,
   ClassEnrollment,
   ClassGroup,
@@ -303,6 +304,54 @@ export const courseStore: CloudStoreConfig<Course, CourseRow> = {
     if (c.paymentPlan !== undefined) row.payment_plan = c.paymentPlan;
     if (c.recurringRuleId !== undefined) row.recurring_rule_id = c.recurringRuleId;
     if (c.notes !== undefined) row.notes = c.notes;
+    return row;
+  }
+};
+
+export interface AssignmentRow {
+  id: string;
+  course_id: string;
+  title: string;
+  description: string;
+  due_date: string | null;
+  due_time: string | null;
+  status: Assignment["status"];
+  completed_at: string | null;
+  project_id: string | null;
+  grade: string;
+  feedback: string;
+  created_at: string;
+}
+
+export const assignmentStore: CloudStoreConfig<Assignment, AssignmentRow> = {
+  table: "assignments",
+  fromRow: (r) => ({
+    id: r.id,
+    courseId: r.course_id,
+    title: r.title,
+    description: r.description,
+    dueDate: r.due_date,
+    dueTime: r.due_time ? r.due_time.slice(0, 5) : null,
+    status: r.status,
+    completedAt: r.completed_at ? r.completed_at.slice(0, 10) : null,
+    projectId: r.project_id,
+    grade: r.grade,
+    feedback: r.feedback,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (a) => {
+    const row: Partial<AssignmentRow> = {};
+    if (a.id !== undefined) row.id = a.id;
+    if (a.courseId !== undefined) row.course_id = a.courseId;
+    if (a.title !== undefined) row.title = a.title;
+    if (a.description !== undefined) row.description = a.description;
+    if (a.dueDate !== undefined) row.due_date = a.dueDate;
+    if (a.dueTime !== undefined) row.due_time = a.dueTime;
+    if (a.status !== undefined) row.status = a.status;
+    if (a.completedAt !== undefined) row.completed_at = a.completedAt;
+    if (a.projectId !== undefined) row.project_id = a.projectId;
+    if (a.grade !== undefined) row.grade = a.grade;
+    if (a.feedback !== undefined) row.feedback = a.feedback;
     return row;
   }
 };

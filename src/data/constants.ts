@@ -1,4 +1,5 @@
 import type {
+  AssignmentStatus,
   AttendanceStatus,
   Availability,
   ContactRelationship,
@@ -290,7 +291,8 @@ export const QUICK_ACTION: { value: QuickAction; label: string; icon: IconName }
   { value: "expense", label: "Nuevo gasto", icon: "receipt" },
   { value: "event", label: "Nuevo evento", icon: "calendar" },
   { value: "project", label: "Nueva pieza", icon: "palette" },
-  { value: "contact", label: "Nuevo contacto", icon: "users" }
+  { value: "contact", label: "Nuevo contacto", icon: "users" },
+  { value: "assignment", label: "Nueva tarea", icon: "clipboard" }
 ];
 
 /* ── Clases ── */
@@ -356,3 +358,13 @@ export const COURSE_PAYMENT_PLAN: { value: CoursePaymentPlan; label: string }[] 
   { value: "per_session", label: "Por sesión" },
   { value: "free", label: "Sin costo" }
 ];
+export const ASSIGNMENT_STATUS: { value: AssignmentStatus; label: string }[] = [
+  { value: "todo", label: "Pendiente" },
+  { value: "in_progress", label: "En proceso" },
+  { value: "done", label: "Entregada" }
+];
+export const ASSIGNMENT_STATUS_BADGE: Record<AssignmentStatus, string> = {
+  todo: "badge-amber",
+  in_progress: "badge-teal",
+  done: "badge-green"
+};

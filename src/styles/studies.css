@@ -1,0 +1,64 @@
+/* ── Estudios · Tareas ──
+   A tarea row is a 44px check target, the title, and a due line whose
+   color carries urgency (paired with words, never alone). Marking one
+   done pops the check with the spring easing — the one animation here
+   that communicates a state change. */
+
+.task-row { align-items: center; }
+.task-row--done .row-title { text-decoration: line-through; color: var(--charcoal-lt); }
+
+.task-check-btn {
+  width: 44px;
+  height: 44px;
+  margin: -8px 0 -8px -10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: inherit;
+}
+.task-check {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.task-check-btn:active .task-check { transform: scale(0.88); }
+.task-check--done {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--white);
+  animation: task-pop var(--dur-slow) var(--ease-spring);
+}
+@keyframes task-pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.task-due { font-weight: 700; }
+.task-due--overdue { color: var(--red); }
+.task-due--today { color: var(--amber); }
+
+/* The "3 de 8 entregadas" band above the list. */
+.tareas-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-check--done { animation: none; }
+}

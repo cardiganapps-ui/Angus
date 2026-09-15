@@ -250,6 +250,26 @@ export interface Course {
   createdAt: string; // ISO
 }
 
+/* A tarea: something a course asks her to hand in. Its description is
+   markdown (task lines drive progress); the piece she made for it links
+   through projectId. Cascades with the course; survives the piece. */
+export type AssignmentStatus = "todo" | "in_progress" | "done";
+
+export interface Assignment {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string;
+  dueDate: string | null; // ISO
+  dueTime: string | null; // HH:MM
+  status: AssignmentStatus;
+  completedAt: string | null; // ISO date
+  projectId: string | null;
+  grade: string;
+  feedback: string;
+  createdAt: string; // ISO
+}
+
 /* ── Clases ──
    A group she teaches (schedule = an EventSeries), the students
    enrolled in it (contacts), one attendance row per student per
@@ -306,7 +326,7 @@ export type Practice =
   | "illustration"
   | "other";
 
-export type QuickAction = "sale" | "expense" | "event" | "project" | "contact";
+export type QuickAction = "sale" | "expense" | "event" | "project" | "contact" | "assignment";
 export type ThemePreference = "light" | "dark" | "system";
 export type TextScale = "sm" | "md" | "lg";
 

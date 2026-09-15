@@ -28,7 +28,7 @@ export const PRACTICES: Practice[] = [
   "other"
 ];
 
-export const QUICK_ACTIONS: QuickAction[] = ["sale", "expense", "event", "project", "contact"];
+export const QUICK_ACTIONS: QuickAction[] = ["sale", "expense", "event", "project", "contact", "assignment"];
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "transfer", "card", "other"];
 const FREQUENCIES: InstallmentFrequency[] = ["monthly", "biweekly"];

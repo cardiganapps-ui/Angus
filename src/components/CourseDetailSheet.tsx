@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
-import type { Course, Expense, ScheduleEvent } from "../types";
+import type { Assignment, Course, Expense, ScheduleEvent } from "../types";
 import { COURSE_KIND, COURSE_KIND_BADGE, COURSE_MODALITY, COURSE_PAYMENT_PLAN, COURSE_STATUS, COURSE_STATUS_BADGE, EXPENSE_CATEGORY, labelFor } from "../data/constants";
-import { courseCost, courseSessions, courseTimeline, nextSession } from "../utils/studies";
+import { assignmentProgress, courseCost, courseSessions, courseTimeline, dueAssignments, nextSession } from "../utils/studies";
 import { describeSeries } from "../utils/series";
 import { formatMXN, formatMXNShort } from "../utils/money";
 import { formatShort, formatWithWeekday, relativeDayLabel, daysUntil, todayISO } from "../utils/dates";
@@ -14,12 +14,15 @@ import { ProgressRing } from "./ProgressRing";
 import { CourseSheet } from "./CourseSheet";
 import { EventSheet } from "./EventSheet";
 import { ExpenseSheet } from "./ExpenseSheet";
+import { AssignmentSheet } from "./AssignmentSheet";
+import { AssignmentRow } from "./AssignmentRow";
 import { haptic } from "../lib/haptics";
 
-type Tab = "summary" | "sessions" | "expenses";
+type Tab = "summary" | "sessions" | "tareas" | "expenses";
 const TAB_ITEMS = [
   { k: "summary", l: "Resumen" },
   { k: "sessions", l: "Sesiones" },
+  { k: "tareas", l: "Tareas" },
   { k: "expenses", l: "Gastos" }
 ];
 
@@ -27,13 +30,14 @@ const TAB_ITEMS = [
    One course she takes: what it is, when it meets (with "Falté" per
    session), and what it has cost her. Tareas, Notas and Material tabs
    join in later stages. */
-export function CourseDetailSheet({ courseId, onClose }: { courseId: string; onClose: () => void }) {
-  const { courses, events, expenses, rules, contacts, series, updateEvent } = useApp();
+export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }: { courseId: string; initialTab?: Tab; onClose: () => void }) {
+  const { courses, events, expenses, rules, contacts, series, projects, assignments, updateEvent, updateAssignment } = useApp();
   const { showSuccess } = useToast();
-  const [tab, setTab] = useState<Tab>("summary");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [editing, setEditing] = useState(false);
   const [session, setSession] = useState<ScheduleEvent | null | "new">(null);
   const [expense, setExpense] = useState<Expense | null | "new">(null);
+  const [tarea, setTarea] = useState<Assignment | null | "new">(null);
   const closeRef = useRef<(() => void) | null>(null);
   const today = todayISO();
 
@@ -47,7 +51,23 @@ export function CourseDetailSheet({ courseId, onClose }: { courseId: string; onC
     () => expenses.filter((e) => e.courseId === courseId).sort((a, b) => b.date.localeCompare(a.date)),
     [expenses, courseId]
   );
+  const courseTareas = useMemo(() => assignments.filter((a) => a.courseId === courseId), [assignments, courseId]);
   if (!course) return null;
+
+  const tareas = dueAssignments(courseTareas, today);
+  const progress = assignmentProgress(courseTareas);
+  const openTareas = [...tareas.overdue, ...tareas.today, ...tareas.soon, ...tareas.later, ...tareas.undated];
+  const doneTareas = courseTareas
+    .filter((a) => a.status === "done")
+    .sort((a, b) => (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt));
+  const projectTitle = (id: string | null) => (id ? (projects.find((p) => p.id === id)?.title ?? null) : null);
+
+  function toggleTarea(a: Assignment) {
+    const done = a.status === "done";
+    if (!done) haptic.success();
+    void updateAssignment(a.id, { status: done ? "todo" : "done", completedAt: done ? null : today });
+    showSuccess(done ? "Tarea reabierta" : "Tarea entregada");
+  }
 
   const next = nextSession(sessions, today);
   const timeline = courseTimeline(sessions, today);
@@ -78,6 +98,10 @@ export function CourseDetailSheet({ courseId, onClose }: { courseId: string; onC
               {tab === "expenses" && course.paymentPlan !== "free" ? (
                 <button type="button" className="btn btn-primary" onClick={() => setExpense("new")}>
                   Registrar pago
+                </button>
+              ) : tab === "tareas" ? (
+                <button type="button" className="btn btn-primary" onClick={() => setTarea("new")}>
+                  Nueva tarea
                 </button>
               ) : (
                 <button type="button" className="btn btn-primary" onClick={() => setSession("new")}>
@@ -111,8 +135,11 @@ export function CourseDetailSheet({ courseId, onClose }: { courseId: string; onC
               </div>
             </div>
             <div>
-              <div className="money-stat-label">Faltas</div>
-              <div className={`money-stat-value ${timeline.missed > 0 ? "money-stat-value--owed" : ""}`}>{timeline.missed}</div>
+              <div className="money-stat-label">Tareas</div>
+              <div className={`money-stat-value ${tareas.overdue.length > 0 ? "money-stat-value--owed" : ""}`}>
+                {progress.done}
+                {progress.total ? ` / ${progress.total}` : ""}
+              </div>
             </div>
             <div>
               <div className="money-stat-label">Pagado</div>
@@ -217,6 +244,61 @@ export function CourseDetailSheet({ courseId, onClose }: { courseId: string; onC
           </div>
         )}
 
+        {tab === "tareas" && (
+          <>
+            {courseTareas.length > 0 && (
+              <div className="money-panel tareas-head" style={{ marginTop: 14 }}>
+                <ProgressRing
+                  ratio={progress.ratio}
+                  size={48}
+                  stroke={5}
+                  color={progress.ratio === 1 ? "var(--green)" : "var(--accent)"}
+                  label={`Tareas entregadas: ${Math.round(progress.ratio * 100)} por ciento`}
+                >
+                  {Math.round(progress.ratio * 100)}%
+                </ProgressRing>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="row-title">
+                    {progress.done} de {progress.total} {progress.total === 1 ? "entregada" : "entregadas"}
+                  </div>
+                  <div className="row-sub">
+                    {tareas.overdue.length > 0
+                      ? `${tareas.overdue.length} ${tareas.overdue.length === 1 ? "vencida" : "vencidas"}`
+                      : tareas.today.length > 0
+                        ? `${tareas.today.length} ${tareas.today.length === 1 ? "vence hoy" : "vencen hoy"}`
+                        : tareas.soon.length > 0
+                          ? `${tareas.soon.length} esta semana`
+                          : progress.ratio === 1
+                            ? "Todo entregado"
+                            : "Nada urgente"}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="money-list" style={{ marginTop: 14 }}>
+              {courseTareas.length === 0 ? (
+                <div className="money-list-empty">
+                  Sin tareas todavía. Anota lo que te pidieron con su fecha de entrega y aparecerá en Hoy y en la Agenda.
+                </div>
+              ) : (
+                <>
+                  {openTareas.map((a) => (
+                    <AssignmentRow key={a.id} assignment={a} today={today} context={projectTitle(a.projectId)} onOpen={() => setTarea(a)} onToggle={() => toggleTarea(a)} />
+                  ))}
+                  {doneTareas.length > 0 && openTareas.length > 0 && (
+                    <div className="money-sheet-section-title" style={{ padding: "12px 16px 4px" }}>
+                      Entregadas
+                    </div>
+                  )}
+                  {doneTareas.map((a) => (
+                    <AssignmentRow key={a.id} assignment={a} today={today} context={projectTitle(a.projectId)} onOpen={() => setTarea(a)} onToggle={() => toggleTarea(a)} />
+                  ))}
+                </>
+              )}
+            </div>
+          </>
+        )}
+
         {tab === "expenses" && (
           <>
             {course.paymentPlan !== "free" && (
@@ -282,6 +364,13 @@ export function CourseDetailSheet({ courseId, onClose }: { courseId: string; onC
           initialCourseId={course.id}
           initialDate={today}
           onClose={() => setSession(null)}
+        />
+      )}
+      {tarea && (
+        <AssignmentSheet
+          assignment={tarea === "new" ? null : tarea}
+          initialCourseId={course.id}
+          onClose={() => setTarea(null)}
         />
       )}
       {expense && (

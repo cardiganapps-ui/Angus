@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Contact, Expense, Installment, Payment, Project, Sale, ScheduleEvent } from "../../types";
+import type { Assignment, Contact, Expense, Installment, Payment, Project, Sale, ScheduleEvent } from "../../types";
 import {
   attentionItems,
   goalProgress,
@@ -117,6 +117,26 @@ describe("attentionItems", () => {
     expect(
       attentionItems({ sales: [], payments: [], installments: [], contacts: [], projects: [] }, TODAY)
     ).toEqual([]);
+  });
+
+  it("surfaces tareas that are late or due within two days, never delivered ones", () => {
+    const tarea = (id: string, dueDate: string | null, status: Assignment["status"] = "todo"): Assignment => ({
+      id, courseId: "k1", title: id, description: "", dueDate, dueTime: null, status, completedAt: null,
+      projectId: id === "soon" ? "p1" : null, grade: "", feedback: "", createdAt: "2026-09-01"
+    });
+    const items = attentionItems(
+      {
+        ...sources,
+        installments: [],
+        contacts: [],
+        projects: [],
+        assignments: [tarea("late", "2026-09-13"), tarea("soon", "2026-09-17"), tarea("far", "2026-09-18"), tarea("done", "2026-09-13", "done"), tarea("undated", null)]
+      },
+      TODAY
+    );
+    expect(items.map((i) => i.key)).toEqual(["assignment:late", "assignment:soon"]);
+    expect(items[0]).toMatchObject({ kind: "assignment", assignmentId: "late", courseId: "k1", daysUntil: -2 });
+    expect(items[1].projectId).toBe("p1");
   });
 });
 

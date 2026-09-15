@@ -1,4 +1,5 @@
-import type { Course, Expense, ScheduleEvent } from "../types";
+import type { Assignment, Course, Expense, ScheduleEvent } from "../types";
+import { daysBetween, formatWithWeekday, relativeDayLabel } from "./dates";
 import { fromCents, sumMoney, toCents } from "./money";
 
 /* ── Estudios ──
@@ -86,4 +87,100 @@ export function coursesByStatus(courses: Course[], today: string): CourseBuckets
   out.upcoming.sort((a, b) => (a.startDate ?? "9999").localeCompare(b.startDate ?? "9999") || byName(a, b));
   out.past.sort((a, b) => (b.endDate ?? b.createdAt).localeCompare(a.endDate ?? a.createdAt) || byName(a, b));
   return out;
+}
+
+/* ── Tareas ── */
+
+/** Open tareas soonest first (undated last), then delivered ones newest first. */
+export function sortAssignments(list: Assignment[]): Assignment[] {
+  const open = list.filter((a) => a.status !== "done");
+  const done = list.filter((a) => a.status === "done");
+  open.sort(
+    (a, b) =>
+      (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") ||
+      (a.dueTime ?? "99").localeCompare(b.dueTime ?? "99") ||
+      a.title.localeCompare(b.title)
+  );
+  done.sort((a, b) => (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt) || a.title.localeCompare(b.title));
+  return [...open, ...done];
+}
+
+export interface DueBuckets {
+  overdue: Assignment[];
+  today: Assignment[];
+  /** Due within `horizonDays` after today. */
+  soon: Assignment[];
+  later: Assignment[];
+  undated: Assignment[];
+}
+
+/** Open tareas bucketed by how close their due date is. */
+export function dueAssignments(assignments: Assignment[], today: string, horizonDays = 7): DueBuckets {
+  const out: DueBuckets = { overdue: [], today: [], soon: [], later: [], undated: [] };
+  for (const a of sortAssignments(assignments)) {
+    if (a.status === "done") continue;
+    if (!a.dueDate) out.undated.push(a);
+    else if (a.dueDate < today) out.overdue.push(a);
+    else if (a.dueDate === today) out.today.push(a);
+    else if (daysBetween(today, a.dueDate) <= horizonDays) out.soon.push(a);
+    else out.later.push(a);
+  }
+  return out;
+}
+
+export interface AssignmentProgress {
+  total: number;
+  done: number;
+  /** 0–1; 0 when there is nothing to do. */
+  ratio: number;
+}
+
+export function assignmentProgress(assignments: Assignment[]): AssignmentProgress {
+  const done = assignments.filter((a) => a.status === "done").length;
+  return { total: assignments.length, done, ratio: assignments.length === 0 ? 0 : done / assignments.length };
+}
+
+/** Markdown task lines ("- [ ]" / "- [x]") in a description, for a sub-progress. */
+export function taskProgress(markdown: string): { total: number; done: number } {
+  let total = 0;
+  let done = 0;
+  for (const line of markdown.split("\n")) {
+    const m = /^\s*(?:[-*+]|\d+[.)])\s+\[([ xX])\]/.exec(line);
+    if (!m) continue;
+    total++;
+    if (m[1] !== " ") done++;
+  }
+  return { total, done };
+}
+
+/** The due line of a tarea: what it says and how loud it is (like relativeDayLabel, Spanish lives here). */
+export function dueLabel(a: Assignment, today: string): { text: string; tone: "overdue" | "today" | "quiet" } {
+  if (!a.dueDate) return { text: "Sin fecha", tone: "quiet" };
+  const days = daysBetween(today, a.dueDate);
+  const time = a.dueTime ? ` ${a.dueTime}` : "";
+  if (days < 0) return { text: `Venció ${relativeDayLabel(days).toLowerCase()}`, tone: "overdue" };
+  if (days === 0) return { text: `Vence hoy${time}`, tone: "today" };
+  if (days === 1) return { text: `Vence mañana${time}`, tone: "quiet" };
+  if (days <= 7) return { text: `Vence en ${days} días`, tone: "quiet" };
+  return { text: `Vence ${formatWithWeekday(a.dueDate)}`, tone: "quiet" };
+}
+
+export interface CourseTareas {
+  pending: number;
+  overdue: number;
+  dueToday: number;
+  /** The soonest open due date, if any. */
+  nextDue: string | null;
+}
+
+/** What a course still asks of her, for its list row. */
+export function courseTareas(assignments: Assignment[], today: string): CourseTareas {
+  const b = dueAssignments(assignments, today);
+  const next = [...b.today, ...b.soon, ...b.later][0]?.dueDate ?? null;
+  return {
+    pending: b.overdue.length + b.today.length + b.soon.length + b.later.length + b.undated.length,
+    overdue: b.overdue.length,
+    dueToday: b.today.length,
+    nextDue: b.overdue[0]?.dueDate ?? next
+  };
 }

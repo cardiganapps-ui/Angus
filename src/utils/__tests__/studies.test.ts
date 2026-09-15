@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { Course, Expense, ScheduleEvent } from "../../types";
-import { courseCost, courseSessions, courseTimeline, coursesByStatus, monthsSpanned, nextSession } from "../studies";
+import type { Assignment, Course, Expense, ScheduleEvent } from "../../types";
+import {
+  assignmentProgress,
+  courseCost,
+  courseSessions,
+  courseTareas,
+  courseTimeline,
+  coursesByStatus,
+  dueAssignments,
+  dueLabel,
+  monthsSpanned,
+  nextSession,
+  sortAssignments,
+  taskProgress
+} from "../studies";
 
 const TODAY = "2026-09-15";
 
@@ -70,6 +83,60 @@ describe("courseCost", () => {
 
   it("leaves the total unknown when it can't be derived, but still reports what was paid", () => {
     expect(courseCost(course({ paymentPlan: "monthly", endDate: null }), [expense(3000, "c1")])).toEqual({ total: null, paid: 3000, remaining: null });
+  });
+});
+
+const tarea = (id: string, over: Partial<Assignment> = {}): Assignment => ({
+  id, courseId: "c1", title: `Tarea ${id}`, description: "", dueDate: null, dueTime: null, status: "todo",
+  completedAt: null, projectId: null, grade: "", feedback: "", createdAt: "2026-09-01", ...over
+});
+
+describe("tareas", () => {
+  const list = [
+    tarea("late", { dueDate: "2026-09-10" }),
+    tarea("today", { dueDate: TODAY, dueTime: "18:00" }),
+    tarea("today-early", { dueDate: TODAY, dueTime: "09:00" }),
+    tarea("soon", { dueDate: "2026-09-20" }),
+    tarea("later", { dueDate: "2026-10-30" }),
+    tarea("undated"),
+    tarea("done-old", { status: "done", completedAt: "2026-09-01", dueDate: "2026-09-02" }),
+    tarea("done-new", { status: "done", completedAt: "2026-09-12" })
+  ];
+
+  it("sorts open ones by due date and time, undated last, delivered newest first", () => {
+    expect(sortAssignments(list).map((a) => a.id)).toEqual([
+      "late", "today-early", "today", "soon", "later", "undated", "done-new", "done-old"
+    ]);
+  });
+
+  it("buckets open tareas by urgency and ignores delivered ones", () => {
+    const b = dueAssignments(list, TODAY);
+    expect(b.overdue.map((a) => a.id)).toEqual(["late"]);
+    expect(b.today.map((a) => a.id)).toEqual(["today-early", "today"]);
+    expect(b.soon.map((a) => a.id)).toEqual(["soon"]);
+    expect(b.later.map((a) => a.id)).toEqual(["later"]);
+    expect(b.undated.map((a) => a.id)).toEqual(["undated"]);
+  });
+
+  it("measures progress by delivered count and by task lines in markdown", () => {
+    expect(assignmentProgress(list)).toEqual({ total: 8, done: 2, ratio: 0.25 });
+    expect(assignmentProgress([])).toEqual({ total: 0, done: 0, ratio: 0 });
+    expect(taskProgress("- [x] boceto\n- [ ] color\n* [X] marco\n1. [ ] entregar\nno es tarea")).toEqual({ total: 4, done: 2 });
+  });
+
+  it("phrases the due line and grades its urgency", () => {
+    expect(dueLabel(tarea("a", { dueDate: "2026-09-13" }), TODAY)).toEqual({ text: "Venció hace 2 días", tone: "overdue" });
+    expect(dueLabel(tarea("b", { dueDate: TODAY, dueTime: "18:00" }), TODAY)).toEqual({ text: "Vence hoy 18:00", tone: "today" });
+    expect(dueLabel(tarea("c", { dueDate: "2026-09-16" }), TODAY)).toEqual({ text: "Vence mañana", tone: "quiet" });
+    expect(dueLabel(tarea("d", { dueDate: "2026-09-20" }), TODAY)).toEqual({ text: "Vence en 5 días", tone: "quiet" });
+    expect(dueLabel(tarea("e", { dueDate: "2026-10-30" }), TODAY)).toEqual({ text: "Vence vie 30 oct", tone: "quiet" });
+    expect(dueLabel(tarea("f"), TODAY)).toEqual({ text: "Sin fecha", tone: "quiet" });
+  });
+
+  it("summarizes what a course still asks, with the overdue date first", () => {
+    expect(courseTareas(list, TODAY)).toEqual({ pending: 6, overdue: 1, dueToday: 2, nextDue: "2026-09-10" });
+    expect(courseTareas([tarea("a", { dueDate: "2026-09-20" }), tarea("b")], TODAY)).toEqual({ pending: 2, overdue: 0, dueToday: 0, nextDue: "2026-09-20" });
+    expect(courseTareas([], TODAY).nextDue).toBeNull();
   });
 });
 
