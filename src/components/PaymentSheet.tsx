@@ -23,11 +23,11 @@ export function PaymentSheet({
   owed: number;
   onClose: () => void;
 }) {
-  const { addPayment, updatePayment, removePayment } = useApp();
+  const { addPayment, updatePayment, removePayment, settings } = useApp();
   const { showSuccess } = useToast();
   const [amount, setAmount] = useState(payment?.amount?.toString() ?? "");
   const [date, setDate] = useState(payment?.date ?? todayISO());
-  const [method, setMethod] = useState<PaymentMethod>(payment?.method ?? "transfer");
+  const [method, setMethod] = useState<PaymentMethod>(payment?.method ?? settings.defaultPaymentMethod);
   const [notes, setNotes] = useState(payment?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
 

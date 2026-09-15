@@ -1,7 +1,7 @@
 import type { Contact, Expense, Installment, Payment, Project, Sale, ScheduleEvent } from "../types";
 import { overdueInstallments, profitLoss, saleCountsTowardRevenue, totals } from "./accounting";
 import { addMonths, daysUntil, monthRange } from "./dates";
-import { fromCents, sumMoney, toCents } from "./money";
+import { fromCents, remainder, sumMoney, toCents } from "./money";
 
 /* ── Dashboard derivations ──
    Everything the home screen shows is derived here so the screen stays a
@@ -256,5 +256,29 @@ export function moneyPulse(
     net: current.net,
     owed: totals(sales, payments).owed,
     netChange: hadPrevious ? current.net - previous.net : null
+  };
+}
+
+/* ── Monthly goal ──
+   How far this month's collected income is from the goal she set in
+   Ajustes. `ratio` is clamped to 1 so a ring never overdraws; `reached`
+   is the celebration flag. */
+export interface GoalProgress {
+  collected: number;
+  goal: number;
+  remaining: number;
+  ratio: number;
+  reached: boolean;
+}
+
+export function goalProgress(collected: number, goal: number | null): GoalProgress | null {
+  if (goal === null || goal <= 0) return null;
+  const ratio = Math.min(1, Math.max(0, collected / goal));
+  return {
+    collected,
+    goal,
+    remaining: remainder(goal, collected),
+    ratio,
+    reached: collected >= goal
   };
 }

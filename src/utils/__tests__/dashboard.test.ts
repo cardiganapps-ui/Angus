@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Contact, Expense, Installment, Payment, Project, Sale, ScheduleEvent } from "../../types";
 import {
   attentionItems,
+  goalProgress,
   moneyPulse,
   monthlyTrend,
   netDelta,
@@ -286,5 +287,29 @@ describe("practiceSnapshot", () => {
   it("is safe on an empty practice", () => {
     const snap = practiceSnapshot([], [], [], TODAY);
     expect(snap).toMatchObject({ inProgress: 0, parked: 0, soldThisMonth: 0, nextExpo: null, nextEvent: null });
+  });
+});
+
+describe("goalProgress", () => {
+  it("is null without a goal", () => {
+    expect(goalProgress(500, null)).toBeNull();
+    expect(goalProgress(500, 0)).toBeNull();
+  });
+
+  it("reports the ratio, the remainder and whether it was reached", () => {
+    expect(goalProgress(2500, 10000)).toEqual({
+      collected: 2500,
+      goal: 10000,
+      remaining: 7500,
+      ratio: 0.25,
+      reached: false
+    });
+  });
+
+  it("clamps at 100% and never reports a negative remainder", () => {
+    const p = goalProgress(12000, 10000)!;
+    expect(p.ratio).toBe(1);
+    expect(p.remaining).toBe(0);
+    expect(p.reached).toBe(true);
   });
 });

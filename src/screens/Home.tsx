@@ -5,6 +5,7 @@ import type { Route } from "../hooks/useNavigation";
 import { EVENT_KIND, LEAD_STAGE, labelFor } from "../data/constants";
 import {
   attentionItems,
+  goalProgress,
   moneyPulse,
   monthlyTrend,
   netDelta,
@@ -14,6 +15,8 @@ import {
   type TrendChart
 } from "../utils/dashboard";
 import { formatMXNShort, formatMXNShortSigned } from "../utils/money";
+import { firstName } from "../utils/settings";
+import { ProgressRing } from "../components/ProgressRing";
 import {
   daysUntil,
   formatDateLong,
@@ -80,13 +83,14 @@ const QUICK_SHEET: Record<QuickAction, OpenSheet> = {
 };
 
 export function Home({ navigate }: { navigate: (route: Route) => void }) {
-  const { sales, payments, installments, expenses, contacts, projects, events } = useApp();
+  const { sales, payments, installments, expenses, contacts, projects, events, settings } = useApp();
   const [sheet, setSheet] = useState<OpenSheet>(null);
 
   const today = todayISO();
   const attention = attentionItems({ sales, payments, installments, contacts, projects }, today);
   const pulse = moneyPulse(sales, payments, expenses, today);
   const delta = netDelta(pulse.netChange, today);
+  const goal = goalProgress(pulse.income, settings.monthlyIncomeGoal);
   const chart = trendChart(
     monthlyTrend(sales, payments, expenses, today, TREND_MONTHS),
     today.slice(0, 7)
@@ -165,7 +169,10 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">{greetingFor()}</h1>
+        <h1 className="page-title">
+          {greetingFor()}
+          {settings.artistName ? `, ${firstName(settings.artistName)}` : ""}
+        </h1>
         <div className="dash-date">{formatDateLong(today)}</div>
       </div>
 
@@ -280,6 +287,30 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
               </div>
             </div>
           </div>
+
+          {goal && (
+            <div className={`dash-goal ${goal.reached ? "dash-goal--reached" : ""}`}>
+              <ProgressRing
+                ratio={goal.ratio}
+                size={64}
+                stroke={7}
+                color={goal.reached ? "var(--green)" : "var(--accent)"}
+                label={`Meta del mes: ${Math.round(goal.ratio * 100)} por ciento`}
+              >
+                {Math.round(goal.ratio * 100)}%
+              </ProgressRing>
+              <div className="dash-goal-text">
+                <div className="dash-goal-title">
+                  {goal.reached ? "Meta del mes cumplida" : "Meta del mes"}
+                </div>
+                <div className="dash-goal-sub">
+                  {goal.reached
+                    ? `Cobraste ${formatMXNShort(goal.collected)} de ${formatMXNShort(goal.goal)}. Bien hecho.`
+                    : `${formatMXNShort(goal.collected)} de ${formatMXNShort(goal.goal)} · faltan ${formatMXNShort(goal.remaining)}`}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

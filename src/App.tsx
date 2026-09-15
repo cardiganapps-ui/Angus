@@ -23,6 +23,7 @@ import { Contacts } from "./screens/Contacts";
 import { Schedule } from "./screens/Schedule";
 import { Money } from "./screens/Money";
 import { Settings } from "./screens/Settings";
+import { Onboarding } from "./screens/Onboarding";
 import { applyTextScale } from "./lib/appearance";
 import { haptic } from "./lib/haptics";
 
@@ -103,6 +104,13 @@ function SignedIn({ route, navigate }: { route: Route; navigate: (r: Route) => v
       </div>
     </PullToRefresh>
   );
+}
+
+/* First login (or an account from before onboarding existed): the setup
+   flow waits for the stores so it can pre-fill from her pieces. */
+function OnboardingGate() {
+  const { loading } = useApp();
+  return loading ? <LoadingSkeleton route="home" /> : <Onboarding />;
 }
 
 /* ── Shell ──
@@ -313,7 +321,7 @@ export default function App() {
     body = (
       <>
         <DataErrorToast />
-        <SignedIn route={route} navigate={navigate} />
+        {active.onboardedAt ? <SignedIn route={route} navigate={navigate} /> : <OnboardingGate />}
       </>
     );
   }

@@ -1,0 +1,88 @@
+/* ── Onboarding ──
+   First-login setup. A full-viewport page with its own scroll body, a
+   progress row of dots, one question per step, and a sticky footer
+   whose primary button is never hidden by the keyboard (the page is a
+   flex column; the body scrolls, the footer doesn't). */
+
+.onb {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  background: var(--white);
+  padding-top: var(--sat);
+  z-index: var(--z-tutorial);
+}
+.onb-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px max(16px, var(--sar)) 6px max(16px, var(--sal));
+  min-height: 52px;
+}
+.onb-dots { display: flex; gap: 6px; align-items: center; }
+.onb-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cream-deeper);
+  transition: background var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-spring);
+}
+.onb-dot--done { background: var(--accent-light); }
+.onb-dot--current { background: var(--accent); transform: scale(1.5); }
+.onb-skip {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font); font-size: var(--text-sm); font-weight: 700;
+  color: var(--charcoal-md); padding: 8px 10px; min-height: 44px;
+  border-radius: var(--radius-pill);
+}
+.onb-skip:active { background: var(--accent-mist); color: var(--accent-dark); }
+
+.onb-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 8px max(20px, var(--sar)) 24px max(20px, var(--sal));
+}
+.onb-step { animation: onbStepIn var(--dur-slow) var(--ease-spring) both; }
+@keyframes onbStepIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.onb-step--back { animation-name: onbStepBack; }
+@keyframes onbStepBack {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.onb-eyebrow {
+  font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--accent-dark); margin-bottom: 10px;
+}
+.onb-title {
+  font-family: var(--font-d); font-weight: 800; font-size: 28px; line-height: 1.15;
+  letter-spacing: -0.4px; color: var(--charcoal); margin: 0 0 8px;
+}
+.onb-lead { font-size: var(--text-md); color: var(--charcoal-md); line-height: 1.5; margin: 0 0 22px; }
+.onb-hint { font-size: var(--text-sm); color: var(--charcoal-lt); margin-top: 10px; }
+
+.onb-foot {
+  display: flex; gap: 10px;
+  padding: 12px max(16px, var(--sar)) calc(var(--sab) + 12px) max(16px, var(--sal));
+  border-top: 1px solid var(--border-lt);
+  background: var(--white);
+}
+.onb-foot .btn { flex: 1; }
+.onb-foot .btn-ghost { flex: 0 0 auto; min-width: 96px; }
+
+/* Summary card on the last step */
+.onb-summary { margin-top: 4px; }
+.onb-summary .row-item { cursor: default; }
+.onb-hero {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--accent-pale); color: var(--accent-dark);
+  display: flex; align-items: center; justify-content: center;
+  margin: 8px 0 20px;
+  animation: onbHeroIn var(--dur-slower) var(--ease-spring) both;
+}
+@keyframes onbHeroIn {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+@media (min-width: 768px) {
+  .onb-body { max-width: 560px; width: 100%; margin: 0 auto; }
+  .onb-foot { justify-content: center; }
+  .onb-foot .btn { max-width: 300px; }
+}

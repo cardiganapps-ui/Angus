@@ -302,3 +302,29 @@
   .dash-pulse-net { font-size: 29px; }
   .dash-chart-axis { width: 46px; }
 }
+
+/* ── Progress ring (goal / budget) ── */
+.ring { position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ring svg { display: block; }
+.ring-track { fill: none; stroke: var(--cream-deeper); }
+.ring-fill {
+  fill: none; stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur-slower) var(--ease-out), stroke var(--dur-base) var(--ease-out);
+}
+.ring-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-d); font-weight: 800; font-size: var(--text-sm);
+  color: var(--charcoal); font-variant-numeric: tabular-nums;
+}
+
+/* Goal band inside the money pulse card */
+.dash-goal {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--border-lt);
+}
+.dash-goal-text { flex: 1; min-width: 0; }
+.dash-goal-title { font-family: var(--font-d); font-weight: 800; font-size: var(--text-md); color: var(--charcoal); }
+.dash-goal-sub { font-size: var(--text-sm); color: var(--charcoal-md); margin-top: 2px; }
+.dash-goal--reached .dash-goal-title { color: var(--green); }

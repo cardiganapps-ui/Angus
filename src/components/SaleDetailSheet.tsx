@@ -54,8 +54,16 @@ function revealBottom(el: HTMLElement | null) {
 }
 
 export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: () => void }) {
-  const { sales, payments, installments, contacts, projects, addInstallments, removeInstallments } =
-    useApp();
+  const {
+    sales,
+    payments,
+    installments,
+    contacts,
+    projects,
+    settings,
+    addInstallments,
+    removeInstallments
+  } = useApp();
   const { showSuccess } = useToast();
 
   const [editing, setEditing] = useState(false);
@@ -64,7 +72,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
   const [confirmingPlan, setConfirmingPlan] = useState(false);
   const [count, setCount] = useState("3");
   const [firstDue, setFirstDue] = useState(todayISO());
-  const [frequency, setFrequency] = useState<InstallmentFrequency>("monthly");
+  const [frequency, setFrequency] = useState<InstallmentFrequency>(settings.defaultInstallmentFrequency);
   const [working, setWorking] = useState(false);
   const closeRef = useRef<(() => void) | null>(null);
   const planFormRef = useRef<HTMLDivElement | null>(null);
