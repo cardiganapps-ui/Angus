@@ -6,6 +6,7 @@ import { monthlyTrend } from "../utils/dashboard";
 import { formatMXN, formatMXNShort, formatMXNShortSigned } from "../utils/money";
 import { formatMonthLong, monthInitial, monthName, todayISO } from "../utils/dates";
 import { BarChart, type ChartColumn } from "../components/charts/BarChart";
+import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
 import { haptic } from "../lib/haptics";
 
@@ -58,6 +59,50 @@ export function Forecast({ navigate }: { navigate: (r: Route) => void }) {
     haptic.tap();
     navigate(r);
   };
+
+  // Nothing to project from yet: say what feeds the forecast instead of
+  // drawing an empty chart of zeros.
+  if (sales.length === 0 && expenses.length === 0 && rules.length === 0) {
+    return (
+      <div className="page">
+        <div className="page-header">
+          <div className="eyebrow">Próximos {AHEAD} meses</div>
+          <h1 className="page-title">Pronóstico</h1>
+        </div>
+        <div className="section">
+          <div className="card">
+            <EmptyState
+              icon="trending"
+              title="Aún no hay nada que proyectar"
+              body="El pronóstico se arma con tus ventas por cobrar, tus ingresos y gastos fijos y el promedio de lo que gastas. Empieza por uno."
+            />
+          </div>
+        </div>
+        <div className="section">
+          <div className="card">
+            <button type="button" className="row-item" onClick={() => go("recurring")}>
+              <div className="row-content">
+                <div className="row-title">Agregar un ingreso o gasto fijo</div>
+                <div className="row-sub">Renta, colegiaturas, apps: lo que se repite cada mes.</div>
+              </div>
+              <span className="row-chevron" aria-hidden="true">
+                <Icon name="chevron-right" size={16} />
+              </span>
+            </button>
+            <button type="button" className="row-item" onClick={() => go("money")}>
+              <div className="row-content">
+                <div className="row-title">Registrar una venta o un gasto</div>
+                <div className="row-sub">Lo que te deben ya cuenta como comprometido.</div>
+              </div>
+              <span className="row-chevron" aria-hidden="true">
+                <Icon name="chevron-right" size={16} />
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

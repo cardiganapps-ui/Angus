@@ -26,6 +26,17 @@ All in `src/components/` unless noted. Props are the real signatures.
 | `Icon` | All icons. Add a path to `PATHS` in `Icon.tsx`; never import an icon library. | `name`, `size?` (12/14/16/20/22/36), `strokeWidth?`. |
 | `AccountSheet` | Topbar avatar → account, workspace switcher, sign out. | Wired in `App.tsx`. |
 | `lib/haptics.ts` | `haptic.tap()` on selection, `haptic.success()` on save, `haptic.warn()` on delete. Pickers and tabs already fire it. | |
+| `Drawer` | The left menu (phones: slides over the page; ≥1024px: a persistent rail via `rail`). Groups come from `GROUPS` inside it; a section hides when her `settings.practice` doesn't include it **unless it already has rows**. Add a route by adding an item there. | `route`, `navigate`, `onClose: (() => void) \| null` (null in rail mode), `rail?`. |
+| `QuickAddFab` | Hoy's speed-dial FAB (sale / expense / event / piece / contact), ordered by `settings.quickActions`. | `onPick(action)`. |
+| `ChipMultiSelect` | Several of a fixed set (practice, mediums, weekdays). Same look as `ChipSelect`. | `options: {value,label,color?}[]`, `value: T[]`, `onChange(next: T[])`, `ariaLabel`. |
+| `SearchField` | The search box at the top of a list screen (Obra, Contactos). 16px input, clear button, `search` icon. | `value`, `onChange`, `placeholder`, `ariaLabel`. |
+| `PeriodPicker` | Month / 3 months / year + chevrons, for any money screen that reports over a range. | `value: Period` (`{anchor, span}` from `utils/period.ts`), `onChange`, `ariaLabel?`. `periodRange(value)` → `{from, to, label}`. |
+| `PlanBuilder` | The payment-plan editor shared by `SaleSheet` and `SaleDetailSheet`: deposit % + balance date, or N installments from a date at a frequency, with a live preview. | `terms: PaymentTerms`, `total`, `saleDate`, `draft: PlanDraft`, `onChange`. Rows come from `utils/plan.ts::planRows`. |
+| `ProgressRing` | A ratio as a ring (monthly goal, budget). SVG, tokens only. | `ratio` (0..1), `size?`, `stroke?`, `color?`, `label` (a11y summary), `children` (center content). |
+| `charts/BarChart` | Grouped bars per month, optional projected columns (washed fill + dashed outline), tap read-out, sr-only table. Built with the `dataviz` rules — load that skill before touching it. | `series: ChartSeries[]`, `columns: ChartColumn[]`, `height?`, `ariaLabel`, `signed?` (negative values allowed). |
+| `MonthGrid` | The calendar month in Agenda → Mes: dots by event kind, today ring, chevrons. | `month` (any ISO date in it), `selected`, `events`, `onSelect(iso)`, `onMonthChange(iso)`. |
+| `SettingsFieldSheet` | Editing one text/money value from a settings row. | `title`, `label`, `value`, `placeholder?`, `kind?: "text" \| "money"`, `help?`, `onSave(next)`, `onClose`. |
+| `UpdateToast` | Mounted once in `App.tsx::Shell`. Shows "Hay una versión nueva · Actualizar" when the service worker has a waiting build; she chooses when to reload. | none |
 
 Money-specific classes live in `src/styles/money.css` (imported by `styles/index.css`): `.money-row-right`, `.money-submeta`, `.money-progress` + `.money-progress-fill`, `.money-stats` + `.money-stat-label` / `.money-stat-value`, `.money-panel` (blush `--cream-dark` info band inside a sheet), `.money-sheet-section` + `.money-sheet-section-title`, `.money-list` + `.money-list-empty`, `.cat-bar-row` (+ label / track / fill / value), `.money-summary`, `.money-section-total`, `.money-confirm`, `.btn-mini`.
 
@@ -56,9 +67,21 @@ Touch these, in this order. Skipping one is how discrepancies start.
 
 `types.ts` → migration (`alter table … add column …` + check constraint if enum) → apply → `rows.ts` (`Row` interface, `fromRow`, `toRow`) → the sheet (state + input/picker) → any row/badge that should show it → `constants.ts` if it's an enum → tests if money.
 
-## 4. Recipe: add a tab / screen
+## 4. Recipe: add a screen
 
-`hooks/useNavigation.ts` (`Route` union + `readRoute`) → `components/BottomTabs.tsx` (`TABS` entry with an `IconName`) → `App.tsx::Screen` case → `components/LoadingSkeleton.tsx` (a layout that mirrors the screen) → the screen file. Slide direction comes from `TAB_ORDER` automatically.
+The bottom pill is fixed at three (Hoy · Agenda · Dinero — owner decision); a new screen is a **drawer route**:
+
+`hooks/useNavigation.ts` (`Route` union + `ROUTES`; add it to `PARENT` if the back chevron should return to Dinero rather than Hoy) → `components/Drawer.tsx` (an item in the right `GROUPS` entry, with an `IconName`, optional `count`, and the `practice` value that gates it) → `App.tsx::Screen` case → `components/LoadingSkeleton.tsx` (a layout that mirrors the screen) → the screen file (`.page` → `.page-header` → sections). The topbar shows the back chevron and the screen fades in automatically because it isn't in `TAB_ROUTES`. Add the route to `scripts/e2e-smoke.mjs` so the smoke test visits it.
+
+## 4b. Recipe: a recurring thing (rule → generated rows)
+
+Angus never stores "this happens every month" as a flag on a row; it stores a **rule** and materializes concrete rows so every list, total and forecast reads plain rows.
+
+1. The rule table (`recurring_rules`, `event_series`) holds cadence + bounds. The generated table gets a provenance column pair (`recurring_rule_id` + `period_key`, or `series_id` + `date`) and a **partial unique index** on it — that index is what makes two devices, a retry, or a double effect harmless.
+2. A pure helper computes what's missing: `utils/materialize.ts::pendingMaterializations(rules, sales, expenses, today)` / `utils/series.ts::pendingOccurrences(series, events, today)`. Test it with the same inputs twice — the second call must return nothing.
+3. `AppContext` runs it in an effect gated on `!loading && inflight === 0` (so it never races an insert that's still in flight) and inserts via `addMany` — a `23505` there means another client won; the store reloads instead of reverting.
+4. Occurrences the user edits get `detached = true` (series) so regeneration leaves them; ones she deletes get `cancelled = true` so the row stays and blocks regeneration. Money rows are never regenerated after an amount change — a rule edit only affects future periods, and the sheet's help text says so.
+5. Deleting a rule sets the FK to null on its rows (`on delete set null`) — history stays. Deleting a series cascades its occurrences, which is why `EventSheet` confirms with the count.
 
 ## 5. Migration template (workspace-scoped, RLS via membership)
 
@@ -101,7 +124,8 @@ Never write raw `cubic-bezier(...)` or `ms` literals — tokens only. Reduced mo
 ## 7. Verification loop
 
 - **Unit:** `npm test` (vitest, `src/**/__tests__`). Money/date helpers must have tests.
-- **Browser smoke:** `npm run e2e -- http://localhost:5173/` (or the live URL) with `E2E_EMAIL` / `E2E_PASS` set. It signs in, visits every tab, opens every "new" sheet, fails on any console/page error, and writes screenshots to `e2e-out/`.
+- **Browser smoke:** `npm run e2e -- http://localhost:5173/` (or the live URL) with `E2E_EMAIL` / `E2E_PASS` set. It signs in, waits for the tab pill, visits the three tabs and the drawer routes, opens every "new" sheet, fails on any console/page error, and writes screenshots to `e2e-out/`. A brand-new account lands in onboarding first — the script skips it via "Saltar por ahora".
+- **Sweeps:** before calling a phase done, capture every route at 360px light and 390px dark (a small Playwright script driven by a JSON list of `{name, w, h, dark, actions}` — see the pattern in `scripts/e2e-smoke.mjs`) and actually look at the PNGs. The two bugs that only show up this way are text that wraps where it shouldn't (topbar brand, row titles) and hex colors that don't flip.
   **There is no standing test account on purpose:** the admin is a member of every workspace, so any permanent test user would clutter the real workspace switcher forever. Create a disposable one with the SQL recipe in §9, run the test, then `delete from auth.users where email = '<throwaway>';` (workspaces and data cascade). Never point the smoke test at the owner's real account — it writes rows.
 - **Motion:** capture frames at 60/140/260/600 ms after a tap (see the pattern in `scripts/e2e-smoke.mjs`; a `burst()` helper that screenshots at offsets). Judge the frames, not just the end state.
 - **In a Claude Code sandbox:** headless Chromium is at `/opt/pw-browsers/chromium`, Playwright at `/opt/node22/lib/node_modules/playwright`; launch with `proxy: { server: process.env.HTTPS_PROXY }` + `args: ["--proxy-bypass-list=localhost;127.0.0.1"]`, run node with `NODE_USE_ENV_PROXY=1`, and relay `https://<ref>.supabase.co/**` through Node `fetch` via `page.route` (Chromium POSTs die on the intercepting proxy). `scripts/e2e-smoke.mjs` does all of this when `HTTPS_PROXY` is set.

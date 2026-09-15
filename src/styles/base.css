@@ -627,7 +627,9 @@ a[href^="tel:"], a[href^="mailto:"] {
 /* No-backdrop-filter fallback lives centrally in components.css's
    Liquid Glass utilities block — it swaps the --glass-bg-* tokens to
    solid, so every token consumer (this bar included) degrades at once. */
-.topbar-brand { display: flex; align-items: center; gap: 6px; font-family: var(--font-d); font-size: 16px; font-weight: 800; color: var(--charcoal); letter-spacing: -0.3px; position: absolute; left: 50%; transform: translateX(-50%); transition: background var(--dur-base) ease, color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring); -webkit-tap-highlight-color: transparent; user-select: none; padding: 4px 12px; border-radius: var(--radius-pill); }
+/* The brand is the studio name, which she picks — one line, clipped
+   with an ellipsis between the menu button and the avatar. */
+.topbar-brand { display: block; max-width: calc(100% - 128px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-family: var(--font-d); font-size: 16px; font-weight: 800; color: var(--charcoal); letter-spacing: -0.3px; position: absolute; left: 50%; transform: translateX(-50%); transition: background var(--dur-base) ease, color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring); -webkit-tap-highlight-color: transparent; user-select: none; padding: 4px 12px; border-radius: var(--radius-pill); }
 .topbar-brand:active { background: var(--accent-pale); color: var(--accent-dark); transform: translateX(-50%) scale(0.88); }
 .topbar-left, .topbar-right { display: flex; align-items: center; gap: 6px; min-width: 36px; }
 .topbar-left { justify-content: flex-start; }

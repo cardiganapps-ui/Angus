@@ -14,6 +14,7 @@ import { EmptyState } from "./components/EmptyState";
 import { Icon } from "./components/Icon";
 import { BottomTabs, TAB_ORDER } from "./components/BottomTabs";
 import { DataErrorToast } from "./components/DataErrorToast";
+import { UpdateToast } from "./components/UpdateToast";
 import { LoadingSkeleton, SkeletonCrossfade } from "./components/LoadingSkeleton";
 import { PullToRefresh } from "./components/PullToRefresh";
 import { AuthScreen } from "./screens/AuthScreen";
@@ -215,6 +216,7 @@ function Shell({
   return (
     <div className={`shell ${rail ? "shell--rail" : ""}`} ref={shellRef}>
       <ToastProvider>
+        <UpdateToast />
         <a href="#main-content" className="skip-link">
           Saltar al contenido
         </a>
@@ -432,9 +434,9 @@ export default function App() {
         <Shell
           route={route}
           navigate={navigate}
-          tabs
+          tabs={!!active.onboardedAt}
           brand={active.name}
-          topbarLeft={topbarLeft}
+          topbarLeft={active.onboardedAt ? topbarLeft : null}
           topbarRight={topbarRight}
           rail={rail ? <Drawer route={route} navigate={navigate} onClose={null} rail /> : null}
         >

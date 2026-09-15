@@ -73,6 +73,19 @@ await shot("00-auth");
 await page.fill("#auth-email", EMAIL);
 await page.fill("#auth-password", PASS);
 await page.click("button[type=submit]");
+// A fresh account lands in onboarding; skip through it so the walk below
+// always starts on Hoy. An onboarded account resolves on the first check.
+await page.waitForSelector(".onb, nav.bottom-tabs", { timeout: 20000 });
+for (let i = 0; i < 12; i++) {
+  const onb = await page.$(".onb");
+  if (!onb) break;
+  if (i === 0) await shot("00-onboarding");
+  const finish = await page.$(".onb >> text=Ir a mi día");
+  const skip = await page.$(".onb-skip");
+  if (finish) await finish.click();
+  else if (skip) await skip.click();
+  await page.waitForTimeout(900);
+}
 await page.waitForSelector("nav.bottom-tabs", { timeout: 20000 });
 await page.waitForTimeout(800);
 await shot("01-home");
@@ -93,16 +106,32 @@ for (const [tab, fab] of tabs) {
   await page.waitForTimeout(500);
 }
 
+// Every drawer route, with the "new" sheet each one owns (null = none).
+// Clases and Expos only show in the drawer when her practice includes
+// them or rows exist; the click tolerates a missing item.
 const drawerRoutes = [
   ["Obra", "Nueva pieza"],
   ["Contactos", "Nuevo contacto"],
+  ["Clases", "Nueva clase"],
+  ["Expos", "Nueva expo"],
+  ["Recurrentes", "Nueva regla"],
+  ["Presupuestos", null],
+  ["Pronóstico", null],
+  ["Reportes", null],
   ["Ajustes", null]
 ];
 for (const [item, fab] of drawerRoutes) {
   await page.click('[aria-label="Menú"]');
   await page.waitForTimeout(500);
   await shot(`04-drawer-${item.toLowerCase()}`);
-  await page.click(`nav.drawer >> text=${item}`);
+  const link = await page.$(`nav.drawer >> text=${item}`);
+  if (!link) {
+    console.log(`(drawer has no "${item}" for this workspace — skipped)`);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    continue;
+  }
+  await link.click();
   await page.waitForTimeout(700);
   await shot(`05-${item.toLowerCase()}`);
   if (fab) {

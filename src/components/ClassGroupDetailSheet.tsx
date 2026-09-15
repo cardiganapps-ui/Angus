@@ -113,7 +113,9 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
         const ok = await addRule({
           id: ruleId,
           kind: "income",
-          title: `Colegiatura · ${nameOf(contactId)} · ${group.name}`,
+          // The student is the rule's contact; rows already show that
+          // name, so the title stays short enough for a phone row.
+          title: `Colegiatura · ${group.name}`,
           amount: group.tuitionAmount,
           category: "class",
           cadence: "monthly",
