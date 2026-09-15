@@ -12,16 +12,27 @@ import type { Route } from "../hooks/useNavigation";
 export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
   return (
     <div className="page" aria-busy="true" aria-label="Cargando">
+      {/* Home leads with the greeting, every other screen with an eyebrow. */}
       <div className="page-header">
-        <span className="sk-bar sk-bar-xs" style={{ width: 90 }} />
-        <span className="sk-bar sk-bar-lg" style={{ width: 140, marginTop: 6 }} />
+        {route === "home" ? (
+          <>
+            <span className="sk-bar sk-bar-lg" style={{ width: 150 }} />
+            <span className="sk-bar sk-bar-sm" style={{ width: 190, marginTop: 6 }} />
+          </>
+        ) : (
+          <>
+            <span className="sk-bar sk-bar-xs" style={{ width: 90 }} />
+            <span className="sk-bar sk-bar-lg" style={{ width: 140, marginTop: 6 }} />
+          </>
+        )}
       </div>
-      {(route === "home" || route === "money") && (
+      {route === "home" && <SkeletonDashboard />}
+      {route === "money" && (
         <div className="kpi-grid">
           {[0, 1].map((i) => (
             <div className="kpi-card" key={i}>
               <span className="sk-bar sk-bar-xs" style={{ width: "60%", marginBottom: 10 }} />
-              <span className="sk-bar sk-bar-lg" style={{ width: route === "money" ? 82 : 44 }} />
+              <span className="sk-bar sk-bar-lg" style={{ width: 82 }} />
             </div>
           ))}
         </div>
@@ -32,13 +43,124 @@ export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
           <span className="sk-bar" style={{ display: "block", height: 40, borderRadius: 100 }} />
         </div>
       )}
-      <SkeletonRows
-        header={route === "home" || route === "schedule"}
-        count={route === "home" ? 3 : 5}
-        dot={route !== "contacts" && route !== "money"}
-      />
+      {route !== "home" && (
+        <SkeletonRows
+          header={route === "schedule"}
+          count={5}
+          dot={route !== "contacts" && route !== "money"}
+        />
+      )}
       {route === "schedule" && <SkeletonRows header count={2} dot />}
     </div>
+  );
+}
+
+/* ── Dashboard skeleton ──
+   Mirrors Home's real stack — attention rows, the money-pulse card with
+   its hero figure over three stats, the six-month chart, and the taller
+   figures — so the first paint already has the destination's shape and
+   the crossfade has nothing to jump over. */
+function SkeletonDashboard() {
+  return (
+    <>
+      <div className="section">
+        <div className="section-header">
+          <span className="sk-bar sk-bar-md" style={{ width: 150 }} />
+        </div>
+        <div className="card">
+          {[0, 1].map((i) => (
+            <div className="row-item" key={i} style={{ cursor: "default", gap: 12 }}>
+              <span className="sk-bar" style={{ width: 34, height: 34, borderRadius: 12 }} />
+              <div
+                className="row-content"
+                style={{ display: "flex", flexDirection: "column", gap: 6 }}
+              >
+                <span className="sk-bar sk-bar-md" style={{ width: `${62 - i * 8}%` }} />
+                <span className="sk-bar sk-bar-xs" style={{ width: `${48 + i * 6}%` }} />
+              </div>
+              <span className="sk-bar sk-bar-md" style={{ width: 62 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="sk-bar sk-bar-md" style={{ width: 84 }} />
+        </div>
+        <div className="card" style={{ padding: 16 }}>
+          <span className="sk-bar" style={{ display: "block", width: 168, height: 30 }} />
+          <span className="sk-bar sk-bar-sm" style={{ display: "block", width: 128, marginTop: 10 }} />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 10,
+              marginTop: 18
+            }}
+          >
+            {[0, 1, 2].map((i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                <span className="sk-bar sk-bar-xs" style={{ width: "70%" }} />
+                <span className="sk-bar sk-bar-md" style={{ width: "88%" }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="sk-bar sk-bar-md" style={{ width: 110 }} />
+        </div>
+        <div className="card" style={{ padding: "14px 16px 12px" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 104 }}>
+            {[44, 68, 30, 86, 56, 100].map((h, i) => (
+              <span
+                key={i}
+                className="sk-bar"
+                style={{ flex: 1, height: `${h}%`, borderRadius: "4px 4px 0 0" }}
+              />
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <span
+                key={i}
+                className="sk-bar sk-bar-xs"
+                style={{ flex: 1, maxWidth: 12, margin: "0 auto" }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="sk-bar sk-bar-md" style={{ width: 92 }} />
+        </div>
+        <div className="card">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 12px" }}
+              >
+                <span className="sk-bar sk-bar-xs" style={{ width: "76%" }} />
+                <span className="sk-bar sk-bar-lg" style={{ width: 30 }} />
+              </div>
+            ))}
+          </div>
+          <div className="row-item" style={{ cursor: "default" }}>
+            <span className="sk-circle" style={{ width: 8, height: 8 }} />
+            <div className="row-content" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span className="sk-bar sk-bar-md" style={{ width: "54%" }} />
+              <span className="sk-bar sk-bar-xs" style={{ width: "38%" }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 

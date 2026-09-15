@@ -1,7 +1,7 @@
 import type { Contact, Expense, Installment, Payment, Project, Sale, ScheduleEvent } from "../types";
 import { overdueInstallments, profitLoss, saleCountsTowardRevenue, totals } from "./accounting";
 import { addMonths, daysUntil, monthRange } from "./dates";
-import { sumMoney } from "./money";
+import { fromCents, sumMoney, toCents } from "./money";
 
 /* ── Dashboard derivations ──
    Everything the home screen shows is derived here so the screen stays a
@@ -120,6 +120,78 @@ export function monthlyTrend(
     points.push({ month: from.slice(0, 7), income: pl.income, expenses: pl.expenses, net: pl.net });
   }
   return points;
+}
+
+export interface TrendBar {
+  /** "2026-09" */
+  month: string;
+  net: number;
+  /** Bar length as a fraction of the WHOLE chart box, 0–1. */
+  height: number;
+  /** Net ≥ 0 — the bar grows up from the zero line instead of down. */
+  positive: boolean;
+  current: boolean;
+}
+
+export interface TrendChart {
+  bars: TrendBar[];
+  /** Distance from the TOP of the box down to the zero line, 0–1. */
+  zeroLine: number;
+  /** Best and worst net in the window — the axis extremes. */
+  max: number;
+  min: number;
+}
+
+/* Bar geometry for the net-per-month chart. One scale serves both
+   halves: the zero line sits exactly where the positive peak and the
+   negative trough divide the box, so a millimetre of bar means the
+   same number of pesos above and below it. A month whose net is zero
+   gets no bar at all rather than a hairline that reads as "a little".
+
+   Degenerate data is the point of testing this: an all-zero window
+   drops the zero line to the bottom and gives every bar height 0 — a
+   flat baseline, never a NaN height or a division by zero. */
+export function trendChart(points: MonthPoint[], currentMonth: string): TrendChart {
+  const cents = points.map((p) => toCents(p.net));
+  const maxCents = Math.max(0, ...cents);
+  const minCents = Math.min(0, ...cents);
+  const span = maxCents - minCents;
+  return {
+    bars: points.map((point, i) => ({
+      month: point.month,
+      net: point.net,
+      height: span === 0 ? 0 : Math.abs(cents[i]) / span,
+      positive: cents[i] >= 0,
+      current: point.month === currentMonth
+    })),
+    zeroLine: span === 0 ? 1 : maxCents / span,
+    max: fromCents(maxCents),
+    min: fromCents(minCents)
+  };
+}
+
+export type NetDirection = "up" | "down" | "flat";
+
+export interface NetDelta {
+  direction: NetDirection;
+  /** Size of the change, never negative — the direction carries the sign. */
+  magnitude: number;
+  /** "2026-08" — the month being compared against. */
+  previousMonth: string;
+}
+
+/* Splits `moneyPulse().netChange` into a size and a direction so the
+   screen can phrase it ("$2,500 más que agosto") without doing
+   arithmetic on money. Null in, null out: no prior month means there
+   is nothing to compare, which is not the same as "no change". */
+export function netDelta(netChange: number | null, anchorISO: string): NetDelta | null {
+  if (netChange === null) return null;
+  const cents = toCents(netChange);
+  return {
+    direction: cents > 0 ? "up" : cents < 0 ? "down" : "flat",
+    magnitude: fromCents(Math.abs(cents)),
+    previousMonth: addMonths(monthRange(anchorISO).from, -1).slice(0, 7)
+  };
 }
 
 export interface PracticeSnapshot {

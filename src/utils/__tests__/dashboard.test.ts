@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Contact, Expense, Installment, Payment, Project, Sale, ScheduleEvent } from "../../types";
-import { attentionItems, moneyPulse, monthlyTrend, practiceSnapshot } from "../dashboard";
+import {
+  attentionItems,
+  moneyPulse,
+  monthlyTrend,
+  netDelta,
+  practiceSnapshot,
+  trendChart,
+  type MonthPoint
+} from "../dashboard";
 
 const TODAY = "2026-09-15";
 
@@ -146,6 +154,92 @@ describe("moneyPulse", () => {
 
   it("has no comparison when there is no prior month to compare with", () => {
     expect(moneyPulse(sales, [payment("p", "s1", 100, "2026-09-05")], [], TODAY).netChange).toBeNull();
+  });
+});
+
+describe("trendChart", () => {
+  const point = (month: string, net: number): MonthPoint => ({
+    month,
+    income: net > 0 ? net : 0,
+    expenses: net < 0 ? -net : 0,
+    net
+  });
+
+  it("puts the zero line where the peaks divide the box and scales both sides alike", () => {
+    const chart = trendChart(
+      [point("2026-07", 3000), point("2026-08", -1000), point("2026-09", 1500)],
+      "2026-09"
+    );
+    // Span is 4000: 3000 above the line, 1000 below → 3/4 of the box on top.
+    expect(chart.zeroLine).toBeCloseTo(0.75);
+    expect(chart.bars.map((b) => b.height)).toEqual([0.75, 0.25, 0.375]);
+    expect(chart.bars.map((b) => b.positive)).toEqual([true, false, true]);
+    expect(chart.max).toBe(3000);
+    expect(chart.min).toBe(-1000);
+  });
+
+  it("survives an all-zero window with a flat baseline and no NaN", () => {
+    const chart = trendChart([point("2026-08", 0), point("2026-09", 0)], "2026-09");
+    expect(chart.zeroLine).toBe(1);
+    expect(chart.bars.every((b) => b.height === 0)).toBe(true);
+    expect(chart.bars.every((b) => Number.isFinite(b.height))).toBe(true);
+    expect(chart).toMatchObject({ max: 0, min: 0 });
+  });
+
+  it("survives an empty window", () => {
+    expect(trendChart([], "2026-09")).toEqual({ bars: [], zeroLine: 1, max: 0, min: 0 });
+  });
+
+  it("gives the whole box to one side when the window has only one sign", () => {
+    const up = trendChart([point("2026-08", 0), point("2026-09", 900)], "2026-09");
+    expect(up.zeroLine).toBe(1);
+    expect(up.bars.map((b) => b.height)).toEqual([0, 1]);
+
+    const down = trendChart([point("2026-08", 0), point("2026-09", -900)], "2026-09");
+    expect(down.zeroLine).toBe(0);
+    expect(down.bars.map((b) => b.height)).toEqual([0, 1]);
+  });
+
+  it("keeps a single dominant month from erasing the others", () => {
+    const chart = trendChart(
+      [point("2026-07", 100), point("2026-08", 200), point("2026-09", 10000)],
+      "2026-09"
+    );
+    expect(chart.bars.map((b) => b.height)).toEqual([0.01, 0.02, 1]);
+  });
+
+  it("marks the current month", () => {
+    const chart = trendChart([point("2026-08", 10), point("2026-09", 20)], "2026-09");
+    expect(chart.bars.map((b) => b.current)).toEqual([false, true]);
+  });
+
+  it("counts cents exactly rather than drifting on floats", () => {
+    const chart = trendChart([point("2026-08", 0.1), point("2026-09", 0.2)], "2026-09");
+    expect(chart.bars.map((b) => b.height)).toEqual([0.5, 1]);
+  });
+});
+
+describe("netDelta", () => {
+  it("splits the change into a size and a direction", () => {
+    expect(netDelta(2500, TODAY)).toEqual({
+      direction: "up",
+      magnitude: 2500,
+      previousMonth: "2026-08"
+    });
+    expect(netDelta(-2500, TODAY)).toEqual({
+      direction: "down",
+      magnitude: 2500,
+      previousMonth: "2026-08"
+    });
+    expect(netDelta(0, TODAY)).toMatchObject({ direction: "flat", magnitude: 0 });
+  });
+
+  it("stays null when there is nothing to compare against", () => {
+    expect(netDelta(null, TODAY)).toBeNull();
+  });
+
+  it("steps back across the year boundary", () => {
+    expect(netDelta(10, "2026-01-31")?.previousMonth).toBe("2025-12");
   });
 });
 

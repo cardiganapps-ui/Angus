@@ -19,10 +19,12 @@ import { Contacts } from "./screens/Contacts";
 import { Schedule } from "./screens/Schedule";
 import { Money } from "./screens/Money";
 
-function Screen({ route }: { route: Route }) {
+function Screen({ route, navigate }: { route: Route; navigate: (r: Route) => void }) {
   switch (route) {
     case "home":
-      return <Home />;
+      // Home's figures double as a way into the tab that owns them, so
+      // it's the one screen that navigates from inside the content.
+      return <Home navigate={navigate} />;
     case "projects":
       return <Projects />;
     case "contacts":
@@ -58,7 +60,7 @@ function useScreenDirection(route: Route): Direction {
    wrapper (keyed on route) → skeleton crossfade → the screen. Only
    this subtree moves on tab change; the chrome (top bar, FAB inside
    each screen is position: fixed, BottomTabs) stays put. */
-function SignedIn({ route }: { route: Route }) {
+function SignedIn({ route, navigate }: { route: Route; navigate: (r: Route) => void }) {
   const { loading, refreshAll } = useApp();
   const direction = useScreenDirection(route);
 
@@ -73,7 +75,7 @@ function SignedIn({ route }: { route: Route }) {
             : undefined,
         }}>
         <SkeletonCrossfade showContent={!loading} route={route}>
-          <Screen route={route} />
+          <Screen route={route} navigate={navigate} />
         </SkeletonCrossfade>
       </div>
     </PullToRefresh>
@@ -206,7 +208,7 @@ export default function App() {
     body = (
       <AppProvider key={ws.active.id} workspaceId={ws.active.id}>
         <DataErrorToast />
-        <SignedIn route={route} />
+        <SignedIn route={route} navigate={navigate} />
       </AppProvider>
     );
   }

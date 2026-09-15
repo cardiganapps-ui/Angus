@@ -5,6 +5,10 @@ const MONTHS = [
 
 const WEEKDAYS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 
+const WEEKDAYS_LONG = [
+  "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"
+];
+
 const MONTHS_LONG = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -56,6 +60,44 @@ export function monthRange(iso: string): { from: string; to: string } {
 export function formatMonthLong(iso: string): string {
   const [y, m] = iso.split("-").map(Number);
   return `${MONTHS_LONG[m - 1]} ${y}`;
+}
+
+/** "Martes 15 de septiembre" — the dashboard header date. */
+export function formatDateLong(iso: string): string {
+  const d = parseISODate(iso);
+  return `${WEEKDAYS_LONG[d.getDay()]} ${d.getDate()} de ${MONTHS_LONG[d.getMonth()].toLowerCase()}`;
+}
+
+/** The month alone, lowercase — for inline phrases ("más que agosto"). */
+export function monthName(iso: string): string {
+  const [, m] = iso.split("-").map(Number);
+  return MONTHS_LONG[m - 1].toLowerCase();
+}
+
+/** First letter of the month — the compact axis of the trend chart. */
+export function monthInitial(iso: string): string {
+  const [, m] = iso.split("-").map(Number);
+  return MONTHS_LONG[m - 1].slice(0, 1);
+}
+
+/* Greeting by wall-clock hour. Takes a Date so it's testable without
+   mocking the clock, and so a screen can pass the same `now` it used
+   for everything else. */
+export function greetingFor(now: Date = new Date()): string {
+  const hour = now.getHours();
+  if (hour < 12) return "Buenos días";
+  if (hour < 20) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+/* How far away something is, in words she'd actually use. Standalone
+   and capitalized ("Hoy", "En 3 días"); a caller that needs it mid-
+   sentence lowercases it ("Vencida hace 14 días"). */
+export function relativeDayLabel(days: number): string {
+  if (days === 0) return "Hoy";
+  if (days === 1) return "Mañana";
+  if (days === -1) return "Ayer";
+  return days > 0 ? `En ${days} días` : `Hace ${-days} días`;
 }
 
 export function addDays(iso: string, days: number): string {

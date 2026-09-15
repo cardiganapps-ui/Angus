@@ -3,12 +3,17 @@ import {
   addDays,
   addMonths,
   daysUntil,
+  formatDateLong,
   formatMonthLong,
+  greetingFor,
+  monthInitial,
+  monthName,
   monthRange,
   formatShort,
   formatWithWeekday,
   isPast,
   isToday,
+  relativeDayLabel,
   parseISODate,
   toISODate,
   todayISO
@@ -76,5 +81,37 @@ describe("dates", () => {
     expect(addMonths("2026-10-05", 2)).toBe("2026-12-05");
     expect(addMonths("2026-01-31", 1)).toBe("2026-02-28");
     expect(addMonths("2026-11-30", 3)).toBe("2027-02-28");
+  });
+
+  it("formatDateLong reads like a headline date", () => {
+    expect(formatDateLong("2026-09-15")).toBe("Martes 15 de septiembre");
+    expect(formatDateLong("2026-01-01")).toBe("Jueves 1 de enero");
+    expect(formatDateLong("2026-12-30")).toBe("Miércoles 30 de diciembre");
+  });
+
+  it("monthName and monthInitial name the month alone", () => {
+    expect(monthName("2026-08-31")).toBe("agosto");
+    expect(monthName("2026-03")).toBe("marzo");
+    expect(monthInitial("2026-09")).toBe("S");
+    expect(monthInitial("2026-05-04")).toBe("M");
+  });
+
+  it("greetingFor follows the wall clock", () => {
+    expect(greetingFor(new Date(2026, 8, 15, 0, 5))).toBe("Buenos días");
+    expect(greetingFor(new Date(2026, 8, 15, 11, 59))).toBe("Buenos días");
+    expect(greetingFor(new Date(2026, 8, 15, 12, 0))).toBe("Buenas tardes");
+    expect(greetingFor(new Date(2026, 8, 15, 19, 59))).toBe("Buenas tardes");
+    expect(greetingFor(new Date(2026, 8, 15, 20, 0))).toBe("Buenas noches");
+    expect(greetingFor(new Date(2026, 8, 15, 23, 30))).toBe("Buenas noches");
+  });
+
+  it("relativeDayLabel names the near days and counts the rest", () => {
+    expect(relativeDayLabel(0)).toBe("Hoy");
+    expect(relativeDayLabel(1)).toBe("Mañana");
+    expect(relativeDayLabel(-1)).toBe("Ayer");
+    expect(relativeDayLabel(3)).toBe("En 3 días");
+    expect(relativeDayLabel(-14)).toBe("Hace 14 días");
+    // Composed mid-sentence by the dashboard: "Vencida hace 14 días".
+    expect(`Vencida ${relativeDayLabel(-14).toLowerCase()}`).toBe("Vencida hace 14 días");
   });
 });
