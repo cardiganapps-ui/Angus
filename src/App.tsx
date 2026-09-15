@@ -23,6 +23,8 @@ import { Contacts } from "./screens/Contacts";
 import { Schedule } from "./screens/Schedule";
 import { Money } from "./screens/Money";
 import { Settings } from "./screens/Settings";
+import { Recurring } from "./screens/Recurring";
+import { Budgets } from "./screens/Budgets";
 import { Onboarding } from "./screens/Onboarding";
 import { applyTextScale } from "./lib/appearance";
 import { haptic } from "./lib/haptics";
@@ -43,6 +45,10 @@ function Screen({ route, navigate }: { route: Route; navigate: (r: Route) => voi
       return <Money />;
     case "settings":
       return <Settings />;
+    case "recurring":
+      return <Recurring />;
+    case "budgets":
+      return <Budgets />;
     default:
       return <Home navigate={navigate} />;
   }

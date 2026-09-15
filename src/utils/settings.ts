@@ -8,6 +8,7 @@ import type {
   WorkspaceSettings
 } from "../types";
 import type { InstallmentFrequency } from "./accounting";
+import { EXPENSE_CATEGORY } from "../data/constants";
 
 /* ── Workspace settings ──
    The jsonb blob on `workspaces.settings` is written by whichever client
@@ -32,16 +33,7 @@ const PAYMENT_METHODS: PaymentMethod[] = ["cash", "transfer", "card", "other"];
 const FREQUENCIES: InstallmentFrequency[] = ["monthly", "biweekly"];
 const THEMES: ThemePreference[] = ["light", "dark", "system"];
 const TEXT_SCALES: TextScale[] = ["sm", "md", "lg"];
-const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  "materials",
-  "studio",
-  "equipment",
-  "transport",
-  "courses",
-  "expo",
-  "fees",
-  "other"
-];
+const EXPENSE_CATEGORIES: ExpenseCategory[] = EXPENSE_CATEGORY.map((c) => c.value);
 
 export const DEFAULT_SETTINGS: WorkspaceSettings = {
   artistName: "",

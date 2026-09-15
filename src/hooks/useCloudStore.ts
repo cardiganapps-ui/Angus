@@ -14,12 +14,17 @@ export interface CloudStoreConfig<T extends Entity, Row> {
 export interface CloudStore<T extends Entity> {
   items: T[];
   loading: boolean;
+  /** Inserts the server hasn't acknowledged yet. A child row (a cuota,
+      a materialized expense) must wait for this to reach 0 before it
+      references a parent inserted moments ago, or the FK rejects it. */
+  inflight: number;
   error: string | null;
   clearError: () => void;
   reload: () => Promise<void>;
-  add: (item: T) => Promise<void>;
+  /** Resolves true once the server accepted the row (or already had it). */
+  add: (item: T) => Promise<boolean>;
   /** Insert several rows in ONE request — a plan, a materialized batch. */
-  addMany: (items: T[]) => Promise<void>;
+  addMany: (items: T[]) => Promise<boolean>;
   update: (id: string, patch: Partial<T>) => Promise<void>;
   remove: (id: string) => Promise<void>;
   /** Delete several rows in ONE request. */
@@ -43,6 +48,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
 ): CloudStore<T> {
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inflight, setInflight] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -69,21 +75,27 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   }, [reload]);
 
   const insertRows = useCallback(
-    async (next: T[]) => {
-      if (!workspaceId || next.length === 0) return;
+    async (next: T[]): Promise<boolean> => {
+      if (!workspaceId || next.length === 0) return false;
       const prev = itemsRef.current;
       setItems([...next, ...prev]);
+      setInflight((n) => n + 1);
       const rows = next.map(
         (item) => ({ ...config.toRow(item), workspace_id: workspaceId }) as Record<string, unknown>
       );
-      const { error } = await supabase.from(config.table).insert(rows);
-      if (!error) return;
-      if (error.code === UNIQUE_VIOLATION) {
-        await reload();
-        return;
+      try {
+        const { error } = await supabase.from(config.table).insert(rows);
+        if (!error) return true;
+        if (error.code === UNIQUE_VIOLATION) {
+          await reload();
+          return true;
+        }
+        setItems(prev);
+        setError(error.message);
+        return false;
+      } finally {
+        setInflight((n) => n - 1);
       }
-      setItems(prev);
-      setError(error.message);
     },
     [workspaceId, config, reload]
   );
@@ -143,6 +155,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   return {
     items,
     loading,
+    inflight,
     error,
     clearError,
     reload,

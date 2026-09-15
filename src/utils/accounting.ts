@@ -1,4 +1,4 @@
-import type { Expense, Installment, Payment, Sale } from "../types";
+import type { Expense, ExpenseCategory, Installment, Payment, Sale } from "../types";
 import { addDays, addMonths } from "./dates";
 import { remainder, splitEvenly, subtractMoney, sumMoney, toCents } from "./money";
 
@@ -369,4 +369,67 @@ export function clientBalances(sales: Sale[], payments: Payment[]): ClientBalanc
       };
     })
     .sort((a, b) => b.owed - a.owed || b.committed - a.committed);
+}
+
+/* ── Income by category ──
+   Cash basis, like profitLoss: a payment counts for the category of the
+   sale it settles, on the day it was received. */
+export function incomeByCategory(
+  sales: Sale[],
+  payments: Payment[],
+  from: string,
+  to: string
+): CategoryShare[] {
+  const categoryOf = new Map(sales.filter(saleCountsTowardRevenue).map((s) => [s.id, s.category]));
+  const buckets = new Map<string, number>();
+  for (const p of payments) {
+    const category = categoryOf.get(p.saleId);
+    if (!category || !inRange(p.date, from, to)) continue;
+    buckets.set(category, sumMoney([buckets.get(category) ?? 0, p.amount]));
+  }
+  const rows = [...buckets.entries()]
+    .map(([category, amount]) => ({ category, amount }))
+    .sort((a, b) => b.amount - a.amount);
+  const totalCents = toCents(sumMoney(rows.map((r) => r.amount)));
+  return rows.map((r) => ({ ...r, share: totalCents > 0 ? toCents(r.amount) / totalCents : 0 }));
+}
+
+/* ── Budgets ──
+   A monthly limit per category (workspaces.settings.budgets) against
+   what was actually spent in the range. `near` starts at 80 %. */
+export type BudgetState = "ok" | "near" | "over";
+
+export interface BudgetProgress {
+  category: ExpenseCategory;
+  limit: number;
+  spent: number;
+  /** spent / limit, clamped to 1 for bars. */
+  ratio: number;
+  remaining: number;
+  state: BudgetState;
+}
+
+export function budgetProgress(
+  expenses: Expense[],
+  budgets: Partial<Record<ExpenseCategory, number>>,
+  from: string,
+  to: string
+): BudgetProgress[] {
+  const spentBy = new Map(expensesByCategory(expenses, from, to).map((c) => [c.category, c.amount]));
+  return (Object.entries(budgets) as [ExpenseCategory, number][])
+    .filter(([, limit]) => limit > 0)
+    .map(([category, limit]) => {
+      const spent = spentBy.get(category) ?? 0;
+      const raw = toCents(spent) / toCents(limit);
+      const state: BudgetState = raw > 1 ? "over" : raw >= 0.8 ? "near" : "ok";
+      return {
+        category,
+        limit,
+        spent,
+        ratio: Math.min(1, raw),
+        remaining: remainder(limit, spent),
+        state
+      };
+    })
+    .sort((a, b) => b.spent / b.limit - a.spent / a.limit);
 }

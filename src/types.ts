@@ -41,15 +41,33 @@ export interface Contact {
 
 export type SaleStatus = "quoted" | "confirmed" | "delivered" | "cancelled";
 
+/** What kind of income a sale is — for summaries, not for accounting. */
+export type IncomeCategory =
+  | "piece"
+  | "commission"
+  | "class"
+  | "workshop"
+  | "service"
+  | "license"
+  | "grant"
+  | "other";
+
+/** How she agreed to be paid. The installments table is the plan itself. */
+export type PaymentTerms = "single" | "deposit_balance" | "installments";
+
 export interface Sale {
   id: string;
   title: string;
   amount: number; // total agreed price
   date: string; // ISO date the sale was agreed
   status: SaleStatus;
+  category: IncomeCategory;
+  paymentTerms: PaymentTerms;
   projectId: string | null;
   contactId: string | null; // the buyer
   eventId: string | null; // the expo it sold at, if any
+  recurringRuleId: string | null; // set when a recurring rule generated it
+  periodKey: string | null; // e.g. "2026-09" — unique per rule
   notes: string;
   createdAt: string; // ISO
 }
@@ -85,6 +103,14 @@ export type ExpenseCategory =
   | "courses"
   | "expo"
   | "fees"
+  | "framing"
+  | "shipping"
+  | "marketing"
+  | "software"
+  | "rent"
+  | "services"
+  | "taxes"
+  | "food"
   | "other";
 
 export interface Expense {
@@ -93,8 +119,36 @@ export interface Expense {
   amount: number;
   date: string; // ISO
   category: ExpenseCategory;
+  method: PaymentMethod | null;
   projectId: string | null;
   eventId: string | null; // ties spend to an expo / class
+  recurringRuleId: string | null;
+  periodKey: string | null;
+  notes: string;
+  createdAt: string; // ISO
+}
+
+/* ── Recurring rules ──
+   "Every month, rent 6,500" / "Every month, Sofía's tuition 1,800". A
+   rule is an intention; utils/materialize.ts turns each due period into
+   a real Sale (income) or Expense row, exactly once per period. */
+
+export type RecurrenceKind = "income" | "expense";
+export type RecurrenceCadence = "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
+
+export interface RecurringRule {
+  id: string;
+  kind: RecurrenceKind;
+  title: string;
+  amount: number;
+  category: string; // IncomeCategory when kind = income, ExpenseCategory otherwise
+  cadence: RecurrenceCadence;
+  interval: number; // every N cadences, 1–12
+  startDate: string; // ISO — first occurrence
+  endDate: string | null; // ISO — last possible occurrence
+  contactId: string | null; // who pays (income) or who is paid (expense)
+  projectId: string | null;
+  active: boolean;
   notes: string;
   createdAt: string; // ISO
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useApp } from "../context/AppContext";
-import type { PaymentMethod, Practice, TextScale, ThemePreference } from "../types";
+import type { ExpenseCategory, PaymentMethod, Practice, TextScale, ThemePreference } from "../types";
 import {
   DEPOSIT_PERCENT_OPTIONS,
   INSTALLMENT_FREQUENCY,
@@ -14,7 +14,8 @@ import {
 import { firstName, suggestMediums } from "../utils/settings";
 import { formatMXN, sumMoney } from "../utils/money";
 import { monthlyTrend } from "../utils/dashboard";
-import { todayISO } from "../utils/dates";
+import { monthRange, todayISO } from "../utils/dates";
+import { makeId } from "../utils/id";
 import { Icon } from "../components/Icon";
 import { ChipMultiSelect } from "../components/ChipMultiSelect";
 import { ChipSelect } from "../components/ChipSelect";
@@ -30,8 +31,21 @@ import { haptic } from "../lib/haptics";
    payoff is immediate: the greeting, the goal ring and the menu all
    reflect her answers on the very next screen. */
 
-type Step = "name" | "practice" | "mediums" | "terms" | "goal" | "look" | "done";
-const STEPS: Step[] = ["name", "practice", "mediums", "terms", "goal", "look", "done"];
+type Step = "name" | "practice" | "mediums" | "terms" | "goal" | "fixed" | "look" | "done";
+const STEPS: Step[] = ["name", "practice", "mediums", "terms", "goal", "fixed", "look", "done"];
+
+interface FixedDraft {
+  title: string;
+  amount: string;
+  category: ExpenseCategory;
+}
+
+const FIXED_SUGGESTIONS: FixedDraft[] = [
+  { title: "Renta del taller", amount: "", category: "rent" },
+  { title: "Luz, agua, internet", amount: "", category: "services" },
+  { title: "Apps y software", amount: "", category: "software" },
+  { title: "Transporte", amount: "", category: "transport" }
+];
 
 const THEME_ITEMS = THEME_OPTIONS.map((o) => ({ k: o.value, l: o.label }));
 const SCALE_ITEMS = TEXT_SCALE_OPTIONS.map((o) => ({ k: o.value, l: o.label }));
@@ -39,8 +53,19 @@ const FREQ_ITEMS = INSTALLMENT_FREQUENCY.map((o) => ({ k: o.value, l: o.label })
 const DEPOSIT_ITEMS = DEPOSIT_PERCENT_OPTIONS.map((p) => ({ k: String(p), l: `${p}%` }));
 
 export function Onboarding() {
-  const { settings, updateSettings, workspace, renameWorkspace, markOnboarded, projects, sales, payments, expenses } =
-    useApp();
+  const {
+    settings,
+    updateSettings,
+    workspace,
+    renameWorkspace,
+    markOnboarded,
+    projects,
+    sales,
+    payments,
+    expenses,
+    rules,
+    addRules
+  } = useApp();
   const theme = useTheme();
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
@@ -55,6 +80,7 @@ export function Onboarding() {
   const [deposit, setDeposit] = useState(settings.defaultDepositPercent);
   const [frequency, setFrequency] = useState(settings.defaultInstallmentFrequency);
   const [goal, setGoal] = useState(settings.monthlyIncomeGoal ? String(settings.monthlyIncomeGoal) : "");
+  const [fixed, setFixed] = useState<FixedDraft[]>(FIXED_SUGGESTIONS);
   const [themePref, setThemePref] = useState<ThemePreference>(settings.theme);
   const [scale, setScale] = useState<TextScale>(settings.textScale);
 
@@ -96,6 +122,31 @@ export function Onboarding() {
         });
       case "goal":
         return void updateSettings({ monthlyIncomeGoal: goal ? Number(goal) : null });
+      case "fixed": {
+        const existing = new Set(rules.map((r) => r.title.trim().toLowerCase()));
+        const rows = fixed
+          .filter((f) => f.title.trim() && Number(f.amount) > 0)
+          .filter((f) => !existing.has(f.title.trim().toLowerCase()))
+          .map((f) => ({
+            id: makeId(),
+            kind: "expense" as const,
+            title: f.title.trim(),
+            amount: Number(f.amount),
+            category: f.category,
+            cadence: "monthly" as const,
+            interval: 1,
+            startDate: monthRange(todayISO()).from,
+            endDate: null,
+            contactId: null,
+            projectId: null,
+            active: true,
+            notes: "",
+            createdAt: todayISO()
+          }));
+        if (rows.length) void addRules(rows);
+        setFixed((list) => list.map((f) => ({ ...f, amount: "" })));
+        return;
+      }
       case "look":
         return void updateSettings({ theme: themePref, textScale: scale });
       default:
@@ -265,6 +316,56 @@ export function Onboarding() {
         </div>
       </>
     ),
+    fixed: (
+      <>
+        <div className="onb-eyebrow">Gastos fijos</div>
+        <h1 className="onb-title">¿Qué pagas cada mes?</h1>
+        <p className="onb-lead">
+          Angus los registra solos cada mes y los usa para pronosticar. Deja en blanco lo que no aplique.
+        </p>
+        {fixed.map((row, i) => (
+          <div className="form-row" key={i}>
+            <div className="input-group">
+              <label className="input-label" htmlFor={`onb-fixed-title-${i}`}>Concepto</label>
+              <input
+                id={`onb-fixed-title-${i}`}
+                className="input"
+                value={row.title}
+                placeholder="Seguro, bodega…"
+                onChange={(e) =>
+                  setFixed((list) => list.map((f, j) => (j === i ? { ...f, title: e.target.value } : f)))
+                }
+              />
+            </div>
+            <div className="input-group">
+              <label className="input-label" htmlFor={`onb-fixed-amount-${i}`}>Al mes</label>
+              <div className="money-input-wrap">
+                <span className="money-input-symbol">$</span>
+                <input
+                  id={`onb-fixed-amount-${i}`}
+                  className="input money-input"
+                  type="number"
+                  inputMode="decimal"
+                  value={row.amount}
+                  placeholder="0"
+                  onChange={(e) =>
+                    setFixed((list) => list.map((f, j) => (j === i ? { ...f, amount: e.target.value } : f)))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn btn-ghost btn-mini"
+          onClick={() => setFixed((list) => [...list, { title: "", amount: "", category: "other" }])}
+        >
+          + Otro gasto fijo
+        </button>
+        <div className="onb-hint">Puedes afinar frecuencia y categoría después, en Recurrentes.</div>
+      </>
+    ),
     look: (
       <>
         <div className="onb-eyebrow">Apariencia</div>
@@ -318,6 +419,14 @@ export function Onboarding() {
             ).toLowerCase()}`}
           />
           <Summary label="Meta mensual" value={goal ? formatMXN(Number(goal)) : "Sin meta"} />
+          <Summary
+            label="Gastos fijos"
+            value={
+              rules.filter((r) => r.kind === "expense").length
+                ? `${rules.filter((r) => r.kind === "expense").length} al mes`
+                : "Ninguno todavía"
+            }
+          />
         </div>
       </>
     )

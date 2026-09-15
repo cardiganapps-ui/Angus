@@ -120,3 +120,52 @@ export function daysUntil(iso: string): number {
   const target = parseISODate(iso);
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
+
+/** Month key "YYYY-MM" shifted by N months (negative goes back). */
+export function shiftMonth(iso: string, months: number): string {
+  return addMonths(`${iso.slice(0, 7)}-01`, months);
+}
+
+/** Jan 1 – Dec 31 of the year `iso` falls in. */
+export function yearRange(iso: string): { from: string; to: string } {
+  const y = iso.slice(0, 4);
+  return { from: `${y}-01-01`, to: `${y}-12-31` };
+}
+
+/** The calendar quarter `iso` falls in, inclusive. */
+export function quarterRange(iso: string): { from: string; to: string } {
+  const [y, m] = iso.split("-").map(Number);
+  const q = Math.floor((m - 1) / 3);
+  const first = q * 3 + 1;
+  const from = `${y}-${String(first).padStart(2, "0")}-01`;
+  return { from, to: monthRange(`${y}-${String(first + 2).padStart(2, "0")}-01`).to };
+}
+
+/** The N months ending with the month `iso` falls in, inclusive. */
+export function trailingMonthsRange(iso: string, count: number): { from: string; to: string } {
+  return { from: monthRange(shiftMonth(iso, -(count - 1))).from, to: monthRange(iso).to };
+}
+
+/** Monday–Sunday (or Sunday–Saturday) week containing `iso`. */
+export function weekRange(iso: string, weekStartsOn: 0 | 1 = 1): { from: string; to: string } {
+  const d = parseISODate(iso);
+  const back = (d.getDay() - weekStartsOn + 7) % 7;
+  const from = addDays(iso, -back);
+  return { from, to: addDays(from, 6) };
+}
+
+/** "2026" for a year range, "Septiembre 2026" for a month, "Jul – Sep 2026" otherwise. */
+export function formatRange(from: string, to: string): string {
+  if (from.slice(5) === "01-01" && to.slice(5) === "12-31" && from.slice(0, 4) === to.slice(0, 4)) {
+    return from.slice(0, 4);
+  }
+  if (from.slice(0, 7) === to.slice(0, 7)) return formatMonthLong(from);
+  const a = parseISODate(from);
+  const b = parseISODate(to);
+  const ma = MONTHS[a.getMonth()];
+  const mb = MONTHS[b.getMonth()];
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  return a.getFullYear() === b.getFullYear()
+    ? `${cap(ma)} – ${cap(mb)} ${b.getFullYear()}`
+    : `${cap(ma)} ${a.getFullYear()} – ${cap(mb)} ${b.getFullYear()}`;
+}

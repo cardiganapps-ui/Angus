@@ -16,7 +16,13 @@ import {
   relativeDayLabel,
   parseISODate,
   toISODate,
-  todayISO
+  todayISO,
+  shiftMonth,
+  yearRange,
+  quarterRange,
+  trailingMonthsRange,
+  weekRange,
+  formatRange
 } from "../dates";
 
 describe("dates", () => {
@@ -113,5 +119,29 @@ describe("dates", () => {
     expect(relativeDayLabel(-14)).toBe("Hace 14 días");
     // Composed mid-sentence by the dashboard: "Vencida hace 14 días".
     expect(`Vencida ${relativeDayLabel(-14).toLowerCase()}`).toBe("Vencida hace 14 días");
+  });
+});
+
+describe("ranges", () => {
+  it("shifts month keys and builds year / quarter / trailing windows", () => {
+    expect(shiftMonth("2026-09-15", -1)).toBe("2026-08-01");
+    expect(shiftMonth("2026-01-31", -2)).toBe("2025-11-01");
+    expect(yearRange("2026-09-15")).toEqual({ from: "2026-01-01", to: "2026-12-31" });
+    expect(quarterRange("2026-09-15")).toEqual({ from: "2026-07-01", to: "2026-09-30" });
+    expect(quarterRange("2026-11-02")).toEqual({ from: "2026-10-01", to: "2026-12-31" });
+    expect(trailingMonthsRange("2026-09-15", 3)).toEqual({ from: "2026-07-01", to: "2026-09-30" });
+  });
+
+  it("finds the week around a date", () => {
+    expect(weekRange("2026-09-15")).toEqual({ from: "2026-09-14", to: "2026-09-20" });
+    expect(weekRange("2026-09-13")).toEqual({ from: "2026-09-07", to: "2026-09-13" });
+    expect(weekRange("2026-09-13", 0)).toEqual({ from: "2026-09-13", to: "2026-09-19" });
+  });
+
+  it("labels a range the way a person would", () => {
+    expect(formatRange("2026-01-01", "2026-12-31")).toBe("2026");
+    expect(formatRange("2026-09-01", "2026-09-30")).toBe("Septiembre 2026");
+    expect(formatRange("2026-07-01", "2026-09-30")).toBe("Jul – Sep 2026");
+    expect(formatRange("2025-11-01", "2026-01-31")).toBe("Nov 2025 – Ene 2026");
   });
 });

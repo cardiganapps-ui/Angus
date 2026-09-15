@@ -4,6 +4,8 @@ import type { Contact, Expense, Payment, Sale } from "../types";
 import {
   EXPENSE_CATEGORY,
   EXPENSE_CATEGORY_BADGE,
+  INCOME_CATEGORY,
+  INCOME_CATEGORY_BADGE,
   SALE_STATUS,
   SALE_STATUS_BADGE,
   labelFor
@@ -17,6 +19,9 @@ import {
 } from "../utils/accounting";
 import { formatMXN, formatMXNShort, formatMXNShortSigned, sumMoney } from "../utils/money";
 import { formatMonthLong, formatShort, monthRange, todayISO } from "../utils/dates";
+import { monthlyEquivalent } from "../utils/recurrence";
+import { PeriodPicker } from "../components/PeriodPicker";
+import { currentPeriod, periodRange, type Period } from "../utils/period";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { EmptyState } from "../components/EmptyState";
 import { SegmentedControl } from "../components/SegmentedControl";
@@ -42,8 +47,9 @@ const VIEW_ITEMS = [
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
 
 export function Money() {
-  const { sales, payments, expenses, contacts, projects, events } = useApp();
+  const { sales, payments, expenses, contacts, projects, events, rules } = useApp();
   const [view, setView] = useState<View>(lastView);
+  const [period, setPeriod] = useState<Period>(() => currentPeriod("month"));
   const [editingSale, setEditingSale] = useState<Sale | "new" | null>(null);
   const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | "new" | null>(null);
@@ -52,6 +58,7 @@ export function Money() {
   const month = monthRange(today);
   const owed = totals(sales, payments).owed;
   const net = profitLoss(sales, payments, expenses, month.from, month.to).net;
+  const fixedOut = sumMoney(rules.filter((r) => r.kind === "expense" && r.active).map(monthlyEquivalent));
 
   function switchView(next: View) {
     lastView = next;
@@ -78,6 +85,14 @@ export function Money() {
             <AnimatedNumber value={net} format={formatMXNShortSigned} />
           </div>
         </div>
+        {fixedOut > 0 && (
+          <div className="kpi-card list-entry-stagger" style={stagger(2)}>
+            <div className="kpi-label">Fijos al mes</div>
+            <div className="kpi-value">
+              <AnimatedNumber value={fixedOut} format={formatMXNShort} />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="money-switch">
@@ -98,7 +113,12 @@ export function Money() {
           onSelect={setDetailSaleId}
         />
       ) : view === "expenses" ? (
-        <ExpensesView expenses={expenses} month={month} onSelect={setEditingExpense} />
+        <ExpensesView
+          expenses={expenses}
+          period={period}
+          onPeriodChange={setPeriod}
+          onSelect={setEditingExpense}
+        />
       ) : (
         <BalanceView
           sales={sales}
@@ -187,11 +207,22 @@ function SalesView({
                 <div className="row-sub">
                   {contact ? `${contact.name} · ` : ""}
                   {formatShort(sale.date)}
+                  {sale.paymentTerms === "installments"
+                    ? " · en cuotas"
+                    : sale.paymentTerms === "deposit_balance"
+                      ? " · anticipo"
+                      : ""}
+                  {sale.recurringRuleId ? " · fijo" : ""}
                 </div>
               </div>
               <div className="money-row-right">
-                <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>
-                  {labelFor(SALE_STATUS, sale.status)}
+                <span className="money-badges">
+                  <span className={`badge ${INCOME_CATEGORY_BADGE[sale.category]}`}>
+                    {labelFor(INCOME_CATEGORY, sale.category)}
+                  </span>
+                  <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>
+                    {labelFor(SALE_STATUS, sale.status)}
+                  </span>
                 </span>
                 {owes ? (
                   <>
@@ -219,46 +250,47 @@ function SalesView({
 
 function ExpensesView({
   expenses,
-  month,
+  period,
+  onPeriodChange,
   onSelect
 }: {
   expenses: Expense[];
-  month: { from: string; to: string };
+  period: Period;
+  onPeriodChange: (p: Period) => void;
   onSelect: (expense: Expense) => void;
 }) {
-  const sorted = [...expenses].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
-  );
-  const breakdown = expenseBreakdown(expenses, month.from, month.to);
+  const range = periodRange(period);
+  const sorted = [...expenses]
+    .filter((e) => e.date >= range.from && e.date <= range.to)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  const breakdown = expenseBreakdown(expenses, range.from, range.to);
   const monthTotal = sumMoney(breakdown.map((c) => c.amount));
-
-  if (sorted.length === 0) {
-    return (
-      <div className="section">
-        <div className="card">
-          <EmptyState
-            icon="receipt"
-            title="Sin gastos todavía"
-            body="Anota materiales, taller, transporte o cursos para saber cuánto te cuesta trabajar."
-          />
-        </div>
-      </div>
-    );
-  }
 
   const months = groupByMonth(sorted);
 
   return (
     <>
+      <PeriodPicker value={period} onChange={onPeriodChange} ariaLabel="Periodo de gastos" />
+      {sorted.length === 0 && expenses.length === 0 && (
+        <div className="section">
+          <div className="card">
+            <EmptyState
+              icon="receipt"
+              title="Sin gastos todavía"
+              body="Anota materiales, taller, transporte o cursos para saber cuánto te cuesta trabajar."
+            />
+          </div>
+        </div>
+      )}
       <div className="section">
         <div className="card money-summary">
           <div className="money-summary-head">
-            <span className="eyebrow">Gasto de {formatMonthLong(month.from)}</span>
+            <span className="eyebrow">Gasto · {range.label}</span>
             <span className="money-summary-total">{formatMXN(monthTotal)}</span>
           </div>
           {breakdown.length === 0 ? (
             <div className="input-help" style={{ marginTop: 0 }}>
-              Este mes todavía no registras gastos.
+              Sin gastos en este periodo.
             </div>
           ) : (
             breakdown.slice(0, 4).map((category) => (
@@ -295,7 +327,10 @@ function ExpensesView({
               >
                 <div className="row-content">
                   <div className="row-title">{expense.title}</div>
-                  <div className="row-sub">{formatShort(expense.date)}</div>
+                  <div className="row-sub">
+                    {formatShort(expense.date)}
+                    {expense.recurringRuleId ? " · fijo" : ""}
+                  </div>
                 </div>
                 <div className="money-row-right">
                   <span className={`badge ${EXPENSE_CATEGORY_BADGE[expense.category]}`}>

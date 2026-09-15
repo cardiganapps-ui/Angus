@@ -33,6 +33,13 @@ const GROUPS: NavGroup[] = [
       { route: "projects", label: "Obra", icon: "palette" },
       { route: "contacts", label: "Contactos", icon: "users" }
     ]
+  },
+  {
+    title: "Dinero",
+    items: [
+      { route: "recurring", label: "Recurrentes", icon: "repeat" },
+      { route: "budgets", label: "Presupuestos", icon: "target" }
+    ]
   }
 ];
 
@@ -50,7 +57,7 @@ export function Drawer({
   onClose: (() => void) | null;
   rail?: boolean;
 }) {
-  const { settings, workspace, projects, contacts } = useApp();
+  const { settings, workspace, projects, contacts, rules } = useApp();
   const session = useSession();
   const { exiting, animatedClose } = useSheetExit(true, onClose);
   useEscape(rail ? null : animatedClose);
@@ -59,7 +66,8 @@ export function Drawer({
 
   const counts: Partial<Record<Route, number>> = {
     projects: projects.length,
-    contacts: contacts.length
+    contacts: contacts.length,
+    recurring: rules.filter((r) => r.active).length
   };
 
   const go = useCallback(

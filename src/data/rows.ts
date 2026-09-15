@@ -4,6 +4,7 @@ import type {
   Installment,
   Payment,
   Project,
+  RecurringRule,
   Sale,
   ScheduleEvent
 } from "../types";
@@ -147,9 +148,13 @@ export interface SaleRow {
   amount: number | string;
   date: string;
   status: Sale["status"];
+  category: Sale["category"];
+  payment_terms: Sale["paymentTerms"];
   project_id: string | null;
   contact_id: string | null;
   event_id: string | null;
+  recurring_rule_id: string | null;
+  period_key: string | null;
   notes: string;
   created_at: string;
 }
@@ -179,8 +184,28 @@ export interface ExpenseRow {
   amount: number | string;
   date: string;
   category: Expense["category"];
+  method: Expense["method"];
   project_id: string | null;
   event_id: string | null;
+  recurring_rule_id: string | null;
+  period_key: string | null;
+  notes: string;
+  created_at: string;
+}
+
+export interface RecurringRuleRow {
+  id: string;
+  kind: RecurringRule["kind"];
+  title: string;
+  amount: number | string;
+  category: string;
+  cadence: RecurringRule["cadence"];
+  interval: number;
+  start_date: string;
+  end_date: string | null;
+  contact_id: string | null;
+  project_id: string | null;
+  active: boolean;
   notes: string;
   created_at: string;
 }
@@ -193,9 +218,13 @@ export const saleStore: CloudStoreConfig<Sale, SaleRow> = {
     amount: Number(r.amount),
     date: r.date,
     status: r.status,
+    category: r.category,
+    paymentTerms: r.payment_terms,
     projectId: r.project_id,
     contactId: r.contact_id,
     eventId: r.event_id,
+    recurringRuleId: r.recurring_rule_id,
+    periodKey: r.period_key,
     notes: r.notes,
     createdAt: r.created_at.slice(0, 10)
   }),
@@ -206,9 +235,13 @@ export const saleStore: CloudStoreConfig<Sale, SaleRow> = {
     if (s.amount !== undefined) row.amount = s.amount;
     if (s.date !== undefined) row.date = s.date;
     if (s.status !== undefined) row.status = s.status;
+    if (s.category !== undefined) row.category = s.category;
+    if (s.paymentTerms !== undefined) row.payment_terms = s.paymentTerms;
     if (s.projectId !== undefined) row.project_id = s.projectId;
     if (s.contactId !== undefined) row.contact_id = s.contactId;
     if (s.eventId !== undefined) row.event_id = s.eventId;
+    if (s.recurringRuleId !== undefined) row.recurring_rule_id = s.recurringRuleId;
+    if (s.periodKey !== undefined) row.period_key = s.periodKey;
     if (s.notes !== undefined) row.notes = s.notes;
     return row;
   }
@@ -266,8 +299,11 @@ export const expenseStore: CloudStoreConfig<Expense, ExpenseRow> = {
     amount: Number(r.amount),
     date: r.date,
     category: r.category,
+    method: r.method,
     projectId: r.project_id,
     eventId: r.event_id,
+    recurringRuleId: r.recurring_rule_id,
+    periodKey: r.period_key,
     notes: r.notes,
     createdAt: r.created_at.slice(0, 10)
   }),
@@ -278,9 +314,49 @@ export const expenseStore: CloudStoreConfig<Expense, ExpenseRow> = {
     if (e.amount !== undefined) row.amount = e.amount;
     if (e.date !== undefined) row.date = e.date;
     if (e.category !== undefined) row.category = e.category;
+    if (e.method !== undefined) row.method = e.method;
     if (e.projectId !== undefined) row.project_id = e.projectId;
     if (e.eventId !== undefined) row.event_id = e.eventId;
+    if (e.recurringRuleId !== undefined) row.recurring_rule_id = e.recurringRuleId;
+    if (e.periodKey !== undefined) row.period_key = e.periodKey;
     if (e.notes !== undefined) row.notes = e.notes;
+    return row;
+  }
+};
+
+export const recurringRuleStore: CloudStoreConfig<RecurringRule, RecurringRuleRow> = {
+  table: "recurring_rules",
+  fromRow: (r) => ({
+    id: r.id,
+    kind: r.kind,
+    title: r.title,
+    amount: Number(r.amount),
+    category: r.category,
+    cadence: r.cadence,
+    interval: Number(r.interval),
+    startDate: r.start_date,
+    endDate: r.end_date,
+    contactId: r.contact_id,
+    projectId: r.project_id,
+    active: r.active,
+    notes: r.notes,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (x) => {
+    const row: Partial<RecurringRuleRow> = {};
+    if (x.id !== undefined) row.id = x.id;
+    if (x.kind !== undefined) row.kind = x.kind;
+    if (x.title !== undefined) row.title = x.title;
+    if (x.amount !== undefined) row.amount = x.amount;
+    if (x.category !== undefined) row.category = x.category;
+    if (x.cadence !== undefined) row.cadence = x.cadence;
+    if (x.interval !== undefined) row.interval = x.interval;
+    if (x.startDate !== undefined) row.start_date = x.startDate;
+    if (x.endDate !== undefined) row.end_date = x.endDate;
+    if (x.contactId !== undefined) row.contact_id = x.contactId;
+    if (x.projectId !== undefined) row.project_id = x.projectId;
+    if (x.active !== undefined) row.active = x.active;
+    if (x.notes !== undefined) row.notes = x.notes;
     return row;
   }
 };

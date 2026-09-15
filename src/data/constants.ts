@@ -2,11 +2,15 @@ import type {
   ContactRelationship,
   EventKind,
   ExpenseCategory,
+  IncomeCategory,
   LeadStage,
   PaymentMethod,
+  PaymentTerms,
   Practice,
   ProjectStatus,
   QuickAction,
+  RecurrenceCadence,
+  RecurrenceKind,
   SaleStatus,
   TextScale,
   ThemePreference
@@ -83,44 +87,98 @@ export const PAYMENT_METHOD: { value: PaymentMethod; label: string }[] = [
   { value: "other", label: "Otro" }
 ];
 
-export const EXPENSE_CATEGORY: { value: ExpenseCategory; label: string }[] = [
-  { value: "materials", label: "Materiales" },
-  { value: "studio", label: "Taller" },
-  { value: "equipment", label: "Equipo" },
-  { value: "transport", label: "Transporte" },
-  { value: "courses", label: "Cursos" },
-  { value: "expo", label: "Expo" },
-  { value: "fees", label: "Comisiones" },
+/* Expense categories, grouped for the chip row (`group` is only a
+   heading in the sheet; the value list is flat and mirrors the check
+   constraint). */
+export type ExpenseGroup = "Taller" | "Obra" | "Vender" | "Administración";
+
+export const EXPENSE_CATEGORY: { value: ExpenseCategory; label: string; group: ExpenseGroup }[] = [
+  { value: "materials", label: "Materiales", group: "Obra" },
+  { value: "framing", label: "Enmarcado", group: "Obra" },
+  { value: "shipping", label: "Envíos", group: "Obra" },
+  { value: "studio", label: "Taller", group: "Taller" },
+  { value: "rent", label: "Renta", group: "Taller" },
+  { value: "services", label: "Servicios", group: "Taller" },
+  { value: "equipment", label: "Equipo", group: "Taller" },
+  { value: "expo", label: "Expo", group: "Vender" },
+  { value: "fees", label: "Comisiones", group: "Vender" },
+  { value: "marketing", label: "Difusión", group: "Vender" },
+  { value: "transport", label: "Transporte", group: "Administración" },
+  { value: "courses", label: "Cursos", group: "Administración" },
+  { value: "software", label: "Apps y software", group: "Administración" },
+  { value: "taxes", label: "Impuestos", group: "Administración" },
+  { value: "food", label: "Comida", group: "Administración" },
+  { value: "other", label: "Otro", group: "Administración" }
+];
+
+export const EXPENSE_GROUPS: ExpenseGroup[] = ["Obra", "Taller", "Vender", "Administración"];
+
+/* Badge class per expense category — semantic, not decorative: teal for
+   what goes INTO the work, amber for the studio's fixed life, blue for
+   equipment, green for what sells, red for money that leaves as fees or
+   taxes, purple for learning, gray for the rest. */
+export const EXPENSE_CATEGORY_BADGE: Record<ExpenseCategory, string> = {
+  materials: "badge-teal",
+  framing: "badge-teal",
+  shipping: "badge-teal",
+  studio: "badge-amber",
+  rent: "badge-amber",
+  services: "badge-amber",
+  equipment: "badge-blue",
+  expo: "badge-green",
+  marketing: "badge-green",
+  fees: "badge-red",
+  taxes: "badge-red",
+  courses: "badge-purple",
+  software: "badge-blue",
+  transport: "badge-gray",
+  food: "badge-gray",
+  other: "badge-gray"
+};
+
+/* Income categories: what kind of money a sale is. Piezas and comisiones
+   are the work itself (teal, the "in progress" state hue); clases and
+   talleres are teaching (blue, the class hue); the rest are gray. */
+export const INCOME_CATEGORY: { value: IncomeCategory; label: string }[] = [
+  { value: "piece", label: "Pieza" },
+  { value: "commission", label: "Encargo" },
+  { value: "class", label: "Clase" },
+  { value: "workshop", label: "Taller" },
+  { value: "service", label: "Servicio" },
+  { value: "license", label: "Licencia" },
+  { value: "grant", label: "Beca o apoyo" },
   { value: "other", label: "Otro" }
 ];
 
-/* Badge class per expense category — semantic, not decorative: teal for
-   the materials that become the work, amber for the fixed cost of the
-   studio, blue for equipment, purple for learning, green for expos
-   (money spent to sell), red for commissions taken out of a sale, gray
-   for the pass-through rest.
-
-   `courses` used to be badge-rose. With the app's primary accent now
-   rose, a pale-rose pill with rose text is the exact visual formula of
-   an accent chip (--accent-pale ground + accent label), so a "Cursos"
-   badge sitting next to an amount read as a selected/actionable state
-   rather than a label. It moved to purple — the color this palette
-   already uses for the personal / self-directed lane (EVENT_KIND
-   `personal`), which is what a course is. Purple's previous holder,
-   `transport`, joins `other` on gray: both are undifferentiated
-   pass-through overhead, and the label is always present next to the
-   pill, so one shared neutral costs nothing. Rose is now unclaimed
-   app-wide — see the token note in styles/base.css. */
-export const EXPENSE_CATEGORY_BADGE: Record<ExpenseCategory, string> = {
-  materials: "badge-teal",
-  studio: "badge-amber",
-  equipment: "badge-blue",
-  transport: "badge-gray",
-  courses: "badge-purple",
-  expo: "badge-green",
-  fees: "badge-red",
+export const INCOME_CATEGORY_BADGE: Record<IncomeCategory, string> = {
+  piece: "badge-teal",
+  commission: "badge-teal",
+  class: "badge-blue",
+  workshop: "badge-blue",
+  service: "badge-purple",
+  license: "badge-purple",
+  grant: "badge-green",
   other: "badge-gray"
 };
+
+export const PAYMENT_TERMS: { value: PaymentTerms; label: string; short: string }[] = [
+  { value: "single", label: "Pago único", short: "Único" },
+  { value: "deposit_balance", label: "Anticipo + liquidación", short: "Anticipo" },
+  { value: "installments", label: "En cuotas", short: "Cuotas" }
+];
+
+export const RECURRENCE_KIND: { value: RecurrenceKind; label: string }[] = [
+  { value: "income", label: "Ingreso" },
+  { value: "expense", label: "Gasto" }
+];
+
+export const RECURRENCE_CADENCE: { value: RecurrenceCadence; label: string; every: string }[] = [
+  { value: "weekly", label: "Semanal", every: "semanas" },
+  { value: "biweekly", label: "Quincenal", every: "quincenas" },
+  { value: "monthly", label: "Mensual", every: "meses" },
+  { value: "quarterly", label: "Trimestral", every: "trimestres" },
+  { value: "yearly", label: "Anual", every: "años" }
+];
 
 export function labelFor<T extends { value: string; label: string }>(
   list: T[],

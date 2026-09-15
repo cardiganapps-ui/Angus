@@ -1742,6 +1742,13 @@ button.row-item {
    not --accent: the label is 12px body text, and white on --accent is
    only 3.73:1 (see the contrast rule in base.css). */
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Grouped chip rows (expense categories): an eyebrow above each row. */
+.chip-group { margin-top: 8px; }
+.chip-group:first-of-type { margin-top: 0; }
+.chip-group-title {
+  font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--charcoal-xl); margin-bottom: 6px;
+}
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 8px; border-radius: var(--radius-pill);

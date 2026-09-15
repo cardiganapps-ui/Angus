@@ -20,9 +20,13 @@ function sale(id: string, amount: number, over: Partial<Sale> = {}): Sale {
     amount,
     date: "2026-09-10",
     status: "confirmed",
+    category: "piece",
+    paymentTerms: "single",
     projectId: null,
     contactId: "c1",
     eventId: null,
+    recurringRuleId: null,
+    periodKey: null,
     notes: "",
     createdAt: "2026-09-10",
     ...over
@@ -35,8 +39,8 @@ const installment = (id: string, saleId: string, amount: number, dueDate: string
   id, saleId, amount, dueDate, notes: "", createdAt: "2026-09-01"
 });
 const expense = (id: string, amount: number, date: string): Expense => ({
-  id, title: `Gasto ${id}`, amount, date, category: "materials",
-  projectId: null, eventId: null, notes: "", createdAt: date
+  id, title: `Gasto ${id}`, amount, date, category: "materials", method: null,
+  projectId: null, eventId: null, recurringRuleId: null, periodKey: null, notes: "", createdAt: date
 });
 function contact(id: string, over: Partial<Contact> = {}): Contact {
   return {

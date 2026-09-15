@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
-import type { Expense, ExpenseCategory } from "../types";
-import { EXPENSE_CATEGORY } from "../data/constants";
+import type { Expense, ExpenseCategory, PaymentMethod } from "../types";
+import { EXPENSE_CATEGORY, EXPENSE_GROUPS, PAYMENT_METHOD } from "../data/constants";
 import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { ChipSelect } from "./ChipSelect";
@@ -18,12 +18,14 @@ export function ExpenseSheet({
   expense: Expense | null;
   onClose: () => void;
 }) {
-  const { addExpense, updateExpense, removeExpense, projects, events } = useApp();
+  const { addExpense, updateExpense, removeExpense, projects, events, rules } = useApp();
   const { showSuccess } = useToast();
   const [title, setTitle] = useState(expense?.title ?? "");
   const [amount, setAmount] = useState(expense?.amount?.toString() ?? "");
   const [date, setDate] = useState(expense?.date ?? todayISO());
   const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? "materials");
+  const [method, setMethod] = useState<PaymentMethod | "">(expense?.method ?? "");
+  const rule = expense?.recurringRuleId ? rules.find((r) => r.id === expense.recurringRuleId) : null;
   const [projectId, setProjectId] = useState(expense?.projectId ?? "");
   const [eventId, setEventId] = useState(expense?.eventId ?? "");
   const [notes, setNotes] = useState(expense?.notes ?? "");
@@ -52,6 +54,7 @@ export function ExpenseSheet({
       amount: parsedAmount,
       date,
       category,
+      method: method || null,
       projectId: projectId || null,
       eventId: eventId || null,
       notes: notes.trim()
@@ -59,7 +62,13 @@ export function ExpenseSheet({
     if (expense) {
       void updateExpense(expense.id, patch);
     } else {
-      void addExpense({ id: makeId(), createdAt: todayISO(), ...patch });
+      void addExpense({
+        id: makeId(),
+        createdAt: todayISO(),
+        recurringRuleId: null,
+        periodKey: null,
+        ...patch
+      });
     }
     haptic.success();
     showSuccess(expense ? "Gasto actualizado" : "Gasto registrado");
@@ -127,13 +136,36 @@ export function ExpenseSheet({
         />
       </div>
 
+      {rule && (
+        <div className="money-panel money-panel--compact" style={{ marginBottom: 14 }}>
+          <div className="money-submeta">
+            Generado por el gasto fijo «{rule.title}». Editar este registro no cambia la regla.
+          </div>
+        </div>
+      )}
+
       <div className="input-group">
         <span className="input-label">Categoría</span>
+        {EXPENSE_GROUPS.map((group) => (
+          <div key={group} className="chip-group">
+            <div className="chip-group-title">{group}</div>
+            <ChipSelect
+              options={EXPENSE_CATEGORY.filter((c) => c.group === group)}
+              value={category}
+              onChange={setCategory}
+              ariaLabel={`Categoría · ${group}`}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="input-group">
+        <span className="input-label">Cómo lo pagaste</span>
         <ChipSelect
-          options={EXPENSE_CATEGORY}
-          value={category}
-          onChange={setCategory}
-          ariaLabel="Categoría del gasto"
+          options={[{ value: "" as const, label: "Sin especificar" }, ...PAYMENT_METHOD]}
+          value={method}
+          onChange={setMethod}
+          ariaLabel="Método de pago"
         />
       </div>
 

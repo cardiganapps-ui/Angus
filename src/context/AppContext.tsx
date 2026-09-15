@@ -5,6 +5,7 @@ import type {
   Installment,
   Payment,
   Project,
+  RecurringRule,
   Sale,
   ScheduleEvent,
   Workspace,
@@ -18,9 +19,13 @@ import {
   installmentStore,
   paymentStore,
   projectStore,
+  recurringRuleStore,
   saleStore
 } from "../data/rows";
 import { importLocalData } from "../lib/importLocal";
+import { pendingMaterializations } from "../utils/materialize";
+import { makeId } from "../utils/id";
+import { todayISO } from "../utils/dates";
 
 /** What App hands the provider for the active workspace's own row. */
 export interface WorkspaceActions {
@@ -46,42 +51,50 @@ interface AppContextValue {
   refreshAll: () => Promise<void>;
 
   projects: Project[];
-  addProject: (p: Project) => Promise<void>;
+  addProject: (p: Project) => Promise<boolean>;
   updateProject: (id: string, patch: Partial<Project>) => Promise<void>;
   removeProject: (id: string) => Promise<void>;
 
   contacts: Contact[];
-  addContact: (c: Contact) => Promise<void>;
+  addContact: (c: Contact) => Promise<boolean>;
   updateContact: (id: string, patch: Partial<Contact>) => Promise<void>;
   removeContact: (id: string) => Promise<void>;
 
   events: ScheduleEvent[];
-  addEvent: (e: ScheduleEvent) => Promise<void>;
+  addEvent: (e: ScheduleEvent) => Promise<boolean>;
   updateEvent: (id: string, patch: Partial<ScheduleEvent>) => Promise<void>;
   removeEvent: (id: string) => Promise<void>;
 
   sales: Sale[];
-  addSale: (s: Sale) => Promise<void>;
+  addSale: (s: Sale) => Promise<boolean>;
+  addSales: (rows: Sale[]) => Promise<boolean>;
   updateSale: (id: string, patch: Partial<Sale>) => Promise<void>;
   removeSale: (id: string) => Promise<void>;
 
   payments: Payment[];
-  addPayment: (p: Payment) => Promise<void>;
+  addPayment: (p: Payment) => Promise<boolean>;
   updatePayment: (id: string, patch: Partial<Payment>) => Promise<void>;
   removePayment: (id: string) => Promise<void>;
 
   installments: Installment[];
-  addInstallment: (i: Installment) => Promise<void>;
+  addInstallment: (i: Installment) => Promise<boolean>;
   /** A whole plan in one request. */
-  addInstallments: (rows: Installment[]) => Promise<void>;
+  addInstallments: (rows: Installment[]) => Promise<boolean>;
   updateInstallment: (id: string, patch: Partial<Installment>) => Promise<void>;
   removeInstallment: (id: string) => Promise<void>;
   removeInstallments: (ids: string[]) => Promise<void>;
 
   expenses: Expense[];
-  addExpense: (e: Expense) => Promise<void>;
+  addExpense: (e: Expense) => Promise<boolean>;
+  addExpenses: (rows: Expense[]) => Promise<boolean>;
   updateExpense: (id: string, patch: Partial<Expense>) => Promise<void>;
   removeExpense: (id: string) => Promise<void>;
+
+  rules: RecurringRule[];
+  addRule: (r: RecurringRule) => Promise<boolean>;
+  addRules: (rows: RecurringRule[]) => Promise<boolean>;
+  updateRule: (id: string, patch: Partial<RecurringRule>) => Promise<void>;
+  removeRule: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -106,6 +119,7 @@ export function AppProvider({
   const payments = useCloudStore(workspaceId, paymentStore);
   const installments = useCloudStore(workspaceId, installmentStore);
   const expenses = useCloudStore(workspaceId, expenseStore);
+  const rules = useCloudStore(workspaceId, recurringRuleStore);
 
   const loading =
     projects.loading ||
@@ -114,7 +128,37 @@ export function AppProvider({
     sales.loading ||
     payments.loading ||
     installments.loading ||
-    expenses.loading;
+    expenses.loading ||
+    rules.loading;
+
+  // Materialize due recurring rules into real rows. Runs once the data
+  // is in, and again whenever a rule or its rows change; the unique
+  // index on (rule, period) makes a race between two devices harmless.
+  const materializing = useRef(false);
+  const ruleItems = rules.items;
+  const rulesInflight = rules.inflight;
+  const saleItems = sales.items;
+  const expenseItems = expenses.items;
+  const addSales = sales.addMany;
+  const addExpenses = expenses.addMany;
+  useEffect(() => {
+    // A rule that hasn't landed yet can't be referenced by its rows.
+    if (loading || materializing.current || rulesInflight > 0) return;
+    const pending = pendingMaterializations(ruleItems, saleItems, expenseItems, todayISO());
+    if (pending.sales.length === 0 && pending.expenses.length === 0) return;
+    materializing.current = true;
+    const created = todayISO();
+    const jobs: Promise<boolean>[] = [];
+    if (pending.sales.length) {
+      jobs.push(addSales(pending.sales.map((s) => ({ ...s, id: makeId(), createdAt: created }))));
+    }
+    if (pending.expenses.length) {
+      jobs.push(addExpenses(pending.expenses.map((e) => ({ ...e, id: makeId(), createdAt: created }))));
+    }
+    void Promise.all(jobs).finally(() => {
+      materializing.current = false;
+    });
+  }, [loading, rulesInflight, ruleItems, saleItems, expenseItems, addSales, addExpenses]);
   const importedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -147,7 +191,8 @@ export function AppProvider({
         sales.error ??
         payments.error ??
         installments.error ??
-        expenses.error,
+        expenses.error ??
+        rules.error,
       clearError: () => {
         actions.clearError();
         projects.clearError();
@@ -157,6 +202,7 @@ export function AppProvider({
         payments.clearError();
         installments.clearError();
         expenses.clearError();
+        rules.clearError();
       },
       refreshAll: async () => {
         await Promise.all([
@@ -166,7 +212,8 @@ export function AppProvider({
           sales.reload(),
           payments.reload(),
           installments.reload(),
-          expenses.reload()
+          expenses.reload(),
+          rules.reload()
         ]);
       },
       projects: projects.items,
@@ -183,6 +230,7 @@ export function AppProvider({
       removeEvent: events.remove,
       sales: sales.items,
       addSale: sales.add,
+      addSales: sales.addMany,
       updateSale: sales.update,
       // Postgres cascades a sale's payments and installments; mirror that
       // locally so no balance is ever derived from orphaned rows.
@@ -203,8 +251,14 @@ export function AppProvider({
       removeInstallments: installments.removeMany,
       expenses: expenses.items,
       addExpense: expenses.add,
+      addExpenses: expenses.addMany,
       updateExpense: expenses.update,
-      removeExpense: expenses.remove
+      removeExpense: expenses.remove,
+      rules: rules.items,
+      addRule: rules.add,
+      addRules: rules.addMany,
+      updateRule: rules.update,
+      removeRule: rules.remove
     }),
     [
       workspaceId,
@@ -217,7 +271,8 @@ export function AppProvider({
       sales,
       payments,
       installments,
-      expenses
+      expenses,
+      rules
     ]
   );
 

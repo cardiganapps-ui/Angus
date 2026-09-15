@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Expense, Installment, Payment, Sale, SaleStatus } from "../../types";
 import { sumMoney } from "../money";
 import {
+  budgetProgress,
   contactOwed,
+  incomeByCategory,
   expenseBreakdown,
   expensesByCategory,
   generateInstallmentSchedule,
@@ -29,9 +31,13 @@ function sale(id: string, amount: number, status: SaleStatus, contactId = "c1"):
     amount,
     date: "2026-09-01",
     status,
+    category: "piece",
+    paymentTerms: "single",
     projectId: null,
     contactId,
     eventId: null,
+    recurringRuleId: null,
+    periodKey: null,
     notes: "",
     createdAt: "2026-09-01"
   };
@@ -54,6 +60,9 @@ function expense(id: string, amount: number, category: Expense["category"], date
     category,
     projectId: null,
     eventId: null,
+    method: null,
+    recurringRuleId: null,
+    periodKey: null,
     notes: "",
     createdAt: date
   };
@@ -389,5 +398,49 @@ describe("clientBalances", () => {
     const rows = clientBalances(sales, [payment("p1", "s1", 400)]);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ contactId: "c1", committed: 3500, collected: 400, owed: 3100, saleCount: 2 });
+  });
+});
+
+describe("incomeByCategory", () => {
+  it("attributes each payment to its sale's category, cash basis, with shares", () => {
+    const sales = [
+      { ...sale("s1", 5000, "confirmed"), category: "piece" as const },
+      { ...sale("s2", 1800, "confirmed"), category: "class" as const },
+      { ...sale("s3", 900, "quoted"), category: "class" as const }
+    ];
+    const payments = [
+      payment("p1", "s1", 2000, "2026-09-05"),
+      payment("p2", "s2", 1800, "2026-09-06"),
+      payment("p3", "s3", 900, "2026-09-07"),
+      payment("p4", "s1", 3000, "2026-10-01")
+    ];
+    expect(incomeByCategory(sales, payments, "2026-09-01", "2026-09-30")).toEqual([
+      { category: "piece", amount: 2000, share: 2000 / 3800 },
+      { category: "class", amount: 1800, share: 1800 / 3800 }
+    ]);
+  });
+});
+
+describe("budgetProgress", () => {
+  it("compares spend to each limit and flags near / over", () => {
+    const expenses = [
+      expense("e1", 900, "materials", "2026-09-03"),
+      expense("e2", 500, "materials", "2026-09-10"),
+      expense("e3", 6500, "rent", "2026-09-01"),
+      expense("e4", 100, "food", "2026-08-30")
+    ];
+    const rows = budgetProgress(
+      expenses,
+      { materials: 1200, rent: 6500, food: 800, transport: 0 },
+      "2026-09-01",
+      "2026-09-30"
+    );
+    expect(rows.map((r) => [r.category, r.state, r.remaining])).toEqual([
+      ["materials", "over", 0],
+      ["rent", "near", 0],
+      ["food", "ok", 800]
+    ]);
+    expect(rows[0].ratio).toBe(1);
+    expect(rows[2].spent).toBe(0);
   });
 });
