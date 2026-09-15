@@ -1,0 +1,87 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--linen);
+  color: var(--charcoal);
+  font-family: var(--font);
+  font-size: var(--text-md);
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+
+#root {
+  height: 100dvh;
+  overflow: clip;
+}
+
+img {
+  max-width: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.shell {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding-bottom: calc(var(--bottom-tabs-h) + var(--sab) + 16px);
+}
+
+.scroll-bounce {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  position: relative;
+}
+
+.scroll-bounce::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 1px);
+  height: 1px;
+  width: 1px;
+}
+
+.page {
+  padding: calc(var(--sat) + 16px) 16px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
