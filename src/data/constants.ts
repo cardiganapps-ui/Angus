@@ -1,4 +1,5 @@
 import type {
+  AttendanceStatus,
   Availability,
   ContactRelationship,
   EventKind,
@@ -14,7 +15,8 @@ import type {
   RecurrenceKind,
   SaleStatus,
   TextScale,
-  ThemePreference
+  ThemePreference,
+  TuitionCadence
 } from "../types";
 import type { IconName } from "../components/Icon";
 
@@ -285,3 +287,21 @@ export const QUICK_ACTION: { value: QuickAction; label: string; icon: IconName }
   { value: "project", label: "Nueva pieza", icon: "palette" },
   { value: "contact", label: "Nuevo contacto", icon: "users" }
 ];
+
+/* ── Clases ── */
+export const TUITION_CADENCE: { value: TuitionCadence; label: string }[] = [
+  { value: "monthly", label: "Mensual" },
+  { value: "per_session", label: "Por sesión" }
+];
+
+export const ATTENDANCE_STATUS: { value: AttendanceStatus; label: string; short: string }[] = [
+  { value: "present", label: "Presente", short: "Vino" },
+  { value: "absent", label: "Falta", short: "Faltó" },
+  { value: "excused", label: "Justificada", short: "Avisó" }
+];
+
+export const ATTENDANCE_BADGE: Record<AttendanceStatus, string> = {
+  present: "badge-green",
+  absent: "badge-red",
+  excused: "badge-amber"
+};

@@ -317,3 +317,23 @@ describe("goalProgress", () => {
     expect(p.reached).toBe(true);
   });
 });
+
+describe("attentionItems · classes", () => {
+  it("asks for the list of a session that already happened and has no attendance", () => {
+    const groups = [
+      { id: "g1", name: "Óleo", seriesId: "ser1", tuitionAmount: null, tuitionCadence: "monthly" as const, capacity: null, location: "", active: true, notes: "", createdAt: "2026-08-01" }
+    ];
+    const sessions = [
+      { ...event("s1", "class", "2026-09-15"), seriesId: "ser1" },
+      { ...event("s2", "class", "2026-09-22"), seriesId: "ser1" },
+      { ...event("s3", "class", "2026-09-08"), seriesId: "ser1" }
+    ];
+    const attendance = [{ id: "a1", eventId: "s3", contactId: "c1", status: "present" as const, createdAt: "2026-09-08" }];
+    const items = attentionItems(
+      { sales: [], payments: [], installments: [], contacts: [], projects: [], events: sessions, groups, attendance },
+      "2026-09-15"
+    );
+    expect(items.map((i) => [i.kind, i.eventId, i.daysUntil])).toEqual([["class", "s1", 0]]);
+    expect(items[0].groupId).toBe("g1");
+  });
+});

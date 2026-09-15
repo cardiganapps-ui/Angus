@@ -28,6 +28,7 @@ import { Budgets } from "./screens/Budgets";
 import { Forecast } from "./screens/Forecast";
 import { Reports } from "./screens/Reports";
 import { Expos } from "./screens/Expos";
+import { Classes } from "./screens/Classes";
 import { Onboarding } from "./screens/Onboarding";
 import { applyTextScale } from "./lib/appearance";
 import { haptic } from "./lib/haptics";
@@ -58,6 +59,8 @@ function Screen({ route, navigate }: { route: Route; navigate: (r: Route) => voi
       return <Reports />;
     case "expos":
       return <Expos />;
+    case "classes":
+      return <Classes />;
     default:
       return <Home navigate={navigate} />;
   }

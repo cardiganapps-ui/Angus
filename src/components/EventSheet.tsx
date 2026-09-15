@@ -126,6 +126,7 @@ export function EventSheet({
     endDate: until || null,
     projectId: eventPatch.projectId,
     contactId: eventPatch.contactId,
+    groupId: parent?.groupId ?? null,
     notes: eventPatch.notes
   });
 

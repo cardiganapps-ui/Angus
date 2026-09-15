@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type {
+  Attendance,
+  ClassEnrollment,
+  ClassGroup,
   Contact,
   EventSeries,
   Expense,
@@ -14,6 +17,9 @@ import type {
 } from "../types";
 import { useCloudStore } from "../hooks/useCloudStore";
 import {
+  attendanceStore,
+  classEnrollmentStore,
+  classGroupStore,
   contactStore,
   eventSeriesStore,
   eventStore,
@@ -106,6 +112,22 @@ interface AppContextValue {
   addRules: (rows: RecurringRule[]) => Promise<boolean>;
   updateRule: (id: string, patch: Partial<RecurringRule>) => Promise<void>;
   removeRule: (id: string) => Promise<void>;
+
+  groups: ClassGroup[];
+  addGroup: (g: ClassGroup) => Promise<boolean>;
+  updateGroup: (id: string, patch: Partial<ClassGroup>) => Promise<void>;
+  /** Deletes the group and its enrollments (cascade); its series and rules stay. */
+  removeGroup: (id: string) => Promise<void>;
+
+  enrollments: ClassEnrollment[];
+  addEnrollment: (e: ClassEnrollment) => Promise<boolean>;
+  updateEnrollment: (id: string, patch: Partial<ClassEnrollment>) => Promise<void>;
+  removeEnrollment: (id: string) => Promise<void>;
+
+  attendance: Attendance[];
+  addAttendance: (rows: Attendance[]) => Promise<boolean>;
+  updateAttendance: (id: string, patch: Partial<Attendance>) => Promise<void>;
+  removeAttendance: (ids: string[]) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -132,6 +154,9 @@ export function AppProvider({
   const expenses = useCloudStore(workspaceId, expenseStore);
   const rules = useCloudStore(workspaceId, recurringRuleStore);
   const series = useCloudStore(workspaceId, eventSeriesStore);
+  const groups = useCloudStore(workspaceId, classGroupStore);
+  const enrollments = useCloudStore(workspaceId, classEnrollmentStore);
+  const attendance = useCloudStore(workspaceId, attendanceStore);
 
   const loading =
     projects.loading ||
@@ -142,7 +167,10 @@ export function AppProvider({
     installments.loading ||
     expenses.loading ||
     rules.loading ||
-    series.loading;
+    series.loading ||
+    groups.loading ||
+    enrollments.loading ||
+    attendance.loading;
 
   // Materialize due recurring rules into real rows. Runs once the data
   // is in, and again whenever a rule or its rows change; the unique
@@ -224,7 +252,10 @@ export function AppProvider({
         installments.error ??
         expenses.error ??
         rules.error ??
-        series.error,
+        series.error ??
+        groups.error ??
+        enrollments.error ??
+        attendance.error,
       clearError: () => {
         actions.clearError();
         projects.clearError();
@@ -236,6 +267,9 @@ export function AppProvider({
         expenses.clearError();
         rules.clearError();
         series.clearError();
+        groups.clearError();
+        enrollments.clearError();
+        attendance.clearError();
       },
       refreshAll: async () => {
         await Promise.all([
@@ -247,7 +281,10 @@ export function AppProvider({
           installments.reload(),
           expenses.reload(),
           rules.reload(),
-          series.reload()
+          series.reload(),
+          groups.reload(),
+          enrollments.reload(),
+          attendance.reload()
         ]);
       },
       projects: projects.items,
@@ -262,15 +299,26 @@ export function AppProvider({
       addEvent: events.add,
       addEvents: events.addMany,
       updateEvent: events.update,
-      removeEvent: events.remove,
-      removeEvents: events.removeMany,
+      // Attendance rows cascade with their session; mirror it locally.
+      removeEvent: async (id: string) => {
+        await events.remove(id);
+        attendance.dropLocal((a) => a.eventId === id);
+      },
+      removeEvents: async (ids: string[]) => {
+        await events.removeMany(ids);
+        const gone = new Set(ids);
+        attendance.dropLocal((a) => gone.has(a.eventId));
+      },
       series: series.items,
       addSeries: series.add,
       updateSeries: series.update,
-      // Postgres cascades a series' occurrences; mirror it locally.
+      // Postgres cascades a series' occurrences (and their attendance);
+      // mirror it locally.
       removeSeries: async (id: string) => {
+        const sessionIds = new Set(events.items.filter((e) => e.seriesId === id).map((e) => e.id));
         await series.remove(id);
         events.dropLocal((e) => e.seriesId === id);
+        attendance.dropLocal((a) => sessionIds.has(a.eventId));
       },
       sales: sales.items,
       addSale: sales.add,
@@ -302,7 +350,22 @@ export function AppProvider({
       addRule: rules.add,
       addRules: rules.addMany,
       updateRule: rules.update,
-      removeRule: rules.remove
+      removeRule: rules.remove,
+      groups: groups.items,
+      addGroup: groups.add,
+      updateGroup: groups.update,
+      removeGroup: async (id: string) => {
+        await groups.remove(id);
+        enrollments.dropLocal((e) => e.groupId === id);
+      },
+      enrollments: enrollments.items,
+      addEnrollment: enrollments.add,
+      updateEnrollment: enrollments.update,
+      removeEnrollment: enrollments.remove,
+      attendance: attendance.items,
+      addAttendance: attendance.addMany,
+      updateAttendance: attendance.update,
+      removeAttendance: attendance.removeMany
     }),
     [
       workspaceId,
@@ -317,7 +380,10 @@ export function AppProvider({
       installments,
       expenses,
       rules,
-      series
+      series,
+      groups,
+      enrollments,
+      attendance
     ]
   );
 

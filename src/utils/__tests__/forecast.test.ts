@@ -36,7 +36,7 @@ const expense = (id: string, amount: number, date: string, ruleId: string | null
 function rule(id: string, kind: RecurringRule["kind"], amount: number, startDate: string): RecurringRule {
   return {
     id, kind, title: id, amount, category: kind === "income" ? "class" : "rent", cadence: "monthly",
-    interval: 1, startDate, endDate: null, contactId: null, projectId: null, active: true, notes: "", createdAt: startDate
+    interval: 1, startDate, endDate: null, contactId: null, projectId: null, groupId: null, active: true, notes: "", createdAt: startDate
   };
 }
 

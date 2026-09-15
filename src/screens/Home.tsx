@@ -36,6 +36,7 @@ import { SaleSheet } from "../components/SaleSheet";
 import { ExpenseSheet } from "../components/ExpenseSheet";
 import { EventSheet } from "../components/EventSheet";
 import { QuickAddFab } from "../components/QuickAddFab";
+import { AttendanceSheet } from "../components/AttendanceSheet";
 import { haptic } from "../lib/haptics";
 
 /* ── Home ──
@@ -62,7 +63,8 @@ const urgencyOf = (days: number): Urgency =>
 const ATTENTION_ICON: Record<AttentionItem["kind"], IconName> = {
   installment: "banknote",
   followup: "users",
-  deadline: "clock"
+  deadline: "clock",
+  class: "graduation"
 };
 
 type OpenSheet =
@@ -72,6 +74,7 @@ type OpenSheet =
   | { kind: "newSale" }
   | { kind: "newExpense" }
   | { kind: "newEvent" }
+  | { kind: "attendance"; groupId: string; eventId: string }
   | null;
 
 const QUICK_SHEET: Record<QuickAction, OpenSheet> = {
@@ -83,11 +86,12 @@ const QUICK_SHEET: Record<QuickAction, OpenSheet> = {
 };
 
 export function Home({ navigate }: { navigate: (route: Route) => void }) {
-  const { sales, payments, installments, expenses, contacts, projects, events, settings } = useApp();
+  const { sales, payments, installments, expenses, contacts, projects, events, settings, groups, attendance } =
+    useApp();
   const [sheet, setSheet] = useState<OpenSheet>(null);
 
   const today = todayISO();
-  const attention = attentionItems({ sales, payments, installments, contacts, projects }, today);
+  const attention = attentionItems({ sales, payments, installments, contacts, projects, events, groups, attendance }, today);
   const pulse = moneyPulse(sales, payments, expenses, today);
   const delta = netDelta(pulse.netChange, today);
   const goal = goalProgress(pulse.income, settings.monthlyIncomeGoal);
@@ -103,6 +107,15 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
      that order, because the name is what she scans for. */
   function describe(item: AttentionItem): { title: string; detail: string; when: string } {
     const relative = relativeDayLabel(item.daysUntil);
+    if (item.kind === "class") {
+      const group = groups.find((g) => g.id === item.groupId);
+      const session = events.find((e) => e.id === item.eventId);
+      return {
+        title: "Pasar lista",
+        detail: `${group?.name ?? "Clase"}${session?.startTime ? ` · ${session.startTime}` : ""}`,
+        when: item.daysUntil === 0 ? "Hoy" : `Pendiente ${relative.toLowerCase()}`
+      };
+    }
     if (item.kind === "installment") {
       const sale = sales.find((s) => s.id === item.saleId);
       const buyer = contactName(item.contactId);
@@ -135,6 +148,10 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
      sale's detail sheet, the contact's sheet, the project's sheet. */
   function openItem(item: AttentionItem) {
     haptic.tap();
+    if (item.kind === "class" && item.groupId && item.eventId) {
+      setSheet({ kind: "attendance", groupId: item.groupId, eventId: item.eventId });
+      return;
+    }
     if (item.kind === "installment" && item.saleId) {
       setSheet({ kind: "sale", id: item.saleId });
       return;
@@ -394,6 +411,14 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
       {sheet?.kind === "newSale" && <SaleSheet sale={null} onClose={() => setSheet(null)} />}
       {sheet?.kind === "newExpense" && <ExpenseSheet expense={null} onClose={() => setSheet(null)} />}
       {sheet?.kind === "newEvent" && <EventSheet event={null} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "attendance" &&
+        (() => {
+          const group = groups.find((g) => g.id === sheet.groupId);
+          const session = events.find((e) => e.id === sheet.eventId);
+          return group && session ? (
+            <AttendanceSheet group={group} session={session} onClose={() => setSheet(null)} />
+          ) : null;
+        })()}
       {sheet?.kind === "contact" && (
         <ContactSheet contact={sheet.contact} onClose={() => setSheet(null)} />
       )}

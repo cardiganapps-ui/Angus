@@ -99,7 +99,7 @@ export function RecurringRuleSheet({
     if (rule) {
       void updateRule(rule.id, patch);
     } else {
-      void addRule({ id: makeId(), createdAt: todayISO(), active: true, ...patch });
+      void addRule({ id: makeId(), createdAt: todayISO(), active: true, groupId: null, ...patch });
     }
     haptic.success();
     showSuccess(rule ? "Regla actualizada" : kind === "income" ? "Ingreso fijo creado" : "Gasto fijo creado");

@@ -157,6 +157,7 @@ export interface RecurringRule {
   endDate: string | null; // ISO — last possible occurrence
   contactId: string | null; // who pays (income) or who is paid (expense)
   projectId: string | null;
+  groupId: string | null; // tuition rule → its class group
   active: boolean;
   notes: string;
   createdAt: string; // ISO
@@ -208,7 +209,48 @@ export interface EventSeries {
   endDate: string | null; // ISO — last possible occurrence
   projectId: string | null;
   contactId: string | null;
+  groupId: string | null; // a class group's schedule
   notes: string;
+  createdAt: string; // ISO
+}
+
+/* ── Clases ──
+   A group she teaches (schedule = an EventSeries), the students
+   enrolled in it (contacts), one attendance row per student per
+   session, and a tuition rule per enrollment feeding recurring income. */
+
+export type TuitionCadence = "monthly" | "per_session";
+export type AttendanceStatus = "present" | "absent" | "excused";
+
+export interface ClassGroup {
+  id: string;
+  name: string;
+  seriesId: string | null;
+  tuitionAmount: number | null; // per student
+  tuitionCadence: TuitionCadence;
+  capacity: number | null;
+  location: string;
+  active: boolean;
+  notes: string;
+  createdAt: string; // ISO
+}
+
+export interface ClassEnrollment {
+  id: string;
+  groupId: string;
+  contactId: string;
+  startedOn: string; // ISO
+  endedOn: string | null; // ISO
+  recurringRuleId: string | null; // the student's tuition rule
+  notes: string;
+  createdAt: string; // ISO
+}
+
+export interface Attendance {
+  id: string;
+  eventId: string;
+  contactId: string;
+  status: AttendanceStatus;
   createdAt: string; // ISO
 }
 

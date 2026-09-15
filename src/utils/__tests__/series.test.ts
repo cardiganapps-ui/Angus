@@ -16,6 +16,7 @@ function series(over: Partial<EventSeries> = {}): EventSeries {
     endDate: null,
     projectId: null,
     contactId: null,
+    groupId: null,
     notes: "",
     createdAt: "2026-09-15",
     ...over

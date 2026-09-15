@@ -17,6 +17,7 @@ function rule(over: Partial<RecurringRule> = {}): RecurringRule {
     endDate: null,
     contactId: null,
     projectId: null,
+    groupId: null,
     active: true,
     notes: "",
     createdAt: "2026-07-01",

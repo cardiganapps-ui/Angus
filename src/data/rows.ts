@@ -1,4 +1,7 @@
 import type {
+  Attendance,
+  ClassEnrollment,
+  ClassGroup,
   Contact,
   EventSeries,
   Expense,
@@ -73,6 +76,7 @@ export interface EventSeriesRow {
   end_date: string | null;
   project_id: string | null;
   contact_id: string | null;
+  group_id: string | null;
   notes: string;
   created_at: string;
 }
@@ -201,6 +205,7 @@ export const eventSeriesStore: CloudStoreConfig<EventSeries, EventSeriesRow> = {
     endDate: r.end_date,
     projectId: r.project_id,
     contactId: r.contact_id,
+    groupId: r.group_id,
     notes: r.notes,
     createdAt: r.created_at.slice(0, 10)
   }),
@@ -218,7 +223,115 @@ export const eventSeriesStore: CloudStoreConfig<EventSeries, EventSeriesRow> = {
     if (x.endDate !== undefined) row.end_date = x.endDate;
     if (x.projectId !== undefined) row.project_id = x.projectId;
     if (x.contactId !== undefined) row.contact_id = x.contactId;
+    if (x.groupId !== undefined) row.group_id = x.groupId;
     if (x.notes !== undefined) row.notes = x.notes;
+    return row;
+  }
+};
+
+/* ── Clases ── */
+
+export interface ClassGroupRow {
+  id: string;
+  name: string;
+  series_id: string | null;
+  tuition_amount: number | string | null;
+  tuition_cadence: ClassGroup["tuitionCadence"];
+  capacity: number | null;
+  location: string;
+  active: boolean;
+  notes: string;
+  created_at: string;
+}
+
+export interface ClassEnrollmentRow {
+  id: string;
+  group_id: string;
+  contact_id: string;
+  started_on: string;
+  ended_on: string | null;
+  recurring_rule_id: string | null;
+  notes: string;
+  created_at: string;
+}
+
+export interface AttendanceRow {
+  id: string;
+  event_id: string;
+  contact_id: string;
+  status: Attendance["status"];
+  created_at: string;
+}
+
+export const classGroupStore: CloudStoreConfig<ClassGroup, ClassGroupRow> = {
+  table: "class_groups",
+  fromRow: (r) => ({
+    id: r.id,
+    name: r.name,
+    seriesId: r.series_id,
+    tuitionAmount: r.tuition_amount === null ? null : Number(r.tuition_amount),
+    tuitionCadence: r.tuition_cadence,
+    capacity: r.capacity,
+    location: r.location,
+    active: r.active,
+    notes: r.notes,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (g) => {
+    const row: Partial<ClassGroupRow> = {};
+    if (g.id !== undefined) row.id = g.id;
+    if (g.name !== undefined) row.name = g.name;
+    if (g.seriesId !== undefined) row.series_id = g.seriesId;
+    if (g.tuitionAmount !== undefined) row.tuition_amount = g.tuitionAmount;
+    if (g.tuitionCadence !== undefined) row.tuition_cadence = g.tuitionCadence;
+    if (g.capacity !== undefined) row.capacity = g.capacity;
+    if (g.location !== undefined) row.location = g.location;
+    if (g.active !== undefined) row.active = g.active;
+    if (g.notes !== undefined) row.notes = g.notes;
+    return row;
+  }
+};
+
+export const classEnrollmentStore: CloudStoreConfig<ClassEnrollment, ClassEnrollmentRow> = {
+  table: "class_enrollments",
+  fromRow: (r) => ({
+    id: r.id,
+    groupId: r.group_id,
+    contactId: r.contact_id,
+    startedOn: r.started_on,
+    endedOn: r.ended_on,
+    recurringRuleId: r.recurring_rule_id,
+    notes: r.notes,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (e) => {
+    const row: Partial<ClassEnrollmentRow> = {};
+    if (e.id !== undefined) row.id = e.id;
+    if (e.groupId !== undefined) row.group_id = e.groupId;
+    if (e.contactId !== undefined) row.contact_id = e.contactId;
+    if (e.startedOn !== undefined) row.started_on = e.startedOn;
+    if (e.endedOn !== undefined) row.ended_on = e.endedOn;
+    if (e.recurringRuleId !== undefined) row.recurring_rule_id = e.recurringRuleId;
+    if (e.notes !== undefined) row.notes = e.notes;
+    return row;
+  }
+};
+
+export const attendanceStore: CloudStoreConfig<Attendance, AttendanceRow> = {
+  table: "attendance",
+  fromRow: (r) => ({
+    id: r.id,
+    eventId: r.event_id,
+    contactId: r.contact_id,
+    status: r.status,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (a) => {
+    const row: Partial<AttendanceRow> = {};
+    if (a.id !== undefined) row.id = a.id;
+    if (a.eventId !== undefined) row.event_id = a.eventId;
+    if (a.contactId !== undefined) row.contact_id = a.contactId;
+    if (a.status !== undefined) row.status = a.status;
     return row;
   }
 };
@@ -290,6 +403,7 @@ export interface RecurringRuleRow {
   end_date: string | null;
   contact_id: string | null;
   project_id: string | null;
+  group_id: string | null;
   active: boolean;
   notes: string;
   created_at: string;
@@ -423,6 +537,7 @@ export const recurringRuleStore: CloudStoreConfig<RecurringRule, RecurringRuleRo
     endDate: r.end_date,
     contactId: r.contact_id,
     projectId: r.project_id,
+    groupId: r.group_id,
     active: r.active,
     notes: r.notes,
     createdAt: r.created_at.slice(0, 10)
@@ -440,6 +555,7 @@ export const recurringRuleStore: CloudStoreConfig<RecurringRule, RecurringRuleRo
     if (x.endDate !== undefined) row.end_date = x.endDate;
     if (x.contactId !== undefined) row.contact_id = x.contactId;
     if (x.projectId !== undefined) row.project_id = x.projectId;
+    if (x.groupId !== undefined) row.group_id = x.groupId;
     if (x.active !== undefined) row.active = x.active;
     if (x.notes !== undefined) row.notes = x.notes;
     return row;

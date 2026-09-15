@@ -32,6 +32,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { route: "projects", label: "Obra", icon: "palette" },
       { route: "contacts", label: "Contactos", icon: "users" },
+      { route: "classes", label: "Clases", icon: "graduation", practice: ["classes", "workshops"] },
       { route: "expos", label: "Expos", icon: "map-pin", practice: ["expos"] }
     ]
   },
@@ -60,7 +61,7 @@ export function Drawer({
   onClose: (() => void) | null;
   rail?: boolean;
 }) {
-  const { settings, workspace, projects, contacts, rules, events } = useApp();
+  const { settings, workspace, projects, contacts, rules, events, groups } = useApp();
   const session = useSession();
   const { exiting, animatedClose } = useSheetExit(true, onClose);
   useEscape(rail ? null : animatedClose);
@@ -71,7 +72,8 @@ export function Drawer({
     projects: projects.length,
     contacts: contacts.length,
     recurring: rules.filter((r) => r.active).length,
-    expos: events.filter((e) => e.kind === "expo" && !e.cancelled).length
+    expos: events.filter((e) => e.kind === "expo" && !e.cancelled).length,
+    classes: groups.filter((g) => g.active).length
   };
 
   const go = useCallback(
@@ -129,7 +131,10 @@ export function Drawer({
 
   const practice = settings.practice;
   const visible = (item: NavItem) =>
-    !item.practice || practice.length === 0 || item.practice.some((p) => practice.includes(p as never));
+    !item.practice ||
+    practice.length === 0 ||
+    (counts[item.route] ?? 0) > 0 ||
+    item.practice.some((p) => practice.includes(p as never));
 
   const name = firstName(settings.artistName) || session.email;
   const initial = (settings.artistName || session.email || "?").slice(0, 1).toUpperCase();

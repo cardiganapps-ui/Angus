@@ -16,6 +16,7 @@ import {
 import { saleBalance, saleCountsTowardRevenue, totals } from "../utils/accounting";
 import { formatMXN, formatMXNShort } from "../utils/money";
 import { addDays, formatShort, formatWithWeekday, todayISO } from "../utils/dates";
+import { attendanceRate, groupSessions } from "../utils/classes";
 import { Sheet } from "./Sheet";
 import { Icon } from "./Icon";
 import { SegmentedControl } from "./SegmentedControl";
@@ -29,11 +30,12 @@ import { haptic } from "../lib/haptics";
    what they owe, their sales, upcoming sessions, and — for a lead —
    one-tap follow-up actions. Editing still goes through ContactSheet. */
 
-type Tab = "info" | "sales" | "agenda";
+type Tab = "info" | "sales" | "agenda" | "classes";
 const TAB_ITEMS = [
   { k: "info", l: "Info" },
   { k: "sales", l: "Ventas" },
-  { k: "agenda", l: "Agenda" }
+  { k: "agenda", l: "Agenda" },
+  { k: "classes", l: "Clases" }
 ];
 
 function waLink(phone: string): string | null {
@@ -45,7 +47,7 @@ function waLink(phone: string): string | null {
 }
 
 export function ContactDetailSheet({ contactId, onClose }: { contactId: string; onClose: () => void }) {
-  const { contacts, sales, payments, events, updateContact } = useApp();
+  const { contacts, sales, payments, events, updateContact, groups, enrollments, attendance } = useApp();
   const { showSuccess } = useToast();
   const [tab, setTab] = useState<Tab>("info");
   const [editing, setEditing] = useState(false);
@@ -77,6 +79,15 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
   );
   const upcoming = agenda.filter((e) => e.date >= today);
   const past = agenda.filter((e) => e.date < today).reverse().slice(0, 6);
+  const myGroups = useMemo(
+    () =>
+      enrollments
+        .filter((e) => e.contactId === contactId)
+        .map((e) => ({ enrollment: e, group: groups.find((g) => g.id === e.groupId) }))
+        .filter((x): x is { enrollment: (typeof enrollments)[number]; group: NonNullable<typeof x.group> } => !!x.group),
+    [enrollments, groups, contactId]
+  );
+  const tabItems = myGroups.length ? TAB_ITEMS : TAB_ITEMS.filter((t) => t.k !== "classes");
 
   if (!contact) return null;
 
@@ -163,7 +174,7 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
           </div>
         )}
 
-        <SegmentedControl items={TAB_ITEMS} value={tab} onChange={(k) => setTab(k as Tab)} size="sm" ariaLabel="Sección" />
+        <SegmentedControl items={tabItems} value={tab} onChange={(k) => setTab(k as Tab)} size="sm" ariaLabel="Sección" />
 
         {tab === "info" && (
           <div style={{ marginTop: 14 }}>
@@ -239,6 +250,28 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
                 );
               })
             )}
+          </div>
+        )}
+
+        {tab === "classes" && (
+          <div className="money-list" style={{ marginTop: 14 }}>
+            {myGroups.map(({ enrollment, group }) => {
+              const sessions = groupSessions(group, events).filter((s) => s.date <= today);
+              const rate = attendanceRate(contactId, sessions, attendance);
+              const activeNow = enrollment.endedOn === null || enrollment.endedOn >= today;
+              return (
+                <div className="row-item" key={enrollment.id} style={{ cursor: "default" }}>
+                  <div className="row-content">
+                    <div className="row-title">{group.name}</div>
+                    <div className="row-sub">
+                      {activeNow ? `Desde ${formatShort(enrollment.startedOn)}` : `Hasta ${formatShort(enrollment.endedOn ?? enrollment.startedOn)}`}
+                      {rate.rate !== null ? ` · asiste ${rate.rate}% (${rate.present} de ${rate.present + rate.absent})` : " · sin asistencias aún"}
+                    </div>
+                  </div>
+                  <span className={`badge ${activeNow ? "badge-blue" : "badge-gray"}`}>{activeNow ? "Inscrito" : "Baja"}</span>
+                </div>
+              );
+            })}
           </div>
         )}
 

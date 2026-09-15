@@ -13,12 +13,15 @@ import { haptic } from "../lib/haptics";
 export function ContactSheet({
   contact,
   onClose,
-  onDeleted
+  onDeleted,
+  onCreated
 }: {
   contact: Contact | null;
   onClose: () => void;
   /** Called instead of onClose after a delete, so a detail sheet underneath closes too. */
   onDeleted?: () => void;
+  /** Called with the new id after a create (enrolling a brand-new student). */
+  onCreated?: (id: string) => void;
 }) {
   const { addContact, updateContact, removeContact } = useApp();
   const { showSuccess } = useToast();
@@ -49,12 +52,18 @@ export function ContactSheet({
     };
     if (contact) {
       updateContact(contact.id, patch);
-    } else {
-      addContact({ id: makeId(), createdAt: todayISO(), ...patch });
+      haptic.success();
+      showSuccess("Contacto actualizado");
+      onClose();
+      return;
     }
+    const id = makeId();
+    void addContact({ id, createdAt: todayISO(), ...patch }).then((ok) => {
+      if (ok && onCreated) onCreated(id);
+    });
     haptic.success();
-    showSuccess(contact ? "Contacto actualizado" : "Contacto creado");
-    onClose();
+    showSuccess("Contacto creado");
+    if (!onCreated) onClose();
   }
 
   function handleDelete() {

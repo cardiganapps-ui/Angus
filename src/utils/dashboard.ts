@@ -1,4 +1,14 @@
-import type { Contact, Expense, Installment, Payment, Project, Sale, ScheduleEvent } from "../types";
+import type {
+  Attendance,
+  ClassGroup,
+  Contact,
+  Expense,
+  Installment,
+  Payment,
+  Project,
+  Sale,
+  ScheduleEvent
+} from "../types";
 import { overdueInstallments, profitLoss, saleCountsTowardRevenue, totals } from "./accounting";
 import { addMonths, daysUntil, monthRange } from "./dates";
 import { fromCents, remainder, sumMoney, toCents } from "./money";
@@ -10,7 +20,7 @@ import { fromCents, remainder, sumMoney, toCents } from "./money";
    screen looks up titles from context. That keeps it testable without a
    DOM and keeps the Spanish in one layer. */
 
-export type AttentionKind = "installment" | "followup" | "deadline";
+export type AttentionKind = "installment" | "followup" | "deadline" | "class";
 
 export interface AttentionItem {
   /** Stable React key — kind + the row it came from. */
@@ -23,6 +33,8 @@ export interface AttentionItem {
   saleId?: string;
   contactId?: string;
   projectId?: string;
+  eventId?: string;
+  groupId?: string;
   amount?: number;
 }
 
@@ -32,6 +44,10 @@ export interface AttentionSources {
   installments: Installment[];
   contacts: Contact[];
   projects: Project[];
+  /** Optional: class sessions today that still need their list. */
+  events?: ScheduleEvent[];
+  groups?: ClassGroup[];
+  attendance?: Attendance[];
 }
 
 /* One prioritized list of everything asking for her attention, so she
@@ -49,8 +65,29 @@ export function attentionItems(
   today: string,
   horizonDays = 7
 ): AttentionItem[] {
-  const { sales, payments, installments, contacts, projects } = sources;
+  const { sales, payments, installments, contacts, projects, events = [], groups = [], attendance = [] } = sources;
   const items: AttentionItem[] = [];
+
+  // A class session today (or a past one) whose list hasn't been taken.
+  if (groups.length) {
+    const seriesToGroup = new Map(groups.filter((g) => g.active && g.seriesId).map((g) => [g.seriesId as string, g.id]));
+    const taken = new Set(attendance.map((a) => a.eventId));
+    for (const e of events) {
+      if (!e.seriesId || e.cancelled || e.date > today || taken.has(e.id)) continue;
+      const groupId = seriesToGroup.get(e.seriesId);
+      if (!groupId) continue;
+      const days = daysUntil(e.date);
+      if (days < -horizonDays) continue;
+      items.push({
+        key: `class:${e.id}`,
+        kind: "class",
+        date: e.date,
+        daysUntil: days,
+        eventId: e.id,
+        groupId
+      });
+    }
+  }
 
   for (const status of overdueInstallments(sales, installments, payments, today)) {
     const sale = sales.find((s) => s.id === status.installment.saleId);
