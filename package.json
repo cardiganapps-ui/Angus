@@ -19,6 +19,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1132.0",
     "@supabase/supabase-js": "^2.116.0",
     "heic2any": "^0.0.4",
+    "jspdf": "^4.2.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

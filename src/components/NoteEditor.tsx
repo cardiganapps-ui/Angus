@@ -15,7 +15,8 @@ import { VersionHistorySheet } from "./notes/VersionHistorySheet";
 import { AttachmentStrip } from "./notes/AttachmentStrip";
 import { CoverPickerSheet } from "./notes/CoverPickerSheet";
 import { useAttachmentSrc, useNoteAttachments } from "../hooks/useNoteAttachments";
-import { isImageMime, storageErrorMessage } from "../lib/files";
+import { fileUrl, isImageMime, storageErrorMessage } from "../lib/files";
+import { slugFilename } from "../utils/text";
 import { useNoteAutosave } from "../hooks/useNoteAutosave";
 import { useNoteOutline } from "../hooks/useNoteOutline";
 import { extractOutline } from "../utils/outline";
@@ -60,7 +61,7 @@ export function NoteEditor({
   /** The row she tapped, so the surface grows out of it. */
   originRect?: DOMRect | null;
 }) {
-  const { notes, updateNote } = useApp();
+  const { notes, updateNote, courses, events, settings } = useApp();
   const { saveNote, restoreNote, togglePin, linkNote, deleteNote, noteTags, noteTagLinks, upsertTag, linkTag, unlinkTag } = useNotes();
   const attachments = useNoteAttachments();
   const src = useAttachmentSrc(note.id);
@@ -297,8 +298,7 @@ export function NoteEditor({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const safe = (title || "nota").replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").slice(0, 60) || "nota";
-      a.download = `${safe}.md`;
+      a.download = slugFilename(title, "md");
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -307,6 +307,49 @@ export function NoteEditor({
     } catch {
       haptic.warn();
       showToast("No se pudo exportar", "error");
+    }
+  };
+
+  const [exporting, setExporting] = useState(false);
+  const exportPdf = async () => {
+    setMenuOpen(false);
+    if (exporting) return;
+    setExporting(true);
+    flashMsg("Generando PDF…");
+    try {
+      const { downloadNotePdf } = await import("../lib/notePdf");
+      const course = live.courseId ? courses.find((c) => c.id === live.courseId) : undefined;
+      const session = live.eventId ? events.find((e) => e.id === live.eventId) : undefined;
+      const context = [course?.name, session ? `Sesión · ${formatWithWeekday(session.date)}${session.startTime ? ` ${session.startTime}` : ""}` : null].filter(
+        (s): s is string => !!s
+      );
+      await downloadNotePdf({
+        note: { title: title.trim(), content, updatedAt: live.updatedAt },
+        attachments: src.rows,
+        context,
+        artistName: settings.artistName,
+        imageResolver: async (a) => {
+          // A fresh signed URL (cached with its TTL) — the tile's may have expired.
+          const url = await fileUrl(a.r2Path);
+          if (!url) return null;
+          const res = await fetch(url);
+          if (!res.ok) return null;
+          const blob = await res.blob();
+          return new Promise<string | null>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        }
+      });
+      haptic.success();
+      flashMsg("PDF listo");
+    } catch {
+      haptic.warn();
+      showToast("No se pudo exportar el PDF", "error");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -391,6 +434,7 @@ export function NoteEditor({
                 <MenuItem icon="copy" label="Copiar texto" onClick={() => void copyText(title ? `${title}\n\n${toPlainText(content)}` : toPlainText(content))} />
                 <MenuItem icon="edit" label="Copiar markdown" onClick={() => void copyText(title ? `# ${title}\n\n${content}` : content)} />
                 <MenuItem icon="download" label="Exportar .md" onClick={exportMd} />
+                <MenuItem icon="file" label={exporting ? "Generando PDF…" : "Exportar PDF"} onClick={() => void exportPdf()} />
                 <div className="mde-menu-sep" />
                 <MenuItem icon="trash" label="Eliminar" danger onClick={() => { setMenuOpen(false); setConfirmDelete(true); }} />
               </div>
