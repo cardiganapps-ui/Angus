@@ -35,10 +35,16 @@ const browser = await chromium.launch({
 });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: !!proxy });
 const page = await ctx.newPage();
+// Behind the sandbox proxy, Chromium can't fetch sw.js (TLS interception +
+// ERR_TOO_MANY_RETRIES); those errors are environmental, not app bugs.
+const sandboxNoise = (text) =>
+  !!proxy && /ServiceWorker|sw\.js|ERR_TOO_MANY_RETRIES|fetching the script/.test(text);
 const errors = [];
-page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
+page.on("pageerror", (e) => {
+  if (!sandboxNoise(e.message)) errors.push("pageerror: " + e.message);
+});
 page.on("console", (m) => {
-  if (m.type() === "error" && !m.text().includes("ServiceWorker")) errors.push("console: " + m.text());
+  if (m.type() === "error" && !sandboxNoise(m.text())) errors.push("console: " + m.text());
 });
 
 if (proxy) {
