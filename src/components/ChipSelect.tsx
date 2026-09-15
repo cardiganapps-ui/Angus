@@ -4,9 +4,9 @@ import { haptic } from "../lib/haptics";
    Single-choice chip row for enums with too many options for a
    segmented control (relationship, lead stage, event kind). Same
    .chip vocabulary as Cardigan's filter chips: white pill at rest,
-   teal fill when active, spring scale on press. An optional `color`
+   accent fill when active, spring scale on press. An optional `color`
    per option renders the event-kind dot before the label; the active
-   chip rings the dot in currentColor (white on teal) so it stays
+   chip rings the dot in currentColor (white on accent) so it stays
    visible instead of vanishing into the fill. */
 export function ChipSelect<T extends string>({
   options,

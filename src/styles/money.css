@@ -27,18 +27,21 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Paid / total progress. */
+/* Paid / total progress. The track is --cream-deeper, one step darker
+   than the --cream-dark it used to be: the blush ramp sits much closer
+   to white than the old beige one, and inside a .money-panel (also a
+   cream step) the track had disappeared entirely. */
 .money-progress {
   height: 6px;
   border-radius: var(--radius-pill);
-  background: var(--cream-dark);
+  background: var(--cream-deeper);
   overflow: hidden;
 }
 .money-progress-fill {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--teal);
+  background: var(--accent);
   transition: width var(--dur-slow) var(--ease-out);
 }
 .money-progress-fill--settled { background: var(--green); }
@@ -69,10 +72,13 @@
 .money-stat-value--owed { color: var(--red); }
 .money-stat-value--paid { color: var(--green); }
 
-/* Inline information band inside a white card / sheet (--cream is an
-   accent here, never a wrapper background). */
+/* Inline information band inside a white card / sheet (--cream* is an
+   accent here, never a wrapper background). Uses --cream-dark, not
+   --cream: blush --cream is only ~1.5% off white, so the band read as a
+   printing artifact rather than a panel. --cream-dark gives it an edge
+   without needing a border. */
 .money-panel {
-  background: var(--cream);
+  background: var(--cream-dark);
   border-radius: var(--radius);
   padding: 14px;
 }
@@ -141,7 +147,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--teal);
+  background: var(--accent);
   transition: width var(--dur-slow) var(--ease-out);
 }
 .cat-bar-value {

@@ -41,9 +41,9 @@ export const EVENT_KIND: { value: EventKind; label: string; color: string }[] = 
   { value: "other", label: "Otro", color: "var(--charcoal-xl)" }
 ];
 
-/* Badge class per event kind — Cardigan's semantic colors
-   (blue = class/virtual, teal = active, green = done/meeting,
-   red = deadline, purple = personal, gray = neutral). */
+/* Badge class per event kind — semantic colors, none of them the
+   primary accent (blue = class, teal = in progress / expo, green =
+   done/meeting, red = deadline, purple = personal, gray = neutral). */
 export const EVENT_KIND_BADGE: Record<EventKind, string> = {
   class: "badge-blue",
   expo: "badge-teal",
@@ -91,15 +91,27 @@ export const EXPENSE_CATEGORY: { value: ExpenseCategory; label: string }[] = [
 
 /* Badge class per expense category — semantic, not decorative: teal for
    the materials that become the work, amber for the fixed cost of the
-   studio, blue for equipment, purple for travel, rose for learning,
-   green for expos (money spent to sell), red for commissions taken out
-   of a sale, gray for the rest. */
+   studio, blue for equipment, purple for learning, green for expos
+   (money spent to sell), red for commissions taken out of a sale, gray
+   for the pass-through rest.
+
+   `courses` used to be badge-rose. With the app's primary accent now
+   rose, a pale-rose pill with rose text is the exact visual formula of
+   an accent chip (--accent-pale ground + accent label), so a "Cursos"
+   badge sitting next to an amount read as a selected/actionable state
+   rather than a label. It moved to purple — the color this palette
+   already uses for the personal / self-directed lane (EVENT_KIND
+   `personal`), which is what a course is. Purple's previous holder,
+   `transport`, joins `other` on gray: both are undifferentiated
+   pass-through overhead, and the label is always present next to the
+   pill, so one shared neutral costs nothing. Rose is now unclaimed
+   app-wide — see the token note in styles/base.css. */
 export const EXPENSE_CATEGORY_BADGE: Record<ExpenseCategory, string> = {
   materials: "badge-teal",
   studio: "badge-amber",
   equipment: "badge-blue",
-  transport: "badge-purple",
-  courses: "badge-rose",
+  transport: "badge-gray",
+  courses: "badge-purple",
   expo: "badge-green",
   fees: "badge-red",
   other: "badge-gray"

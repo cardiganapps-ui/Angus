@@ -24,7 +24,7 @@ function apply(resolved: string) {
   // dark). Update both so an explicit user pick beats the OS one.
   document
     .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
-    .forEach((meta) => { meta.content = resolved === "dark" ? "#1A1A1A" : "#FFFFFF"; });
+    .forEach((meta) => { meta.content = resolved === "dark" ? "#1A1620" : "#FFFFFF"; });
 }
 
 export function useTheme() {

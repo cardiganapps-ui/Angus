@@ -146,7 +146,7 @@ export function PullToRefresh({ onRefresh, children }: { onRefresh: () => void |
                 width: 28, height: 28,
                 animation: refreshing ? "ptr-breathe 1.8s var(--ease-in-out) infinite" : "none",
               }}>
-                <RingIcon size={28} color="var(--teal)" progress={refreshing ? 1 : progress} />
+                <RingIcon size={28} color="var(--accent)" progress={refreshing ? 1 : progress} />
               </div>
             )}
           </div>

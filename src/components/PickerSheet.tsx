@@ -12,7 +12,7 @@ const SEARCH_THRESHOLD = 8;
 
 /* ── PickerSheet ──
    The option list behind PickerField: "Ninguno" first, then every
-   option as a .row-item with a teal check on the selected row. Above
+   option as a .row-item with an accent check on the selected row. Above
    SEARCH_THRESHOLD options a search input filters by name (no
    autofocus — popping the keyboard over a picker is jarring).
    Selecting fires a light haptic, updates the field, and closes

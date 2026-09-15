@@ -233,7 +233,7 @@
     --glass-bg-bar:    var(--white);
     --glass-bg-panel:  var(--white);
     --glass-edge-panel: var(--border-lt);
-    --glass-tint-accent: var(--teal);
+    --glass-tint-accent: var(--accent);
     --glass-filter-chrome: none;
     --glass-filter-bar:    none;
     --glass-filter-panel:  none;
@@ -462,30 +462,30 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
   will-change: transform;
   border-radius: 999px;
   /* Token-driven so dark mode renders the indicator at the same
-     visual weight (dark.css redefines --teal-pale to a darker tint).
-     A faint top-down gloss + inset hairline + soft teal glow make the
+     visual weight (dark.css redefines --accent-pale to a darker tint).
+     A faint top-down gloss + inset hairline + soft accent glow make the
      capsule itself read as a smaller pane of tinted glass sitting on
      the bar — the "liquid glass within glass" iOS 26 look. */
-  /* TRANSLUCENT teal, not var(--teal-pale): the pale token is an
-     OPAQUE hex (#EAF4F7) in light mode, and an opaque capsule covering
+  /* TRANSLUCENT accent, not var(--accent-pale): the pale token is an
+     OPAQUE hex (#FBE9F1) in light mode, and an opaque capsule covering
      a fifth of the bar was the single biggest "the pill looks solid"
-     contributor. color-mix over --teal stays see-through and still
-     flips with the dark-mode teal. */
+     contributor. color-mix over --accent stays see-through and still
+     flips with the dark-mode accent. */
   background:
     linear-gradient(180deg,
       rgba(255, 255, 255, 0.22) 0%,
       rgba(255, 255, 255, 0.03) 48%,
       transparent 78%),
-    color-mix(in srgb, var(--teal) 14%, transparent);
+    color-mix(in srgb, var(--accent) 14%, transparent);
   /* Lens read: a crisp bright top rim + tinted edge ring, a soft inner
-     glow (the "magnified" centre of the glass), and an outer teal cast
+     glow (the "magnified" centre of the glass), and an outer accent cast
      so the capsule looks like a thicker pane of tinted glass floating on
      the bar — the "glass within glass" iOS 26 look. */
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--teal) 26%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent),
     inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.55),
-    inset 0 -6px 10px -8px color-mix(in srgb, var(--teal) 30%, transparent),
-    0 2px 8px -2px color-mix(in srgb, var(--teal) 38%, transparent);
+    inset 0 -6px 10px -8px color-mix(in srgb, var(--accent) 30%, transparent),
+    0 2px 8px -2px color-mix(in srgb, var(--accent) 38%, transparent);
   /* Springy slide. --ease-spring's overshoot gives the capsule weight
      so it "settles" into place rather than gliding mechanically; the
      overshoot is clipped by the pill, so it reads as a confident bounce
@@ -555,7 +555,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
      when the capsule passes underneath. */
   z-index: 1;
   /* Color transition coupled to the indicator slide — same --dur-slow
-     budget so the text color reaches teal-dark just as the capsule
+     budget so the text color reaches accent-dark just as the capsule
      finishes its spring arrival. --ease-out (vs ease) so the color
      change settles rather than continues moving at the end. */
   transition: color var(--dur-slow) var(--ease-out);
@@ -578,10 +578,10 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
    of (without an indicator sliding there yet). The active tab already
    has the indicator lens behind it, so skip it to avoid double-tinting. */
 .bottom-tab:not(.bottom-tab--active):active .bottom-tab-icon {
-  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   box-shadow:
     inset 0 1px 0.5px 0 rgba(255, 255, 255, 0.45),
-    inset 0 0 0 1px color-mix(in srgb, var(--teal) 16%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 .bottom-tab-label {
   /* 5 tabs of Spanish labels ("Proyectos", "Contactos") crowd each other
@@ -597,12 +597,12 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
    sliding indicator behind. Background is OWNED by the sliding
    .bottom-tab-indicator now — don't paint a background here or the
    active state would composite over the indicator. */
-.bottom-tab--active { color: var(--teal-dark); }
+.bottom-tab--active { color: var(--accent-dark); }
 .bottom-tab--active .bottom-tab-label {
   transform: scale(1.04);
 }
 .bottom-tab--active .bottom-tab-icon {
-  color: var(--teal-dark);
+  color: var(--accent-dark);
   /* One-shot bouncy hop on activation: the icon springs UP and scales
      out, dips slightly, then settles — a little more lively and
      "physical" than a flat scale pop. Reads as a tactile confirmation
@@ -654,13 +654,18 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 
   /* Type stripe — a 4px tinted band on the leading edge, just inside
      the panel's rounded corner. The pseudo-element sits behind the
-     content so flex alignment doesn't have to account for it. */
+     content so flex alignment doesn't have to account for it. The
+     DEFAULT (info) stripe is the accent: success/error/warning own the
+     status colors, so the neutral case is the one that should read as
+     the app talking. --accent also flips on its own in dark mode,
+     which the old --charcoal stripe could not (it inverted to
+     near-white and had to be patched in dark.css). */
   overflow: hidden;
 }
 .toast-panel::before {
   content: "";
   position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-  background: var(--charcoal);
+  background: var(--accent);
   border-radius: 4px 0 0 4px;
 }
 .toast-panel--success::before { background: var(--green); }
@@ -673,7 +678,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
   display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; border-radius: 50%;
   flex-shrink: 0;
-  background: var(--charcoal);
+  background: var(--accent-dark);
   color: var(--white);
   /* Icon arrives a beat after the panel — the panel's toastIn keyframe
      runs from 0 → ~80% of its duration without the chip, then the chip
@@ -720,9 +725,9 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 }
 .toast-close:active { color: var(--charcoal); }
 
-/* FAB — tinted Liquid Glass lens. Translucent teal with the chrome-
+/* FAB — tinted Liquid Glass lens. Translucent rose with the chrome-
    grade backdrop blur, so page content refracts through the disc while
-   the brand teal stays the read (iOS 26 keeps prominent actions as
+   the brand accent stays the read (iOS 26 keeps prominent actions as
    TINTED glass, not clear). Floats 24px above the bottom tab bar so
    it's clearly a floating action, not another tab. */
 .fab {
@@ -735,7 +740,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
   width: 54px; height: 54px;
   /* Tinted glass base + the tight top spec highlight (8% → fades by
      30%) that suggests sphere curvature without bleaching the brand
-     color. The tint token stays ≥72% teal because of the white glyph
+     color. The tint token stays ≥72% accent because of the white glyph
      (see --glass-tint-accent in base.css). */
   background:
     radial-gradient(ellipse 70% 35% at 50% 12%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 70%),
@@ -747,15 +752,17 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
   display: flex; align-items: center; justify-content: center;
   color: white;
   padding: 0;
-  /* Layered shadow: teal-tinted ambient glow (lifts the disc off the
+  /* Layered shadow: accent-tinted ambient glow (lifts the disc off the
      page with brand color) + soft neutral shadow for depth + crisp
      specular top rim (the glass lip) + inset bottom edge that gives
-     the lens thickness. */
+     the lens thickness. Tinted layers are color-mixed off --accent /
+     --accent-dark so the glow follows the palette (and the dark-mode
+     token flip) instead of a frozen rgba literal. */
   box-shadow:
-    0 10px 28px -8px rgba(91, 155, 175, 0.55),
-    0 4px 12px rgba(46, 46, 46, 0.14),
+    0 10px 28px -8px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 4px 12px color-mix(in srgb, var(--charcoal) 16%, transparent),
     inset 0 1.5px 0.5px rgba(255, 255, 255, 0.5),
-    inset 0 -2px 6px rgba(48, 108, 124, 0.35);
+    inset 0 -2px 6px color-mix(in srgb, var(--accent-dark) 38%, transparent);
   cursor: pointer; z-index: var(--z-fab);
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-slower) var(--ease-spring), box-shadow var(--dur-slow) ease;
@@ -763,8 +770,8 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 .fab:active {
   transform: scale(0.88);
   box-shadow:
-    0 8px 20px -6px rgba(48, 108, 124, 0.55),
-    0 2px 6px rgba(46, 46, 46, 0.12),
+    0 8px 20px -6px color-mix(in srgb, var(--accent-dark) 55%, transparent),
+    0 2px 6px color-mix(in srgb, var(--charcoal) 14%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 .fab.fab-open { transform: rotate(45deg); }
@@ -813,7 +820,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
   width: 38px; height: 38px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  color: var(--teal-dark);
+  color: var(--accent-dark);
   margin-right: 5px;
 }
 
@@ -826,7 +833,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
    as a small eyebrow beneath — never a wrapped two-line title. */
 .section-headline { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .section-sub { font-family: var(--font); font-size: var(--text-xs); font-weight: 600; color: var(--charcoal-xl); letter-spacing: 0.01em; }
-.see-all { font-size: 13px; font-weight: 600; color: var(--teal-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+.see-all { font-size: 13px; font-weight: 600; color: var(--accent-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
 
 .card { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--border-lt); overflow: hidden; }
 
@@ -868,7 +875,7 @@ button.kpi-card { cursor: pointer; }
   button.kpi-card:hover {
     /* Lift on hover — more visible shadow + slight border warm */
     box-shadow: 0 2px 4px rgba(46,46,46,0.05), 0 10px 24px rgba(46,46,46,0.09);
-    border-color: var(--teal-light);
+    border-color: var(--accent-light);
   }
 }
 button.kpi-card:active {
@@ -877,8 +884,8 @@ button.kpi-card:active {
      re-uses the resting-state spring transition above for the
      wobble-back. */
   transform: scale(0.94);
-  background: var(--teal-mist);
-  border-color: var(--teal-light);
+  background: var(--accent-mist);
+  border-color: var(--accent-light);
   /* Shadow collapses tight under the card to read as "pressed into
      the surface" — depth comes from the contrast with the resting
      state shadow above, not from the absolute values. */
@@ -903,16 +910,28 @@ button.kpi-card:active {
 [style*="--font-d"] { font-variant-numeric: tabular-nums; }
 .kpi-meta { font-size: 11px; color: var(--charcoal-xl); margin-top: 4px; }
 
-/* BADGE */
+/* BADGE
+   Label text is the status hue pulled 28% toward --charcoal. The raw
+   hues are tuned to read as ACCENTS on white (icons, amounts, rails),
+   and at 11px bold on their own pale tint they measured 2.2–3.6:1 —
+   the whole badge row read washed out, and on a blush ground the
+   palest of them (rose, amber) dissolved. The mix lands every badge at
+   3.4–5.4:1 in light without changing the hue you read. It is
+   direction-correct in dark for free: --charcoal inverts there, so the
+   same expression LIGHTENS the label against the dark tint (6.4–8.7:1).
+   Backgrounds are untouched. */
 .badge { display: inline-flex; align-items: center; font-size: var(--text-xs); font-weight: 700; padding: 2px 8px; border-radius: var(--radius-pill); }
-.badge-green  { background: var(--green-bg);  color: var(--green); }
-.badge-red    { background: var(--red-bg);    color: var(--red); }
-.badge-teal   { background: var(--teal-pale); color: var(--teal-dark); }
-.badge-gray   { background: var(--cream-dark);color: var(--charcoal-lt); }
-.badge-amber  { background: var(--amber-bg);  color: var(--amber); }
-.badge-purple { background: var(--purple-bg); color: var(--purple); }
-.badge-blue   { background: var(--blue-bg);   color: var(--blue); }
-.badge-rose   { background: var(--rose-bg);   color: var(--rose); }
+.badge-green  { background: var(--green-bg);  color: color-mix(in srgb, var(--green) 72%, var(--charcoal)); }
+.badge-red    { background: var(--red-bg);    color: color-mix(in srgb, var(--red) 72%, var(--charcoal)); }
+.badge-teal   { background: var(--teal-pale); color: color-mix(in srgb, var(--teal-dark) 72%, var(--charcoal)); }
+.badge-gray   { background: var(--cream-dark);color: color-mix(in srgb, var(--charcoal-lt) 72%, var(--charcoal)); }
+.badge-amber  { background: var(--amber-bg);  color: color-mix(in srgb, var(--amber) 72%, var(--charcoal)); }
+.badge-purple { background: var(--purple-bg); color: color-mix(in srgb, var(--purple) 72%, var(--charcoal)); }
+.badge-blue   { background: var(--blue-bg);   color: color-mix(in srgb, var(--blue) 72%, var(--charcoal)); }
+/* --rose is currently unused by any badge map — see the note on
+   CONTACT_RELATIONSHIP in screens/Contacts.tsx. Kept defined so a rose
+   badge stays one line away if a lane ever wants it. */
+.badge-rose   { background: var(--rose-bg);   color: color-mix(in srgb, var(--rose) 72%, var(--charcoal)); }
 
 /* ROW ITEMS */
 .row-item {
@@ -922,14 +941,14 @@ button.kpi-card:active {
   -webkit-tap-highlight-color: transparent; transition: background var(--dur-slow);
 }
 .row-item:last-child { border-bottom: none; }
-.row-item:active { background: var(--teal-mist); }
+.row-item:active { background: var(--accent-mist); }
 @media (hover: hover) {
-  .row-item:hover { background: var(--teal-mist); }
+  .row-item:hover { background: var(--accent-mist); }
 }
 .row-item:focus-visible {
   outline: none;
-  background: var(--teal-mist);
-  box-shadow: inset 0 0 0 2px var(--teal);
+  background: var(--accent-mist);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 .row-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-size: 13px; font-weight: 800; color: var(--white); flex-shrink: 0; }
 .row-icon { width: 40px; height: 40px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
@@ -969,7 +988,7 @@ button.kpi-card:active {
      150ms feels instant while still being visible. */
   transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
-.input:focus { border-color: var(--teal); box-shadow: var(--focus-ring); }
+.input:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
 .input:hover:not(:focus):not(:disabled) { border-color: var(--charcoal-xl); }
 .input::placeholder { color: var(--charcoal-xl); transition: opacity var(--dur-fast) ease; }
 .input:focus::placeholder { opacity: 0.55; }
@@ -1036,8 +1055,8 @@ button.kpi-card:active {
 }
 .password-input-toggle:hover { color: var(--charcoal-md); }
 .password-input-toggle:active { background: var(--cream); }
-.password-input-toggle:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-.password-input-toggle[aria-pressed="true"] { color: var(--teal-dark); }
+.password-input-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.password-input-toggle[aria-pressed="true"] { color: var(--accent-dark); }
 
 /* iOS Safari centers the rendered value inside date and time inputs
    by default, which reads as inconsistent with every text/number
@@ -1111,7 +1130,7 @@ button.kpi-card:active {
 .btn:active { transform: scale(0.95); }
 .btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--teal-pale), 0 0 0 5px var(--teal);
+  box-shadow: 0 0 0 3px var(--accent-pale), 0 0 0 5px var(--accent);
 }
 /* Unified disabled affordance — desaturate + lift cursor, and suppress
    the spring scale so the button reads as inert rather than "loading".
@@ -1119,7 +1138,12 @@ button.kpi-card:active {
 .btn[disabled], .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-  filter: saturate(0.6);
+  /* No `filter: saturate(0.6)` here. --charcoal is a plum now, and
+     desaturating it produced a flat cold grey pill — on the auth card
+     that disabled "Entrar" was the largest object on the first screen a
+     user ever sees, and it was the one grey thing left in the app.
+     Opacity + not-allowed is the documented disabled affordance; the
+     dimmed plum reads inert without going neutral. */
   /* Kill hover lift + focus ring on disabled buttons so a keyboard
      user tabbing through a form doesn't see a focus glow on a button
      they can't activate. */
@@ -1162,9 +1186,20 @@ button.kpi-card:active {
    resets the lift on press for both pointer and touch. */
 @media (hover: hover) {
   .btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
-  .btn-ghost:not(:disabled):hover { background: rgba(91,155,175,0.06); }
+  .btn-ghost:not(:disabled):hover { background: var(--accent-mist); }
 }
 .btn-primary:not(:disabled):active { transform: translateY(0); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+/* Disabled primary gets its OWN surface rather than the shared
+   opacity dim. --charcoal is a plum, but it's a very dark one: at 55%
+   over white the chroma vanishes and the pill lands on ~#8C888F, i.e.
+   grey — and on the auth card that's the biggest object on the first
+   screen of the app. A blush fill with a muted plum label reads just as
+   inert and stays inside the palette. Both tokens invert in dark. */
+.btn-primary[disabled], .btn-primary:disabled {
+  background: var(--cream-deeper);
+  color: var(--charcoal-xl);
+  opacity: 1;
+}
 .btn-primary-teal {
   background: var(--teal); color: var(--white); width: 100%;
   box-shadow: 0 4px 14px rgba(91,155,175,0.38);
@@ -1176,7 +1211,7 @@ button.kpi-card:active {
 }
 .btn-primary-teal:not(:disabled):active { background: var(--teal-dark); transform: translateY(0); }
 .btn-secondary { background: var(--white); color: var(--charcoal-md); border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); }
-.btn-ghost { background: transparent; color: var(--teal-dark); height: 38px; padding: 0 10px; font-size: var(--text-md); transition: background-color var(--dur-fast) ease; }
+.btn-ghost { background: transparent; color: var(--accent-dark); height: 38px; padding: 0 10px; font-size: var(--text-md); transition: background-color var(--dur-fast) ease; }
 .btn-danger { background: var(--red-bg); color: var(--red); box-shadow: none; width: 100%; }
 .btn-warning { background: var(--amber-bg); color: var(--amber); box-shadow: none; width: 100%; }
 /* Teal CTAs — solid filled + soft-tinted variants. Default height 44 for
@@ -1187,14 +1222,14 @@ button.kpi-card:active {
 
 /* Balance row active state */
 .bal-row { -webkit-tap-highlight-color: transparent; transition: background var(--dur-slow); }
-.bal-row[role="button"]:active { background: var(--teal-mist); }
+.bal-row[role="button"]:active { background: var(--accent-mist); }
 @media (hover: hover) {
-  .bal-row[role="button"]:hover { background: var(--teal-mist); }
+  .bal-row[role="button"]:hover { background: var(--accent-mist); }
 }
 .bal-row[role="button"]:focus-visible {
   outline: none;
-  background: var(--teal-mist);
-  box-shadow: inset 0 0 0 2px var(--teal);
+  background: var(--accent-mist);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* ── OAUTH BUTTONS ──
@@ -1321,7 +1356,7 @@ html.cap-android .scroll-bounce {
    "Día libre" / free-day variant. Positive empty state (the user has
    no sessions because the day is open, not because of an error), so
    the surface should feel like a warm, restful moment instead of an
-   absence. The icon sits on a soft warm-teal radial gradient with a
+   absence. The icon sits on a soft warm-blush radial gradient with a
    subtle inner glow that catches sunlight; the title gets a touch
    more letter-spacing for a confident, headline-y feel.
 
@@ -1329,12 +1364,15 @@ html.cap-android .scroll-bounce {
 .empty-state--day .empty-state-icon {
   width: 64px; height: 64px;
   background:
-    radial-gradient(circle at 35% 30%, rgba(255, 247, 224, 0.9) 0%, rgba(213, 230, 232, 0.85) 60%, rgba(91, 155, 175, 0.18) 100%);
-  color: var(--teal);
+    radial-gradient(circle at 35% 30%,
+      color-mix(in srgb, var(--white) 92%, var(--amber)) 0%,
+      var(--accent-pale) 60%,
+      color-mix(in srgb, var(--accent) 22%, transparent) 100%);
+  color: var(--accent-dark);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    inset 0 0 12px rgba(255, 234, 178, 0.4),
-    0 6px 18px -4px rgba(91, 155, 175, 0.22);
+    inset 0 0 12px color-mix(in srgb, var(--amber) 18%, transparent),
+    0 6px 18px -4px color-mix(in srgb, var(--accent) 22%, transparent);
   margin-bottom: 4px;
   /* Gentle float — 3px lift over 4s ease-in-out. Telegraphs "this is
      a quiet moment", not a static "nothing here" badge. Suppressed
@@ -1544,14 +1582,14 @@ html.cap-android .scroll-bounce {
 /* ── ACCESSIBILITY + TOUCH TARGETS (from Cardigan screens.css) ── */
 /* ── ACCESSIBILITY ── */
 *:focus-visible {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 button:focus-visible, a:focus-visible, select:focus-visible {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.input:focus-visible { outline: none; border-color: var(--teal); box-shadow: var(--focus-ring); }
+.input:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 
 /* ── TOUCH TARGETS ── */
 button, a, select { min-height: 44px; }
@@ -1604,7 +1642,7 @@ button.row-item {
    Port of Cardigan's single pill-tab style, used by <SegmentedControl />
    (auth Entrar/Crear cuenta, project status). */
 .segmented {
-  display: flex; background: var(--teal-pale);
+  display: flex; background: var(--accent-pale);
   border-radius: var(--radius-pill);
   padding: 3px; gap: 2px;
   position: relative;
@@ -1612,7 +1650,7 @@ button.row-item {
 .segmented-slider {
   position: absolute; top: 3px; bottom: 3px;
   border-radius: var(--radius-pill);
-  /* White floating thumb on the pale-teal track. The crisp 1px ring +
+  /* White floating thumb on the pale-accent track. The crisp 1px ring +
      soft drop reads as an elevated pill (the iOS "floating thumb" cue)
      even though thumb and track are both near-white — separation comes
      from the ring/shadow, not fill contrast. Ring uses color-mix off
@@ -1682,7 +1720,7 @@ button.row-item {
   position: relative; z-index: 1;
 }
 .segmented-btn.active {
-  color: var(--teal-dark);
+  color: var(--accent-dark);
   background: transparent; box-shadow: none;
 }
 .segmented-btn:active { opacity: 0.7; }
@@ -1699,8 +1737,10 @@ button.row-item {
 
 /* ── CHIPS ──
    Cardigan's filter-chip vocabulary, used here as single-choice enum
-   pickers inside sheets (<ChipSelect />): white pill at rest, teal fill
-   when active, spring scale on press. */
+   pickers inside sheets (<ChipSelect />): white pill at rest, accent fill
+   when active, spring scale on press. The ACTIVE fill is --accent-dark,
+   not --accent: the label is 12px body text, and white on --accent is
+   only 3.73:1 (see the contrast rule in base.css). */
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1711,13 +1751,13 @@ button.row-item {
   -webkit-tap-highlight-color: transparent;
   transition: all var(--dur-slow), transform var(--dur-slow) var(--ease-spring); font-family: var(--font);
 }
-.chip.active { background: var(--teal); border-color: var(--teal); color: white; }
+.chip.active { background: var(--accent-dark); border-color: var(--accent-dark); color: var(--white); }
 .chip:active { transform: scale(0.93); }
-.chip:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--teal); }
+.chip:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
 /* Inside a sheet the chips are a form control, not a dense filter
    strip: body-size type and a 36px hit height. */
 .chip-row .chip { font-size: var(--text-sm); min-height: 36px; padding: 6px 12px; }
-/* Event-kind dot inside a chip. On the teal active fill the dot gets
+/* Event-kind dot inside a chip. On the accent active fill the dot gets
    a currentColor (white) ring so a teal/blue/green dot never
    disappears into the background. */
 .chip .event-dot { transition: box-shadow var(--dur-fast) ease; }
@@ -1741,21 +1781,21 @@ button.row-item {
 .picker-field--empty { color: var(--charcoal-xl); }
 .picker-field-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-field-chevron { display: inline-flex; color: var(--charcoal-xl); flex-shrink: 0; }
-.picker-field:active { background: var(--teal-mist); border-color: var(--charcoal-xl); }
+.picker-field:active { background: var(--accent-mist); border-color: var(--charcoal-xl); }
 @media (hover: hover) {
   .picker-field:hover { border-color: var(--charcoal-xl); }
 }
-.picker-field:focus-visible { outline: none; border-color: var(--teal); box-shadow: var(--focus-ring); }
+.picker-field:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 /* PickerSheet rows: .row-item as a full-width button (UA reset), a
-   teal check on the selected row, "Ninguno" in placeholder color. */
+   accent check on the selected row, "Ninguno" in placeholder color. */
 .picker-list { margin-bottom: 8px; }
 .picker-row {
   width: 100%; background: none; border-left: none; border-right: none; border-top: none;
   font-family: inherit; text-align: left; min-height: 52px; padding: 12px 16px;
 }
-.picker-row--active .row-title { color: var(--teal-dark); font-weight: 700; }
+.picker-row--active .row-title { color: var(--accent-dark); font-weight: 700; }
 .picker-row-none { color: var(--charcoal-xl); font-weight: 500; }
-.picker-check { display: inline-flex; color: var(--teal); flex-shrink: 0; }
+.picker-check { display: inline-flex; color: var(--accent); flex-shrink: 0; }
 .picker-empty { padding: 20px 16px; font-size: 13px; color: var(--charcoal-xl); text-align: center; }
 
 /* ── SHEET ACTIONS ──

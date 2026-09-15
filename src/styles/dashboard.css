@@ -198,8 +198,16 @@
   transition: height var(--dur-slow) var(--ease-out);
 }
 .dash-bar--current { opacity: 1; }
+/* Positive = green, negative = red. This pair was teal/red before the
+   repalette, and --accent was the obvious swap — but rose and red are
+   only ~20° apart, and at this bar width the two states became one
+   smear (verified on device at 390px, both themes). Green also matches
+   .dash-pulse-net--pos, the hero figure sitting directly above the
+   chart, so the screen now tells the same story twice instead of in two
+   vocabularies. The accent's job on this screen is the current-month
+   label and the pressed states — not the data. */
 .dash-bar--pos {
-  background: var(--teal);
+  background: var(--green);
   border-radius: 4px 4px 0 0;
 }
 .dash-bar--neg {
@@ -228,7 +236,7 @@
   font-weight: 700;
   color: var(--charcoal-xl);
 }
-.dash-chart-label--current { color: var(--teal-dark); }
+.dash-chart-label--current { color: var(--accent-dark); }
 
 /* ── Tu taller ──
    Three figures in one band, each one a way into the tab that owns it. */
@@ -254,9 +262,9 @@
   -webkit-tap-highlight-color: transparent;
 }
 .dash-figure:last-child { border-right: none; }
-.dash-figure:active { background: var(--teal-mist); }
+.dash-figure:active { background: var(--accent-mist); }
 @media (hover: hover) {
-  .dash-figure:hover { background: var(--teal-mist); }
+  .dash-figure:hover { background: var(--accent-mist); }
 }
 .dash-figure-label {
   font-size: var(--text-eyebrow);

@@ -7,7 +7,17 @@
 html[data-theme="dark"] {
   color-scheme: dark;
 
-  /* ── Primary teal ── */
+  /* ── Accent — rose ──
+     Lifted for dark surfaces; the light-mode rose would vibrate on the
+     plum-black page. The ramp INVERTS here: --accent-dark is the
+     LIGHTER step, so the base.css contrast rule ("labels on an accent
+     fill use --accent-dark + --white") still resolves correctly —
+     --white is #1A1620 in this theme, giving 8.53:1. */
+  --accent:       #E08AB0;
+  --accent-dark:  #EC9CBE;
+  --accent-light: #F0A9C6;
+  --accent-pale:  rgba(224,138,176,0.17);
+  --accent-mist:  rgba(224,138,176,0.09);
   --teal:        #4A9BB0;
   --teal-dark:   #5AADBE;
   --teal-light:  #6DB8CC;
@@ -15,28 +25,28 @@ html[data-theme="dark"] {
   --teal-mist:   rgba(91,155,175,0.08);
 
   /* ── Neutrals ── */
-  --cream:       #2A2A2A;
-  --cream-dark:  #333333;
-  --cream-deeper:#3D3D3D;
+  --cream:       #241D2A;
+  --cream-dark:  #2E2536;
+  --cream-deeper:#392E42;
 
   /* ── Text ── */
-  --charcoal:    #EAEAEA;
-  --charcoal-md: #BFBFBF;
-  --charcoal-lt: #999999;
-  --charcoal-xl: #888888;
+  --charcoal:    #F2EAF0;
+  --charcoal-md: #C6B8C9;
+  --charcoal-lt: #9C8FA3;
+  --charcoal-xl: #8A7D91;
 
   /* ── Borders ── */
-  --border:      #3A3A3A;
-  --border-lt:   #2E2E2E;
+  --border:      #3C3145;
+  --border-lt:   #2C2433;
 
   /* ── Surfaces ── */
-  --white:       #1A1A1A;
+  --white:       #1A1620;
 
   /* ── Status colors ── */
   --green:       #4EC98A;
   --green-bg:    rgba(61,171,116,0.12);
-  --red:         #E57777;
-  --red-bg:      rgba(217,107,107,0.12);
+  --red:         #EC6F62;
+  --red-bg:      rgba(212,84,75,0.16);
   --amber:       #E0B050;
   --amber-bg:    rgba(212,160,64,0.12);
   --purple:      #A08FD8;
@@ -50,11 +60,11 @@ html[data-theme="dark"] {
   --blue-bg:     rgba(91,140,215,0.12);
   /* Rose (interview / potential) — same alpha-tinted strategy as
      purple/blue/amber so the dark-mode contrast stays readable. */
-  --rose:        #D896B0;
-  --rose-bg:     rgba(199,126,156,0.14);
+  --rose:        #E5A8BE;
+  --rose-bg:     rgba(217,139,166,0.15);
 
   /* ── Navigation ── */
-  --nav-bg:      #141E22;
+  --nav-bg:      #221827;
 
   /* ── Shadows ── */
   --shadow-sm:   0 1px 4px rgba(0,0,0,0.3);
@@ -62,12 +72,12 @@ html[data-theme="dark"] {
   --shadow-lg:   0 8px 28px rgba(0,0,0,0.5);
   --shadow-overlay:  0 16px 48px rgba(0,0,0,0.6);
   --shadow-sheet-up: 0 -10px 40px rgba(0,0,0,0.6);
-  /* Brighter teal + higher alpha so the focus ring stays visible on
-     dark inputs (the light-mode value washed out against #1A1A1A). */
-  --focus-ring: 0 0 0 3px rgba(74,155,176,0.45);
+  /* Brighter rose + higher alpha so the focus ring stays visible on
+     dark inputs (the light-mode value washed out against the dark page). */
+  --focus-ring: 0 0 0 3px rgba(224,138,176,0.45);
   /* Danger ring follows dark --red (#E57777); alpha bumped like the
-     teal ring so it stays visible against dark inputs. */
-  --focus-ring-danger: 0 0 0 3px rgba(229,119,119,0.4);
+     accent ring so it stays visible against dark inputs. */
+  --focus-ring-danger: 0 0 0 3px rgba(236,111,98,0.4);
 
   /* ── Liquid Glass material tokens, dark ──
      The frosted chrome inverts to semi-opaque charcoal so the bars
@@ -76,9 +86,9 @@ html[data-theme="dark"] {
      deepen the drop shadows — a bright rim on dark glass reads as a
      hard white line, not a glint. Every surface consuming the tokens
      flips at once; only gradient garnishes stay per-surface below. */
-  --glass-bg-chrome: rgba(28, 28, 30, 0.30);
-  --glass-bg-bar:    rgba(26, 26, 26, 0.66);
-  --glass-bg-panel:  rgba(28, 28, 30, 0.78);
+  --glass-bg-chrome: rgba(32, 26, 38, 0.30);
+  --glass-bg-bar:    rgba(26, 22, 32, 0.66);
+  --glass-bg-panel:  rgba(32, 26, 38, 0.78);
   --glass-edge-chrome: rgba(255, 255, 255, 0.10);
   --glass-edge-panel:  rgba(255, 255, 255, 0.08);
   --glass-shadow-chrome:
@@ -98,11 +108,13 @@ html[data-theme="dark"] {
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* ── Buttons: invert primary in dark mode ── */
-html[data-theme="dark"] .btn-primary {
-  background: #EAEAEA;
-  color: #1A1A1A;
-}
+/* ── Buttons ──
+   .btn-primary needs NO dark override: it's `background: var(--charcoal);
+   color: var(--white)`, and both tokens invert here — giving a
+   plum-tinted off-white pill (#F2EAF0) with near-black text. The old
+   hardcoded #EAEAEA / #1A1A1A pair was a COLD grey sitting on a blush
+   palette, which is exactly the "greyish" read the repalette set out to
+   remove. Don't reintroduce it. */
 /* Teal surfaces keep their brand color in dark mode — the `color:
    var(--white)` rule in components.css would otherwise flip to dark
    text (because --white inverts to #1A1A1A), showing as muddy black
@@ -123,16 +135,6 @@ html[data-theme="dark"] .app-banner--demo .app-banner-text--muted {
 }
 html[data-theme="dark"] .cmdp-item--active .cmdp-item-icon {
   color: #FFFFFF;
-}
-html[data-theme="dark"] .fab {
-  /* Keep the teal gradient in dark mode too — it's meant to look
-     special, so we don't fall through to the --charcoal swap. */
-  background: radial-gradient(circle at 30% 25%, var(--teal-light) 0%, var(--teal) 55%, var(--teal-dark) 100%);
-  color: #FFFFFF;
-  box-shadow:
-    0 10px 28px -6px rgba(91,155,175,0.6),
-    0 4px 14px rgba(0,0,0,0.45),
-    inset 0 1px 0 rgba(255,255,255,0.22);
 }
 /* OAuth buttons: Google keeps its light pill per brand guidelines and
    Apple stays on a dark pill — the --charcoal-based swap would otherwise
@@ -180,14 +182,16 @@ html[data-theme="dark"] .page::-webkit-scrollbar-thumb:hover {
 html[data-theme="dark"] .row-avatar { color: #FFFFFF; }
 html[data-theme="dark"] .avatar-sm { color: #FFFFFF; }
 
-/* ── Active chip: ensure white text on teal ── */
-html[data-theme="dark"] .chip.active { color: #FFFFFF; }
+/* .chip.active needs no dark override: it fills with --accent-dark and
+   labels with var(--white), both of which flip on their own. */
 
 /* ── Autofill ── */
 html[data-theme="dark"] input:-webkit-autofill,
 html[data-theme="dark"] input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #2A2A2A inset;
-  -webkit-text-fill-color: #EAEAEA;
+  /* Token-driven: a neutral-grey autofill field (#2A2A2A / #EAEAEA)
+     reads as a cold patch inside the plum-tinted form. */
+  -webkit-box-shadow: 0 0 0 1000px var(--cream-dark) inset;
+  -webkit-text-fill-color: var(--charcoal);
   /* Without these, Chrome's autofill state paints the original light
      border on top of our dark surface — looks like a stray pale ring
      around the field. Forcing the border + caret to follow the dark
@@ -216,26 +220,13 @@ html[data-theme="dark"] {
      whatever surface they overlay, so re-tuning isn't needed. */
 }
 
-/* ── Landing page dark overrides ──
-   The nav, page bg, and most surfaces adapt automatically via the shared
-   --white / --charcoal tokens now. Only the primary CTA needs explicit
-   inversion so it stays a bright pill on the dark page. */
-html[data-theme="dark"] .lp-btn--primary {
-  background: #EAEAEA;
-  color: #1A1A1A;
-}
-
 /* ── Hover overrides for dark mode (pointer devices) ── */
 @media (hover: hover) {
   html[data-theme="dark"] .btn-primary:hover {
-    background: #FFFFFF;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    box-shadow: var(--shadow);
   }
   html[data-theme="dark"] .fab:hover {
     filter: brightness(1.1);
-  }
-  html[data-theme="dark"] .lp-btn--primary:hover {
-    background: #FFFFFF;
   }
 }
 
@@ -280,7 +271,7 @@ html[data-theme="dark"] .bottom-tabs::after {
       transparent 22%);
 }
 /* Dark mode: soften the travelling lens sheen so the glint stays subtle
-   against the darker --teal-pale lens fill. */
+   against the darker accent lens fill. */
 html[data-theme="dark"] .bottom-tab-indicator::after {
   background: linear-gradient(
     100deg,
@@ -301,28 +292,30 @@ html[data-theme="dark"] .bottom-tabs::before {
       transparent 56%);
 }
 html[data-theme="dark"] .bottom-tab { color: rgba(255, 255, 255, 0.5); }
-html[data-theme="dark"] .bottom-tab--active {
-  color: var(--teal-light);
-}
+/* .bottom-tab--active resolves to var(--accent-dark), which is the
+   LIGHT step of the ramp in this theme (#EC9CBE) — no override needed. */
 /* Static active capsule ONLY for bars without the sliding indicator
    (the patient shell inlines .bottom-tabs but no .bottom-tab-indicator).
    The therapist bar HAS the indicator, which owns the active background
    — painting one here too would double the tint and pop instantly on
    the destination tab mid-slide. */
 html[data-theme="dark"] .bottom-tabs:not(:has(.bottom-tab-indicator)) .bottom-tab--active {
-  background: rgba(91, 155, 175, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(91, 155, 175, 0.32);
-}
-html[data-theme="dark"] .bottom-tab--active .bottom-tab-icon {
-  color: var(--teal-light);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
-/* Liquid Glass FAB — dark mode keeps the radial teal tint but on a
+/* Liquid Glass FAB — dark mode keeps the radial rose tint but on a
    charcoal-tinted glass base so it doesn't glow against the dark
-   page background. */
+   page background. The white glyph stays white here: the disc resolves
+   to a mid-rose over the plum-black page, so --white (#1A1620) would
+   disappear into it. */
 html[data-theme="dark"] .fab {
   background:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.16) 0%, rgba(91,155,175,0.42) 50%, rgba(40,90,105,0.78) 100%);
+    radial-gradient(circle at 30% 25%,
+      rgba(255,255,255,0.16) 0%,
+      color-mix(in srgb, var(--accent) 46%, transparent) 50%,
+      color-mix(in srgb, var(--accent-dark) 16%, #2A1C25) 100%);
+  color: #FFFFFF;
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow:
     0 14px 32px -10px rgba(0, 0, 0, 0.65),
@@ -340,15 +333,9 @@ html[data-theme="dark"] .fab {
    rule here forced `color: var(--white)` — which INVERTS to #1A1A1A in
    dark mode, i.e. near-black toast text on dark glass. Classic token
    trap (see the .btn-primary-teal comment above); don't reintroduce. */
-html[data-theme="dark"] .toast-panel--default::before,
-html[data-theme="dark"] .toast-panel::before {
-  /* The default-type stripe (charcoal in light mode) needs to flip to
-     a lighter neutral in dark so it doesn't disappear. Type-specific
-     stripes are saturated enough to read either way. */
-}
-html[data-theme="dark"] .toast-panel:not(.toast-panel--success):not(.toast-panel--error):not(.toast-panel--warning)::before {
-  background: rgba(255, 255, 255, 0.55);
-}
+/* The default stripe + icon chip are --accent / --accent-dark now, both
+   of which lift on their own in this theme, so the old white patches
+   (which made every neutral toast read as unstyled chrome) are gone. */
 html[data-theme="dark"] .toast-action {
   background: rgba(255, 255, 255, 0.1);
   color: var(--white);
@@ -356,10 +343,6 @@ html[data-theme="dark"] .toast-action {
 html[data-theme="dark"] .toast-action:active { background: rgba(255, 255, 255, 0.18); }
 html[data-theme="dark"] .toast-close { color: rgba(255, 255, 255, 0.55); }
 html[data-theme="dark"] .toast-close:active { color: var(--white); }
-html[data-theme="dark"] .toast-icon:not(.toast-panel--success .toast-icon):not(.toast-panel--error .toast-icon):not(.toast-panel--warning .toast-icon) {
-  background: rgba(255, 255, 255, 0.18);
-  color: var(--white);
-}
 
 /* Liquid Glass HelpTip — charcoal-tinted glass keeps tip text legible
    on dark page surfaces without flattening into the background. */

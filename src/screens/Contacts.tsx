@@ -8,10 +8,18 @@ import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
 import { ContactSheet } from "../components/ContactSheet";
 
-/* Cardigan semantic badges: rose = lead / potential lane, teal = active
-   client, purple = gallery, green = collaborator, gray = neutral. */
+/* Semantic badges — none of them the primary accent: amber = prospect
+   (a pending relationship, which is what amber means everywhere else in
+   this palette), teal = active client, purple = gallery, green =
+   collaborator, gray = neutral.
+
+   `lead` was badge-rose. With rose as the app's accent that pill sat in
+   the same family as the accent chips AND as blush badge-gray two rows
+   below it — on screen "Prospecto" and "Proveedor" read as the same
+   pink label — and its text measured 2.3:1, the weakest in the app.
+   Amber is the only free color in this map that says "pending". */
 const RELATIONSHIP_BADGE: Record<ContactRelationship, string> = {
-  lead: "badge-rose",
+  lead: "badge-amber",
   client: "badge-teal",
   gallery: "badge-purple",
   supplier: "badge-gray",

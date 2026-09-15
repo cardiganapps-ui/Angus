@@ -1,5 +1,5 @@
 /* Account sheet + topbar avatar. Same vocabulary as everything else:
-   row-item list, section-title, cream/teal tokens. */
+   row-item list, section-title, blush/accent tokens. */
 button.topbar-avatar {
   width: 32px;
   height: 32px;
@@ -7,8 +7,8 @@ button.topbar-avatar {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--teal-pale);
-  color: var(--teal-dark);
+  background: var(--accent-pale);
+  color: var(--accent-dark);
   font-family: var(--font-d);
   font-weight: 800;
   font-size: var(--text-sm);
@@ -37,8 +37,8 @@ button.topbar-avatar:focus-visible { outline: none; box-shadow: var(--focus-ring
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--teal-pale);
-  color: var(--teal-dark);
+  background: var(--accent-pale);
+  color: var(--accent-dark);
   font-family: var(--font-d);
   font-weight: 800;
   font-size: var(--text-xl);
@@ -49,11 +49,11 @@ button.topbar-avatar:focus-visible { outline: none; box-shadow: var(--focus-ring
 }
 
 .account-check {
-  color: var(--teal);
+  color: var(--accent);
   display: flex;
   align-items: center;
 }
 
 .row-item--selected {
-  background: var(--teal-mist);
+  background: var(--accent-mist);
 }

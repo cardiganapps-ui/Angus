@@ -6,8 +6,9 @@ import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
 import { ProjectSheet } from "../components/ProjectSheet";
 
-/* Cardigan semantic badges: teal = active/in-progress, green = done,
-   amber = on hold, purple = idea. */
+/* Semantic badges: teal = active/in-progress (teal's job in this
+   palette now that rose is the accent), green = done, amber = on hold,
+   purple = idea. */
 const STATUS_BADGE: Record<ProjectStatus, string> = {
   idea: "badge-purple",
   in_progress: "badge-teal",
