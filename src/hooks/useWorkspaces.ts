@@ -36,8 +36,18 @@ export function useWorkspaces(userId: string | null) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Synchronous mirror of the list: two writes in one tick (rename, then
+  // settings — onboarding does exactly this) must each build on the
+  // other, not on whatever the last render saw, or the second one sends
+  // a stale whole-blob and erases the first.
   const listRef = useRef(workspaces);
-  listRef.current = workspaces;
+  useEffect(() => {
+    listRef.current = workspaces;
+  }, [workspaces]);
+  const commit = useCallback((next: Workspace[]) => {
+    listRef.current = next;
+    setWorkspaces(next);
+  }, []);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -87,15 +97,21 @@ export function useWorkspaces(userId: string | null) {
 
   const patchWorkspace = useCallback(
     async (id: string, local: Partial<Workspace>, row: Record<string, unknown>) => {
-      const prev = listRef.current;
-      setWorkspaces(prev.map((w) => (w.id === id ? { ...w, ...local } : w)));
+      const before = listRef.current.find((w) => w.id === id);
+      if (!before) return;
+      // Revert restores only the fields this write touched, so a sibling
+      // write that succeeded in the meantime is not undone with it.
+      const prior = Object.fromEntries(
+        (Object.keys(local) as (keyof Workspace)[]).map((k) => [k, before[k]])
+      ) as Partial<Workspace>;
+      commit(listRef.current.map((w) => (w.id === id ? { ...w, ...local } : w)));
       const { error } = await supabase.from("workspaces").update(row).eq("id", id);
       if (error) {
-        setWorkspaces(prev);
+        commit(listRef.current.map((w) => (w.id === id ? { ...w, ...prior } : w)));
         setError(error.message);
       }
     },
-    []
+    [commit]
   );
 
   const updateSettings = useCallback(

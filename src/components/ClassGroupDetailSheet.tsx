@@ -14,7 +14,7 @@ import {
 } from "../utils/classes";
 import { describeSeries } from "../utils/series";
 import { formatMXN, formatMXNShort } from "../utils/money";
-import { formatWithWeekday, monthRange, todayISO } from "../utils/dates";
+import { formatWithWeekday, todayISO } from "../utils/dates";
 import { makeId } from "../utils/id";
 import { Sheet } from "./Sheet";
 import { Icon } from "./Icon";
@@ -107,7 +107,8 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
     let ruleId: string | null = previous?.recurringRuleId ?? null;
     if (group.tuitionCadence === "monthly" && group.tuitionAmount) {
       if (ruleId && rules.some((r) => r.id === ruleId)) {
-        void updateRule(ruleId, { active: true, amount: group.tuitionAmount, endDate: null });
+        // Restart from today: the months of the gap are not owed.
+        void updateRule(ruleId, { active: true, amount: group.tuitionAmount, startDate: today, endDate: null });
       } else {
         ruleId = makeId();
         const ok = await addRule({
@@ -120,7 +121,7 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
           category: "class",
           cadence: "monthly",
           interval: 1,
-          startDate: monthRange(today).from < today ? today : monthRange(today).from,
+          startDate: today,
           endDate: null,
           contactId,
           projectId: null,

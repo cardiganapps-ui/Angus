@@ -4,7 +4,7 @@ import { useToast } from "../context/ToastContext";
 import type { ExpenseCategory } from "../types";
 import { EXPENSE_CATEGORY, EXPENSE_CATEGORY_BADGE, labelFor } from "../data/constants";
 import { budgetProgress, expensesByCategory } from "../utils/accounting";
-import { formatMXN, formatMXNShort, sumMoney } from "../utils/money";
+import { formatMXN, formatMXNShort, subtractMoney, sumMoney } from "../utils/money";
 import { PeriodPicker } from "../components/PeriodPicker";
 import { currentPeriod, periodRange, type Period } from "../utils/period";
 import { EmptyState } from "../components/EmptyState";
@@ -65,7 +65,7 @@ export function Budgets() {
             <div className="money-submeta">
               Gastado {formatMXN(totalSpent)} ·{" "}
               {totalSpent <= totalLimit
-                ? `te quedan ${formatMXN(sumMoney([totalLimit]) - totalSpent)}`
+                ? `te quedan ${formatMXN(subtractMoney(totalLimit, totalSpent))}`
                 : `te pasaste por ${formatMXN(totalSpent - totalLimit)}`}
             </div>
           </div>
@@ -110,7 +110,7 @@ export function Budgets() {
                 </span>
                 <span className={`budget-row-remaining ${row.state === "over" ? "budget-row-remaining--over" : ""}`}>
                   {row.state === "over"
-                    ? `Te pasaste por ${formatMXN(row.spent - row.limit)}`
+                    ? `Te pasaste por ${formatMXN(subtractMoney(row.spent, row.limit))}`
                     : row.state === "near"
                       ? `Quedan ${formatMXN(row.remaining)} · ya vas en ${Math.round(row.ratio * 100)}%`
                       : `Quedan ${formatMXN(row.remaining)}`}

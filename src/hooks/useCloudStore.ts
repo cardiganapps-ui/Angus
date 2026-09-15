@@ -40,8 +40,14 @@ export interface CloudStore<T extends Entity> {
 const UNIQUE_VIOLATION = "23505";
 
 // Optimistic CRUD over one Supabase table, scoped to a workspace. Every
-// mutation applies locally first and restores the prior list if the server
-// rejects it, so the UI never shows a half-applied write.
+// mutation applies locally first and restores what IT changed if the
+// server rejects it, so the UI never shows a half-applied write.
+//
+// Both the apply and the revert are functional updates on the current
+// list, never a snapshot: sheets fire several mutations in one tick
+// (every future session of a series, every student's attendance), and a
+// snapshot taken before the first would make the last one win locally
+// and a failed one throw away its siblings' successes.
 export function useCloudStore<T extends Entity, Row extends { id: string }>(
   workspaceId: string | null,
   config: CloudStoreConfig<T, Row>
@@ -77,8 +83,8 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   const insertRows = useCallback(
     async (next: T[]): Promise<boolean> => {
       if (!workspaceId || next.length === 0) return false;
-      const prev = itemsRef.current;
-      setItems([...next, ...prev]);
+      const ids = new Set(next.map((it) => it.id));
+      setItems((current) => [...next, ...current]);
       setInflight((n) => n + 1);
       const rows = next.map(
         (item) => ({ ...config.toRow(item), workspace_id: workspaceId }) as Record<string, unknown>
@@ -90,7 +96,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
           await reload();
           return true;
         }
-        setItems(prev);
+        setItems((current) => current.filter((it) => !ids.has(it.id)));
         setError(error.message);
         return false;
       } finally {
@@ -106,15 +112,24 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   const update = useCallback(
     async (id: string, patch: Partial<T>) => {
       if (!workspaceId) return;
-      const prev = itemsRef.current;
-      setItems(prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+      // The prior row is read inside the updater so it is the row as it
+      // stood when this patch applied, not as of the last render.
+      let before: T | undefined = itemsRef.current.find((it) => it.id === id);
+      setItems((current) =>
+        current.map((it) => {
+          if (it.id !== id) return it;
+          before = it;
+          return { ...it, ...patch };
+        })
+      );
       const { error } = await supabase
         .from(config.table)
         .update(config.toRow(patch) as Record<string, unknown>)
         .eq("id", id)
         .eq("workspace_id", workspaceId);
       if (error) {
-        setItems(prev);
+        const restore = before;
+        if (restore) setItems((current) => current.map((it) => (it.id === id ? restore : it)));
         setError(error.message);
       }
     },
@@ -125,15 +140,22 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
     async (ids: string[]) => {
       if (!workspaceId || ids.length === 0) return;
       const gone = new Set(ids);
-      const prev = itemsRef.current;
-      setItems(prev.filter((it) => !gone.has(it.id)));
+      let removed: T[] = itemsRef.current.filter((it) => gone.has(it.id));
+      setItems((current) => {
+        removed = current.filter((it) => gone.has(it.id));
+        return current.filter((it) => !gone.has(it.id));
+      });
       const { error } = await supabase
         .from(config.table)
         .delete()
         .in("id", ids)
         .eq("workspace_id", workspaceId);
       if (error) {
-        setItems(prev);
+        const back = removed;
+        setItems((current) => {
+          const present = new Set(current.map((it) => it.id));
+          return [...back.filter((it) => !present.has(it.id)), ...current];
+        });
         setError(error.message);
       }
     },

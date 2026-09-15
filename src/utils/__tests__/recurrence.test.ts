@@ -56,9 +56,22 @@ describe("occurrencesBetween", () => {
   it("lists occurrences inside the window, inclusive, with their keys", () => {
     const r = rule({ startDate: "2026-01-15" });
     expect(occurrencesBetween(r, "2026-03-15", "2026-05-15")).toEqual([
-      { date: "2026-03-15", periodKey: "2026-03-15" },
-      { date: "2026-04-15", periodKey: "2026-04-15" },
-      { date: "2026-05-15", periodKey: "2026-05-15" }
+      { date: "2026-03-15", periodKey: "2026-03" },
+      { date: "2026-04-15", periodKey: "2026-04" },
+      { date: "2026-05-15", periodKey: "2026-05" }
+    ]);
+  });
+
+  it("keys weekly rules by the week, so moving the weekday re-keys nothing", () => {
+    const tue = rule({ cadence: "weekly", startDate: "2026-09-15" });
+    const thu = rule({ cadence: "weekly", startDate: "2026-09-17" });
+    expect(occurrencesBetween(tue, "2026-09-14", "2026-09-27").map((o) => o.periodKey)).toEqual([
+      "2026-09-14",
+      "2026-09-21"
+    ]);
+    expect(occurrencesBetween(thu, "2026-09-14", "2026-09-27").map((o) => o.periodKey)).toEqual([
+      "2026-09-14",
+      "2026-09-21"
     ]);
   });
 

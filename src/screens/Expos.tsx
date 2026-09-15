@@ -3,7 +3,7 @@ import { useApp } from "../context/AppContext";
 import type { ScheduleEvent } from "../types";
 import { expoReport, type ExpoSignal } from "../utils/expo";
 import { periodSummary } from "../utils/insights";
-import { formatMXNShort, formatMXNShortSigned } from "../utils/money";
+import { formatMXNShort, formatMXNShortSigned, sumMoney } from "../utils/money";
 import { addMonths, formatWithWeekday, todayISO, yearRange } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
@@ -44,7 +44,7 @@ export function Expos() {
   );
   const upcoming = rows.filter((r) => r.event.date >= today).reverse();
   const past = rows.filter((r) => r.event.date < today);
-  const totalCash = past.reduce((t, r) => t + r.report.cash, 0);
+  const totalCash = sumMoney(past.map((r) => r.report.cash));
 
   return (
     <div className="page">

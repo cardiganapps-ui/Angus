@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import { activeEnrollments, groupOccupancy, groupSessions, sessionsWithoutAttendance, summarizeTuition, tuitionStatus } from "../utils/classes";
-import { formatMXNShort } from "../utils/money";
+import { formatMXNShort, sumMoney } from "../utils/money";
 import { formatWithWeekday, todayISO } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
@@ -34,7 +34,7 @@ export function Classes() {
     [groups, events, attendance, enrollments, rules, sales, payments, today]
   );
   const students = new Set(groups.flatMap((g) => activeEnrollments(enrollments, g.id, today).map((e) => e.contactId))).size;
-  const owed = rows.reduce((t, r) => t + r.tuition.owed, 0);
+  const owed = sumMoney(rows.map((r) => r.tuition.owed));
 
   return (
     <div className="page">

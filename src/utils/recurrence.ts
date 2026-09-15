@@ -1,13 +1,16 @@
 import type { RecurrenceCadence, RecurringRule } from "../types";
-import { addDays, addMonths } from "./dates";
+import { addDays, addMonths, weekRange } from "./dates";
 import { fromCents, toCents } from "./money";
 
 /* ── Recurrence ──
    Pure date math for rules. An occurrence is (date, periodKey); the key
    is what makes materialization idempotent — one row per rule per key,
-   enforced by a unique index. Keys are the occurrence's own date, which
-   is unique within a rule by construction (a rule never fires twice on
-   one day) and reads well in the DB.
+   enforced by a unique index. The key names the PERIOD, not the day:
+   "2026-09" for anything monthly or slower, the week's Monday for weekly
+   and biweekly. Editing a rule's day of the month (or its cadence within
+   the same family) therefore re-keys nothing, and the rows already
+   generated stay the rows for those periods instead of being joined by
+   duplicates.
 
    Monthly-style cadences step with addMonths, which clamps to the last
    day of shorter months: a rule that starts on the 31st lands on Feb 28
@@ -38,8 +41,8 @@ export function nthOccurrence(rule: RuleShape, n: number): string {
   }
 }
 
-export function periodKeyFor(date: string): string {
-  return date;
+export function periodKeyFor(cadence: RecurrenceCadence, date: string): string {
+  return cadence === "weekly" || cadence === "biweekly" ? weekRange(date, 1).from : date.slice(0, 7);
 }
 
 /** Every occurrence with from <= date <= to (inclusive), in order. */
@@ -50,7 +53,7 @@ export function occurrencesBetween(rule: RuleShape, from: string, to: string): O
   for (let n = 0; n < 10_000; n++) {
     const date = nthOccurrence(rule, n);
     if (date > last) break;
-    if (date >= from) out.push({ date, periodKey: periodKeyFor(date) });
+    if (date >= from) out.push({ date, periodKey: periodKeyFor(rule.cadence, date) });
   }
   return out;
 }

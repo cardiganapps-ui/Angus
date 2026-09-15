@@ -1,6 +1,6 @@
 import type { Expense, Payment, Sale } from "../types";
 import { expoEconomics, type Economics } from "./accounting";
-import { fromCents, toCents } from "./money";
+import { fromCents, toCents, subtractMoney } from "./money";
 
 /* ── Expo report ──
    "Was this fair worth it?" — budget vs actual, how many pieces at the
@@ -67,11 +67,11 @@ export function expoVerdict(report: ExpoReport, format: (n: number) => string): 
         ? `Sin gastos registrados y dejó ${format(report.revenue)}.`
         : `Se pagó sola y dejó ${format(report.cash)} en mano.`;
     case "amber":
-      return `Vendió lo suficiente; faltan ${format(report.revenue - report.collected)} por cobrar para cubrirla.`;
+      return `Vendió lo suficiente; faltan ${format(subtractMoney(report.revenue, report.collected))} por cobrar para cubrirla.`;
     case "red":
       return report.revenue === 0
         ? `Costó ${format(report.spent)} y todavía no vende.`
-        : `Costó ${format(report.spent - report.revenue)} más de lo que dejó.`;
+        : `Costó ${format(subtractMoney(report.spent, report.revenue))} más de lo que dejó.`;
     default:
       return "Sin gastos ni ventas ligadas todavía.";
   }

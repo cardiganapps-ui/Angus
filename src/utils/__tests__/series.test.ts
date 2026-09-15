@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EventSeries, ScheduleEvent } from "../../types";
-import { describeSeries, missingOccurrences, pendingOccurrences, seriesDates, seriesFuture } from "../series";
+import { describeSeries, missingOccurrences, pendingOccurrences, reshapeFuture, seriesDates, seriesFuture } from "../series";
 
 function series(over: Partial<EventSeries> = {}): EventSeries {
   return {
@@ -75,6 +75,20 @@ describe("seriesFuture / describeSeries", () => {
   it("lists future non-detached occurrences", () => {
     const events = [occurrence("2026-09-15"), occurrence("2026-09-22", { detached: true }), occurrence("2026-09-24")];
     expect(seriesFuture(series(), events, "2026-09-20").map((e) => e.date)).toEqual(["2026-09-24"]);
+  });
+
+  it("reshaping drops future rows the new pattern no longer lands on, keeps the rest, leaves detached alone", () => {
+    const events = [
+      occurrence("2026-09-15"),
+      occurrence("2026-09-17"),
+      occurrence("2026-09-22", { detached: true }),
+      occurrence("2026-09-24")
+    ];
+    // Tue/Thu → Thu only, from Sep 15.
+    const { keep, drop, patch } = reshapeFuture(series(), { weekdays: [4], title: "Óleo jueves" }, events, "2026-09-15");
+    expect(keep.map((e) => e.date)).toEqual(["2026-09-17", "2026-09-24"]);
+    expect(drop.map((e) => e.date)).toEqual(["2026-09-15"]);
+    expect(patch.title).toBe("Óleo jueves");
   });
 
   it("describes the cadence in Spanish", () => {

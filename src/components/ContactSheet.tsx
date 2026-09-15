@@ -84,7 +84,7 @@ export function ContactSheet({
           submitting={submitting}
           onSave={handleSave}
           onDelete={contact ? handleDelete : undefined}
-          confirmText="¿Eliminar este contacto? Sus ventas y eventos quedan sin contacto ligado."
+          confirmText="¿Eliminar este contacto? Sus ventas y eventos quedan sin contacto ligado, sus cobros fijos se detienen y su asistencia a clases se borra."
         />
       }
     >

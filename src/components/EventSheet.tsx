@@ -10,7 +10,7 @@ import { PickerField } from "./PickerField";
 import { SegmentedControl } from "./SegmentedControl";
 import { makeId } from "../utils/id";
 import { addDays, parseISODate, todayISO } from "../utils/dates";
-import { describeSeries, seriesFuture, seriesToEventPatch } from "../utils/series";
+import { describeSeries, reshapeFuture, seriesFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
 
 /* ── EventSheet ──
@@ -159,7 +159,23 @@ export function EventSheet({
 
     // ── Edit a one-off, or an occurrence "solo este" ──
     if (!parent || scope === "one") {
-      void updateEvent(event.id, { ...eventPatch, date, ...(parent ? { detached: true } : {}) });
+      if (parent && date !== event.date) {
+        // Moving an occurrence: its original slot stays as a cancelled
+        // row (so the generator doesn't refill that date) and the moved
+        // session becomes a one-off of its own.
+        void updateEvent(event.id, { cancelled: true });
+        void addEvent({
+          id: makeId(),
+          createdAt: todayISO(),
+          date,
+          seriesId: null,
+          cancelled: false,
+          detached: false,
+          ...eventPatch
+        });
+      } else {
+        void updateEvent(event.id, { ...eventPatch, date, ...(parent ? { detached: true } : {}) });
+      }
       haptic.success();
       showSuccess("Evento actualizado");
       onClose();
@@ -170,8 +186,9 @@ export function EventSheet({
     if (scope === "all") {
       const shape = seriesShape(parent.startDate);
       void updateSeries(parent.id, shape);
-      const rowPatch = seriesToEventPatch({ ...parent, ...shape });
-      for (const occ of seriesFuture(parent, events, todayISO())) void updateEvent(occ.id, rowPatch);
+      const { keep, drop, patch } = reshapeFuture(parent, shape, events, todayISO());
+      for (const occ of keep) void updateEvent(occ.id, patch);
+      if (drop.length) void removeEvents(drop.map((e) => e.id));
       haptic.success();
       showSuccess("Serie actualizada");
       onClose();

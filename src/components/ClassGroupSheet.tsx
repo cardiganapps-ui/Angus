@@ -8,7 +8,7 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { makeId } from "../utils/id";
 import { parseISODate, todayISO } from "../utils/dates";
-import { describeSeries, seriesFuture, seriesToEventPatch } from "../utils/series";
+import { describeSeries, reshapeFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
 
 /* ── ClassGroupSheet ──
@@ -41,8 +41,19 @@ export function ClassGroupSheet({
   onClose: () => void;
   onDeleted?: () => void;
 }) {
-  const { addGroup, updateGroup, removeGroup, addSeries, updateSeries, updateEvent, events, series: allSeries, rules, updateRule } =
-    useApp();
+  const {
+    addGroup,
+    updateGroup,
+    removeGroup,
+    addSeries,
+    updateSeries,
+    updateEvent,
+    removeEvents,
+    events,
+    series: allSeries,
+    rules,
+    updateRule
+  } = useApp();
   const { showSuccess } = useToast();
   const parent: EventSeries | null = group?.seriesId ? (allSeries.find((s) => s.id === group.seriesId) ?? null) : null;
 
@@ -99,8 +110,9 @@ export function ClassGroupSheet({
       void updateGroup(group.id, groupPatch);
       if (parent) {
         void updateSeries(parent.id, seriesShape);
-        const patch = seriesToEventPatch({ ...parent, ...seriesShape });
-        for (const occ of seriesFuture(parent, events, todayISO())) void updateEvent(occ.id, patch);
+        const { keep, drop, patch } = reshapeFuture(parent, seriesShape, events, todayISO());
+        for (const occ of keep) void updateEvent(occ.id, patch);
+        if (drop.length) void removeEvents(drop.map((e) => e.id));
       } else {
         const seriesId = makeId();
         void addSeries({ id: seriesId, createdAt: todayISO(), ...seriesShape }).then((ok) => {

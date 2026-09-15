@@ -176,6 +176,10 @@ export function AppProvider({
   // is in, and again whenever a rule or its rows change; the unique
   // index on (rule, period) makes a race between two devices harmless.
   const materializing = useRef(false);
+  // A batch the server refused (offline, a constraint) is remembered by
+  // its shape so the revert doesn't immediately re-trigger the same
+  // insert in a loop; the next rule change or pull-to-refresh retries.
+  const failedMaterialization = useRef<string | null>(null);
   const ruleItems = rules.items;
   const rulesInflight = rules.inflight;
   const saleItems = sales.items;
@@ -187,6 +191,11 @@ export function AppProvider({
     if (loading || materializing.current || rulesInflight > 0) return;
     const pending = pendingMaterializations(ruleItems, saleItems, expenseItems, todayISO());
     if (pending.sales.length === 0 && pending.expenses.length === 0) return;
+    const signature = [...pending.sales, ...pending.expenses]
+      .map((r) => `${r.recurringRuleId}:${r.periodKey}`)
+      .sort()
+      .join("|");
+    if (signature === failedMaterialization.current) return;
     materializing.current = true;
     const created = todayISO();
     const jobs: Promise<boolean>[] = [];
@@ -196,14 +205,19 @@ export function AppProvider({
     if (pending.expenses.length) {
       jobs.push(addExpenses(pending.expenses.map((e) => ({ ...e, id: makeId(), createdAt: created }))));
     }
-    void Promise.all(jobs).finally(() => {
-      materializing.current = false;
-    });
+    void Promise.all(jobs)
+      .then((results) => {
+        failedMaterialization.current = results.every(Boolean) ? null : signature;
+      })
+      .finally(() => {
+        materializing.current = false;
+      });
   }, [loading, rulesInflight, ruleItems, saleItems, expenseItems, addSales, addExpenses]);
 
   // Same idea for recurring sessions: keep ~12 weeks of occurrences on
   // the calendar. Waits for a just-created series to land (FK).
   const generating = useRef(false);
+  const failedGeneration = useRef<string | null>(null);
   const seriesItems = series.items;
   const seriesInflight = series.inflight;
   const eventItems = events.items;
@@ -212,11 +226,20 @@ export function AppProvider({
     if (loading || generating.current || seriesInflight > 0) return;
     const pending = pendingOccurrences(seriesItems, eventItems, todayISO());
     if (pending.length === 0) return;
+    const signature = pending
+      .map((e) => `${e.seriesId}:${e.date}`)
+      .sort()
+      .join("|");
+    if (signature === failedGeneration.current) return;
     generating.current = true;
     const created = todayISO();
-    void addEvents(pending.map((e) => ({ ...e, id: makeId(), createdAt: created }))).finally(() => {
-      generating.current = false;
-    });
+    void addEvents(pending.map((e) => ({ ...e, id: makeId(), createdAt: created })))
+      .then((ok) => {
+        failedGeneration.current = ok ? null : signature;
+      })
+      .finally(() => {
+        generating.current = false;
+      });
   }, [loading, seriesInflight, seriesItems, eventItems, addEvents]);
   const importedFor = useRef<string | null>(null);
 
@@ -272,6 +295,8 @@ export function AppProvider({
         attendance.clearError();
       },
       refreshAll: async () => {
+        failedMaterialization.current = null;
+        failedGeneration.current = null;
         await Promise.all([
           projects.reload(),
           contacts.reload(),
@@ -294,7 +319,20 @@ export function AppProvider({
       contacts: contacts.items,
       addContact: contacts.add,
       updateContact: contacts.update,
-      removeContact: contacts.remove,
+      // A student's tuition rule must stop with them: the FK only nulls
+      // contact_id, and an active rule would keep billing a ghost.
+      removeContact: async (id: string) => {
+        const today = todayISO();
+        await Promise.all(
+          rules.items
+            .filter((r) => r.contactId === id && r.active)
+            .map((r) => rules.update(r.id, { active: false, endDate: today }))
+        );
+        await contacts.remove(id);
+        const sessions = new Set(events.items.map((e) => e.id));
+        attendance.dropLocal((a) => a.contactId === id && sessions.has(a.eventId));
+        enrollments.dropLocal((e) => e.contactId === id);
+      },
       events: events.items,
       addEvent: events.add,
       addEvents: events.addMany,
@@ -354,7 +392,15 @@ export function AppProvider({
       groups: groups.items,
       addGroup: groups.add,
       updateGroup: groups.update,
+      // Deleting a class ends its students' tuition rules (the FK only
+      // nulls group_id) so no "Colegiatura" keeps materializing for it.
       removeGroup: async (id: string) => {
+        const today = todayISO();
+        await Promise.all(
+          rules.items
+            .filter((r) => r.groupId === id && r.active)
+            .map((r) => rules.update(r.id, { active: false, endDate: today }))
+        );
         await groups.remove(id);
         enrollments.dropLocal((e) => e.groupId === id);
       },

@@ -25,12 +25,13 @@ function rule(over: Partial<RecurringRule> = {}): RecurringRule {
   };
 }
 
-function expenseRow(ruleId: string, periodKey: string): Expense {
+function expenseRow(ruleId: string, date: string): Expense {
+  const periodKey = date.slice(0, 7);
   return {
     id: `e-${periodKey}`,
     title: "Renta",
     amount: 6500,
-    date: periodKey,
+    date,
     category: "rent",
     method: null,
     projectId: null,
@@ -46,7 +47,7 @@ describe("pendingMaterializations", () => {
   it("creates every due period that has no row yet, and nothing twice", () => {
     const pending = pendingMaterializations([rule()], [], [expenseRow("r1", "2026-07-01")], TODAY);
     expect(pending.sales).toEqual([]);
-    expect(pending.expenses.map((e) => e.periodKey)).toEqual(["2026-08-01", "2026-09-01"]);
+    expect(pending.expenses.map((e) => e.periodKey)).toEqual(["2026-08", "2026-09"]);
     expect(pending.expenses[0]).toMatchObject({
       title: "Renta",
       amount: 6500,
@@ -54,6 +55,12 @@ describe("pendingMaterializations", () => {
       recurringRuleId: "r1",
       date: "2026-08-01"
     });
+  });
+
+  it("does not duplicate a period when the rule's day of the month changes", () => {
+    const have = [expenseRow("r1", "2026-07-01"), expenseRow("r1", "2026-08-01"), expenseRow("r1", "2026-09-01")];
+    const moved = rule({ startDate: "2026-07-05" });
+    expect(pendingMaterializations([moved], [], have, TODAY).expenses).toEqual([]);
   });
 
   it("skips paused rules and never reaches past today for expenses", () => {
@@ -82,7 +89,7 @@ describe("pendingMaterializations", () => {
       paymentTerms: "single",
       contactId: "c1",
       recurringRuleId: "r2",
-      periodKey: "2026-09-25",
+      periodKey: "2026-09",
       date: "2026-09-25"
     });
     // Beyond the look-ahead: not yet.
@@ -103,7 +110,7 @@ describe("pendingMaterializations", () => {
       contactId: null,
       eventId: null,
       recurringRuleId: "r2",
-      periodKey: "2026-09-01",
+      periodKey: "2026-09",
       notes: "",
       createdAt: "2026-09-01"
     };

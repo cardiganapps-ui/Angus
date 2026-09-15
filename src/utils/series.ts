@@ -84,6 +84,27 @@ export function seriesFuture(series: EventSeries, events: ScheduleEvent[], fromD
   return events.filter((e) => e.seriesId === series.id && e.date >= fromDate && !e.detached);
 }
 
+/* Applying a new shape to a series' future rows: rows whose date still
+   belongs to the pattern get the row patch; rows that no longer do
+   (she moved the class from Tuesday to Monday) are dropped, and the
+   generator fills the new dates. Detached rows are hers and untouched. */
+export function reshapeFuture(
+  series: EventSeries,
+  next: Partial<EventSeries>,
+  events: ScheduleEvent[],
+  fromDate: string
+): { keep: ScheduleEvent[]; drop: ScheduleEvent[]; patch: Partial<ScheduleEvent> } {
+  const shaped = { ...series, ...next };
+  const future = seriesFuture(series, events, fromDate);
+  const last = future.reduce((m, e) => (e.date > m ? e.date : m), fromDate);
+  const valid = new Set(seriesDates(shaped, fromDate, last));
+  return {
+    keep: future.filter((e) => valid.has(e.date)),
+    drop: future.filter((e) => !valid.has(e.date)),
+    patch: seriesToEventPatch(shaped)
+  };
+}
+
 /** The patch that turns a series edit into an event patch (fields a row copies). */
 export function seriesToEventPatch(series: EventSeries): Partial<ScheduleEvent> {
   return {
