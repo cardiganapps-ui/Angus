@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
-import type { ClassGroup, EventSeries, SeriesCadence, TuitionCadence } from "../types";
+import type { ClassGroup, EventSeries, TuitionCadence } from "../types";
 import { TUITION_CADENCE } from "../data/constants";
 import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
+import { ScheduleFields, type ScheduleValue } from "./ScheduleFields";
 import { makeId } from "../utils/id";
 import { parseISODate, todayISO } from "../utils/dates";
-import { describeSeries, reshapeFuture } from "../utils/series";
+import { reshapeFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
 
 /* ── ClassGroupSheet ──
@@ -17,19 +18,6 @@ import { haptic } from "../lib/haptics";
    the occurrences follow (AppContext). Tuition per student and the
    cadence feed the enrollment's recurring rule. */
 
-const WEEKDAYS = [
-  { v: 1, l: "L", name: "lunes" },
-  { v: 2, l: "M", name: "martes" },
-  { v: 3, l: "M", name: "miércoles" },
-  { v: 4, l: "J", name: "jueves" },
-  { v: 5, l: "V", name: "viernes" },
-  { v: 6, l: "S", name: "sábado" },
-  { v: 0, l: "D", name: "domingo" }
-];
-const CADENCE_ITEMS: { k: SeriesCadence; l: string }[] = [
-  { k: "weekly", l: "Semanal" },
-  { k: "biweekly", l: "Quincenal" }
-];
 const TUITION_ITEMS = TUITION_CADENCE.map((t) => ({ k: t.value, l: t.label }));
 
 export function ClassGroupSheet({
@@ -58,10 +46,12 @@ export function ClassGroupSheet({
   const parent: EventSeries | null = group?.seriesId ? (allSeries.find((s) => s.id === group.seriesId) ?? null) : null;
 
   const [name, setName] = useState(group?.name ?? "");
-  const [weekdays, setWeekdays] = useState<number[]>(parent?.weekdays ?? []);
-  const [cadence, setCadence] = useState<SeriesCadence>(parent?.cadence === "biweekly" ? "biweekly" : "weekly");
-  const [startTime, setStartTime] = useState(parent?.startTime ?? "17:00");
-  const [endTime, setEndTime] = useState(parent?.endTime ?? "19:00");
+  const [schedule, setSchedule] = useState<ScheduleValue>({
+    weekdays: parent?.weekdays ?? [],
+    cadence: parent?.cadence === "biweekly" ? "biweekly" : "weekly",
+    startTime: parent?.startTime ?? "17:00",
+    endTime: parent?.endTime ?? "19:00"
+  });
   const [startDate, setStartDate] = useState(parent?.startDate ?? todayISO());
   const [location, setLocation] = useState(group?.location ?? parent?.location ?? "");
   const [tuition, setTuition] = useState(group?.tuitionAmount?.toString() ?? "");
@@ -73,11 +63,6 @@ export function ClassGroupSheet({
   const safeClose = submitting ? null : onClose;
   const canSave = name.trim().length > 0 && startDate.length > 0;
 
-  const toggleWeekday = (v: number) => {
-    haptic.tap();
-    setWeekdays((list) => (list.includes(v) ? list.filter((d) => d !== v) : [...list, v]));
-  };
-
   async function handleSave() {
     if (!canSave) return;
     setSubmitting(true);
@@ -85,16 +70,17 @@ export function ClassGroupSheet({
     const seriesShape = {
       title: name.trim(),
       kind: "class" as const,
-      cadence,
-      weekdays: weekdays.length ? weekdays : [parseISODate(startDate).getDay()],
-      startTime: startTime || null,
-      endTime: endTime || null,
+      cadence: schedule.cadence,
+      weekdays: schedule.weekdays.length ? schedule.weekdays : [parseISODate(startDate).getDay()],
+      startTime: schedule.startTime || null,
+      endTime: schedule.endTime || null,
       location: location.trim(),
       startDate,
       endDate: null,
       projectId: null,
       contactId: null,
       groupId: id,
+      courseId: null,
       notes: ""
     };
     const groupPatch = {
@@ -150,13 +136,6 @@ export function ClassGroupSheet({
     (onDeleted ?? onClose)();
   }
 
-  const preview = describeSeries({
-    cadence,
-    weekdays,
-    startDate: startDate || todayISO(),
-    endDate: null
-  });
-
   return (
     <Sheet
       title={group ? "Editar clase" : "Nueva clase"}
@@ -183,44 +162,7 @@ export function ClassGroupSheet({
         />
       </div>
 
-      <div className="input-group">
-        <span className="input-label">Días</span>
-        <div className="weekday-row" role="group" aria-label="Días de la semana">
-          {WEEKDAYS.map((d) => (
-            <button
-              type="button"
-              key={d.v}
-              className="weekday-chip"
-              aria-pressed={weekdays.includes(d.v)}
-              aria-label={d.name}
-              onClick={() => toggleWeekday(d.v)}
-            >
-              {d.l}
-            </button>
-          ))}
-        </div>
-        <SegmentedControl
-          items={CADENCE_ITEMS}
-          value={cadence}
-          onChange={(k) => setCadence(k as SeriesCadence)}
-          size="sm"
-          role="radiogroup"
-          ariaLabel="Frecuencia"
-          style={{ marginTop: 10 }}
-        />
-        <div className="input-help">{preview}. Angus agenda las sesiones y sigue agregando.</div>
-      </div>
-
-      <div className="form-row">
-        <div className="input-group">
-          <label className="input-label" htmlFor="group-start">Hora inicio</label>
-          <input id="group-start" className="input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-        </div>
-        <div className="input-group">
-          <label className="input-label" htmlFor="group-end">Hora fin</label>
-          <input id="group-end" className="input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-        </div>
-      </div>
+      <ScheduleFields value={schedule} onChange={setSchedule} idPrefix="group" startDate={startDate} />
 
       <div className="form-row">
         <div className="input-group">

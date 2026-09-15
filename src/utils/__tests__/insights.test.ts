@@ -15,10 +15,11 @@ const payment = (id: string, saleId: string, amount: number, date: string): Paym
 });
 const expense = (id: string, amount: number, date: string): Expense => ({
   id, title: id, amount, date, category: "materials", method: null, projectId: null, eventId: null,
+  courseId: null,
   recurringRuleId: null, periodKey: null, notes: "", createdAt: date
 });
 const project = (id: string, medium: string): Project => ({
-  id, title: id, medium, status: "completed", availability: "available", startDate: null, dueDate: null, price: null, cost: null, dimensions: "", year: null, edition: "", location: "", contactId: null, notes: "", createdAt: "2026-01-01"
+  id, title: id, medium, status: "completed", availability: "available", startDate: null, dueDate: null, price: null, cost: null, dimensions: "", year: null, edition: "", location: "", contactId: null, courseId: null, notes: "", createdAt: "2026-01-01"
 });
 const contact = (id: string, name: string, over: Partial<Contact> = {}): Contact => ({
   id, name, relationship: "client", email: "", phone: "", leadStage: null, followUpDate: null, notes: "", createdAt: "2026-02-01", ...over

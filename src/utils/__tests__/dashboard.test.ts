@@ -40,7 +40,7 @@ const installment = (id: string, saleId: string, amount: number, dueDate: string
 });
 const expense = (id: string, amount: number, date: string): Expense => ({
   id, title: `Gasto ${id}`, amount, date, category: "materials", method: null,
-  projectId: null, eventId: null, recurringRuleId: null, periodKey: null, notes: "", createdAt: date
+  projectId: null, eventId: null, courseId: null, recurringRuleId: null, periodKey: null, notes: "", createdAt: date
 });
 function contact(id: string, over: Partial<Contact> = {}): Contact {
   return {
@@ -52,12 +52,13 @@ function project(id: string, over: Partial<Project> = {}): Project {
   return {
     id, title: `Pieza ${id}`, medium: "Óleo", status: "in_progress", availability: "available",
     startDate: null, dueDate: null, price: null, cost: null, dimensions: "", year: null, edition: "", location: "", contactId: null,
+    courseId: null,
     notes: "", createdAt: "2026-09-01", ...over
   };
 }
 const event = (id: string, kind: ScheduleEvent["kind"], date: string): ScheduleEvent => ({
   id, title: `Evento ${id}`, kind, date, startTime: null, endTime: null,
-  location: "", projectId: null, contactId: null, budget: null, seriesId: null, cancelled: false, detached: false, notes: "", createdAt: date
+  location: "", projectId: null, contactId: null, budget: null, courseId: null, missed: false, seriesId: null, cancelled: false, detached: false, notes: "", createdAt: date
 });
 
 describe("attentionItems", () => {

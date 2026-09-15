@@ -32,7 +32,7 @@ export function RecurringRuleSheet({
   initialKind?: RecurrenceKind;
   onClose: () => void;
 }) {
-  const { addRule, updateRule, removeRule, contacts, projects } = useApp();
+  const { addRule, updateRule, removeRule, contacts, projects, courses } = useApp();
   const { showSuccess } = useToast();
   const [kind, setKind] = useState<RecurrenceKind>(rule?.kind ?? initialKind);
   const [title, setTitle] = useState(rule?.title ?? "");
@@ -44,6 +44,7 @@ export function RecurringRuleSheet({
   const [endDate, setEndDate] = useState(rule?.endDate ?? "");
   const [contactId, setContactId] = useState(rule?.contactId ?? "");
   const [projectId, setProjectId] = useState(rule?.projectId ?? "");
+  const [courseId, setCourseId] = useState(rule?.courseId ?? "");
   const [notes, setNotes] = useState(rule?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
 
@@ -94,6 +95,7 @@ export function RecurringRuleSheet({
       endDate: endDate || null,
       contactId: contactId || null,
       projectId: projectId || null,
+      courseId: kind === "expense" ? courseId || null : null,
       notes: notes.trim()
     };
     if (rule) {
@@ -265,6 +267,21 @@ export function RecurringRuleSheet({
         <span className="input-label">Pieza relacionada</span>
         <PickerField title="Pieza relacionada" options={projectOptions} value={projectId} onChange={setProjectId} />
       </div>
+
+      {kind === "expense" && courses.length > 0 && (
+        <div className="input-group">
+          <span className="input-label">Curso que tomas</span>
+          <PickerField
+            title="Curso"
+            options={courses
+              .filter((c) => c.status === "active" || c.status === "upcoming" || c.id === courseId)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((c) => ({ value: c.id, label: c.name }))}
+            value={courseId}
+            onChange={setCourseId}
+          />
+        </div>
+      )}
 
       <div className="input-group">
         <label className="input-label" htmlFor="rule-notes">Notas</label>

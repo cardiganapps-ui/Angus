@@ -22,7 +22,7 @@ describe("salesCsv / expensesCsv", () => {
   const payment: Payment = { id: "pm1", saleId: "s1", amount: 2500, date: "2026-03-11", method: "cash", notes: "", createdAt: "2026-03-11" };
   const expense: Expense = {
     id: "e1", title: "Bastidor", amount: 300.5, date: "2026-03-01", category: "materials", method: "card",
-    projectId: "p1", eventId: null, recurringRuleId: "r1", periodKey: "2026-03-01", notes: "n", createdAt: "2026-03-01"
+    projectId: "p1", eventId: null, courseId: null, recurringRuleId: "r1", periodKey: "2026-03-01", notes: "n", createdAt: "2026-03-01"
   };
 
   it("renders labels, links and paid totals", () => {

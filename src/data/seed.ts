@@ -48,6 +48,7 @@ export const seedProjects: Project[] = [
     edition: "",
     location: "",
     contactId: "c2",
+    courseId: null,
     notes: "",
     createdAt: todayISO()
   },
@@ -66,6 +67,7 @@ export const seedProjects: Project[] = [
     edition: "",
     location: "",
     contactId: null,
+    courseId: null,
     notes: "Explorar 4-5 piezas para la expo de primavera.",
     createdAt: todayISO()
   }
@@ -83,6 +85,8 @@ export const seedEvents: ScheduleEvent[] = [
     projectId: null,
     contactId: null,
     budget: null,
+    courseId: null,
+    missed: false,
     seriesId: null,
     cancelled: false,
     detached: false,
@@ -100,6 +104,8 @@ export const seedEvents: ScheduleEvent[] = [
     projectId: "p1",
     contactId: "c2",
     budget: null,
+    courseId: null,
+    missed: false,
     seriesId: null,
     cancelled: false,
     detached: false,
@@ -117,6 +123,8 @@ export const seedEvents: ScheduleEvent[] = [
     projectId: null,
     contactId: "c1",
     budget: null,
+    courseId: null,
+    missed: false,
     seriesId: null,
     cancelled: false,
     detached: false,

@@ -140,6 +140,7 @@ export function Onboarding() {
             contactId: null,
             projectId: null,
             groupId: null,
+            courseId: null,
             active: true,
             notes: "",
             createdAt: todayISO()

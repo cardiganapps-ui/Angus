@@ -113,6 +113,7 @@ const drawerRoutes = [
   ["Obra", "Nueva pieza"],
   ["Contactos", "Nuevo contacto"],
   ["Clases", "Nueva clase"],
+  ["Estudios", "Nuevo curso"],
   ["Expos", "Nueva expo"],
   ["Recurrentes", "Nueva regla"],
   ["Presupuestos", null],
@@ -124,7 +125,7 @@ for (const [item, fab] of drawerRoutes) {
   await page.click('[aria-label="Menú"]');
   await page.waitForTimeout(500);
   await shot(`04-drawer-${item.toLowerCase()}`);
-  const link = await page.$(`nav.drawer >> text=${item}`);
+  const link = await page.$(`nav.drawer .drawer-item-label:text-is("${item}")`);
   if (!link) {
     console.log(`(drawer has no "${item}" for this workspace — skipped)`);
     await page.keyboard.press("Escape");

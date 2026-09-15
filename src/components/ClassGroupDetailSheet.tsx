@@ -126,6 +126,7 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
           contactId,
           projectId: null,
           groupId: group.id,
+          courseId: null,
           active: true,
           notes: "",
           createdAt: today

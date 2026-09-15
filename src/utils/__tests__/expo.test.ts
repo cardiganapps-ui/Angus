@@ -11,7 +11,7 @@ const payment = (id: string, saleId: string, amount: number): Payment => ({
   id, saleId, amount, date: "2026-09-02", method: "cash", notes: "", createdAt: "2026-09-02"
 });
 const expense = (id: string, amount: number, eventId = "x1"): Expense => ({
-  id, title: id, amount, date: "2026-08-20", category: "expo", method: null, projectId: null, eventId,
+  id, title: id, amount, date: "2026-08-20", category: "expo", method: null, projectId: null, eventId, courseId: null,
   recurringRuleId: null, periodKey: null, notes: "", createdAt: "2026-08-20"
 });
 

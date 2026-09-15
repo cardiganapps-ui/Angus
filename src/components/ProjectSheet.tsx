@@ -78,7 +78,7 @@ export function ProjectSheet({
     if (project) {
       updateProject(project.id, patch);
     } else {
-      addProject({ id: makeId(), createdAt: todayISO(), ...patch });
+      addProject({ id: makeId(), createdAt: todayISO(), courseId: null, ...patch });
     }
     haptic.success();
     showSuccess(project ? "Pieza actualizada" : "Pieza creada");

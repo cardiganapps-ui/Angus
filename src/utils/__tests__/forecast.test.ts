@@ -31,12 +31,12 @@ const installment = (id: string, saleId: string, amount: number, dueDate: string
 });
 const expense = (id: string, amount: number, date: string, ruleId: string | null = null): Expense => ({
   id, title: `Gasto ${id}`, amount, date, category: "materials", method: null,
-  projectId: null, eventId: null, recurringRuleId: ruleId, periodKey: ruleId ? date : null, notes: "", createdAt: date
+  projectId: null, eventId: null, courseId: null, recurringRuleId: ruleId, periodKey: ruleId ? date : null, notes: "", createdAt: date
 });
 function rule(id: string, kind: RecurringRule["kind"], amount: number, startDate: string): RecurringRule {
   return {
     id, kind, title: id, amount, category: kind === "income" ? "class" : "rent", cadence: "monthly",
-    interval: 1, startDate, endDate: null, contactId: null, projectId: null, groupId: null, active: true, notes: "", createdAt: startDate
+    interval: 1, startDate, endDate: null, contactId: null, projectId: null, groupId: null, courseId: null, active: true, notes: "", createdAt: startDate
   };
 }
 

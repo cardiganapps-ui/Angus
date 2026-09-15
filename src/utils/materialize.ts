@@ -61,6 +61,7 @@ export function pendingMaterializations(
           method: null,
           projectId: rule.projectId,
           eventId: null,
+          courseId: rule.courseId,
           recurringRuleId: rule.id,
           periodKey: occ.periodKey,
           notes: ""

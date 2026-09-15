@@ -182,6 +182,8 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   // next thing on her calendar.
   const nextExpo =
     snapshot.nextExpo && snapshot.nextExpo.id !== snapshot.nextEvent?.id ? snapshot.nextExpo : null;
+  const nextStudy =
+    snapshot.nextStudySession && snapshot.nextStudySession.id !== snapshot.nextEvent?.id ? snapshot.nextStudySession : null;
 
   return (
     <div className="page">
@@ -399,7 +401,12 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
 
           {snapshot.nextEvent ? (
             <>
-              <EventRow event={snapshot.nextEvent} lead="Próximo" onOpen={() => goTo("schedule")} />
+              <EventRow
+                event={snapshot.nextEvent}
+                lead={snapshot.nextEvent.courseId ? "Tu próxima clase" : "Próximo"}
+                onOpen={() => goTo(snapshot.nextEvent?.courseId ? "studies" : "schedule")}
+              />
+              {nextStudy && <EventRow event={nextStudy} lead="Tu próxima clase" onOpen={() => goTo("studies")} />}
               {nextExpo && (
                 <EventRow event={nextExpo} lead="Próxima expo" onOpen={() => goTo("schedule")} />
               )}

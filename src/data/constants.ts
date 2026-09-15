@@ -16,7 +16,11 @@ import type {
   SaleStatus,
   TextScale,
   ThemePreference,
-  TuitionCadence
+  TuitionCadence,
+  CourseKind,
+  CourseModality,
+  CoursePaymentPlan,
+  CourseStatus
 } from "../types";
 import type { IconName } from "../components/Icon";
 
@@ -239,8 +243,9 @@ export function labelFor<T extends { value: string; label: string }>(
 export const PRACTICE: { value: Practice; label: string }[] = [
   { value: "pieces", label: "Piezas" },
   { value: "commissions", label: "Comisiones" },
-  { value: "classes", label: "Clases" },
-  { value: "workshops", label: "Talleres" },
+  { value: "classes", label: "Doy clases" },
+  { value: "workshops", label: "Doy talleres" },
+  { value: "studies", label: "Estudio / me formo" },
   { value: "expos", label: "Expos" },
   { value: "murals", label: "Murales" },
   { value: "illustration", label: "Ilustración" },
@@ -305,3 +310,49 @@ export const ATTENDANCE_BADGE: Record<AttendanceStatus, string> = {
   absent: "badge-red",
   excused: "badge-amber"
 };
+
+/* ── Estudios ──
+   The courses she takes. Kind colors follow the palette's semantics:
+   purple = learning, blue = class, teal = a state (seminar / diploma),
+   amber = pending-ish (upcoming), gray = neutral. */
+export const COURSE_KIND: { value: CourseKind; label: string }[] = [
+  { value: "class", label: "Clase" },
+  { value: "workshop", label: "Taller" },
+  { value: "master", label: "Maestría" },
+  { value: "seminar", label: "Seminario" },
+  { value: "diploma", label: "Diplomado" },
+  { value: "online", label: "En línea" },
+  { value: "other", label: "Otro" }
+];
+export const COURSE_KIND_BADGE: Record<CourseKind, string> = {
+  class: "badge-blue",
+  workshop: "badge-blue",
+  master: "badge-purple",
+  seminar: "badge-teal",
+  diploma: "badge-teal",
+  online: "badge-gray",
+  other: "badge-gray"
+};
+export const COURSE_STATUS: { value: CourseStatus; label: string }[] = [
+  { value: "upcoming", label: "Próximo" },
+  { value: "active", label: "En curso" },
+  { value: "completed", label: "Terminado" },
+  { value: "dropped", label: "Lo dejé" }
+];
+export const COURSE_STATUS_BADGE: Record<CourseStatus, string> = {
+  upcoming: "badge-amber",
+  active: "badge-teal",
+  completed: "badge-green",
+  dropped: "badge-gray"
+};
+export const COURSE_MODALITY: { value: CourseModality; label: string }[] = [
+  { value: "in_person", label: "Presencial" },
+  { value: "online", label: "En línea" },
+  { value: "hybrid", label: "Híbrido" }
+];
+export const COURSE_PAYMENT_PLAN: { value: CoursePaymentPlan; label: string }[] = [
+  { value: "single", label: "Pago único" },
+  { value: "monthly", label: "Mensual" },
+  { value: "per_session", label: "Por sesión" },
+  { value: "free", label: "Sin costo" }
+];

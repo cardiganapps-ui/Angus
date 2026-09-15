@@ -53,6 +53,8 @@ export function EventSheet({
   event,
   initialDate,
   initialKind,
+  initialTitle,
+  initialCourseId,
   onClose
 }: {
   event: ScheduleEvent | null;
@@ -60,6 +62,10 @@ export function EventSheet({
   initialDate?: string;
   /** Pre-select the kind (Expos creates expos). */
   initialKind?: EventKind;
+  /** Pre-fill the title (a course adds a session under its own name). */
+  initialTitle?: string;
+  /** Pre-link a new session to a course she takes. */
+  initialCourseId?: string;
   onClose: () => void;
 }) {
   const {
@@ -73,12 +79,14 @@ export function EventSheet({
     series: allSeries,
     events,
     projects,
-    contacts
+    contacts,
+    courses
   } = useApp();
   const { showSuccess } = useToast();
   const parent: EventSeries | null = event?.seriesId ? (allSeries.find((s) => s.id === event.seriesId) ?? null) : null;
 
-  const [title, setTitle] = useState(event?.title ?? "");
+  const [title, setTitle] = useState(event?.title ?? initialTitle ?? "");
+  const [courseId, setCourseId] = useState(event?.courseId ?? parent?.courseId ?? initialCourseId ?? "");
   const [kind, setKind] = useState<EventKind>(event?.kind ?? initialKind ?? "class");
   const [budget, setBudget] = useState(event?.budget?.toString() ?? "");
   const [date, setDate] = useState(event?.date ?? initialDate ?? todayISO());
@@ -102,10 +110,15 @@ export function EventSheet({
   const contactOptions = [...contacts]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => ({ value: c.id, label: c.name }));
+  const courseOptions = courses
+    .filter((c) => c.status === "active" || c.status === "upcoming" || c.id === courseId)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => ({ value: c.id, label: c.name }));
 
   const eventPatch = {
     title: title.trim(),
     kind,
+    courseId: courseId || null,
     startTime: startTime || null,
     endTime: endTime || null,
     location: location.trim(),
@@ -127,6 +140,7 @@ export function EventSheet({
     projectId: eventPatch.projectId,
     contactId: eventPatch.contactId,
     groupId: parent?.groupId ?? null,
+    courseId: eventPatch.courseId,
     notes: eventPatch.notes
   });
 
@@ -141,6 +155,7 @@ export function EventSheet({
           id: makeId(),
           createdAt: todayISO(),
           date,
+          missed: false,
           seriesId: null,
           cancelled: false,
           detached: false,
@@ -168,6 +183,7 @@ export function EventSheet({
           id: makeId(),
           createdAt: todayISO(),
           date,
+          missed: event.missed,
           seriesId: null,
           cancelled: false,
           detached: false,
@@ -278,6 +294,13 @@ export function EventSheet({
         <span className="input-label">Tipo</span>
         <ChipSelect options={EVENT_KIND} value={kind} onChange={setKind} ariaLabel="Tipo de evento" />
       </div>
+
+      {(kind === "class" || kind === "other") && courseOptions.length > 0 && (
+        <div className="input-group">
+          <span className="input-label">Curso que tomas</span>
+          <PickerField title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} placeholder="Ninguno" />
+        </div>
+      )}
 
       <div className="input-group">
         <label className="input-label" htmlFor="event-date">{parent && scope !== "one" ? "Desde" : "Fecha"}</label>

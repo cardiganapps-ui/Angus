@@ -4,6 +4,7 @@ import type {
   ClassEnrollment,
   ClassGroup,
   Contact,
+  Course,
   EventSeries,
   Expense,
   Installment,
@@ -21,6 +22,7 @@ import {
   classEnrollmentStore,
   classGroupStore,
   contactStore,
+  courseStore,
   eventSeriesStore,
   eventStore,
   expenseStore,
@@ -128,6 +130,12 @@ interface AppContextValue {
   addAttendance: (rows: Attendance[]) => Promise<boolean>;
   updateAttendance: (id: string, patch: Partial<Attendance>) => Promise<void>;
   removeAttendance: (ids: string[]) => Promise<void>;
+
+  courses: Course[];
+  addCourse: (c: Course) => Promise<boolean>;
+  updateCourse: (id: string, patch: Partial<Course>) => Promise<void>;
+  /** Deletes the course and its schedule (series + sessions); expenses, rules, notes and pieces stay unlinked. */
+  removeCourse: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -157,6 +165,7 @@ export function AppProvider({
   const groups = useCloudStore(workspaceId, classGroupStore);
   const enrollments = useCloudStore(workspaceId, classEnrollmentStore);
   const attendance = useCloudStore(workspaceId, attendanceStore);
+  const courses = useCloudStore(workspaceId, courseStore);
 
   const loading =
     projects.loading ||
@@ -170,7 +179,8 @@ export function AppProvider({
     series.loading ||
     groups.loading ||
     enrollments.loading ||
-    attendance.loading;
+    attendance.loading ||
+    courses.loading;
 
   // Materialize due recurring rules into real rows. Runs once the data
   // is in, and again whenever a rule or its rows change; the unique
@@ -278,7 +288,8 @@ export function AppProvider({
         series.error ??
         groups.error ??
         enrollments.error ??
-        attendance.error,
+        attendance.error ??
+        courses.error,
       clearError: () => {
         actions.clearError();
         projects.clearError();
@@ -293,6 +304,7 @@ export function AppProvider({
         groups.clearError();
         enrollments.clearError();
         attendance.clearError();
+        courses.clearError();
       },
       refreshAll: async () => {
         failedMaterialization.current = null;
@@ -309,7 +321,8 @@ export function AppProvider({
           series.reload(),
           groups.reload(),
           enrollments.reload(),
-          attendance.reload()
+          attendance.reload(),
+          courses.reload()
         ]);
       },
       projects: projects.items,
@@ -411,7 +424,30 @@ export function AppProvider({
       attendance: attendance.items,
       addAttendance: attendance.addMany,
       updateAttendance: attendance.update,
-      removeAttendance: attendance.removeMany
+      removeAttendance: attendance.removeMany,
+      courses: courses.items,
+      addCourse: courses.add,
+      updateCourse: courses.update,
+      // Her sessions go with the course (the series cascades them);
+      // the tuition rule is paused, never deleted, so the expenses it
+      // already generated keep their history.
+      removeCourse: async (id: string) => {
+        const course = courses.items.find((c) => c.id === id);
+        const today = todayISO();
+        await Promise.all(
+          rules.items
+            .filter((r) => r.courseId === id && r.active)
+            .map((r) => rules.update(r.id, { active: false, endDate: today }))
+        );
+        if (course?.seriesId) {
+          const seriesId = course.seriesId;
+          const sessionIds = new Set(events.items.filter((e) => e.seriesId === seriesId).map((e) => e.id));
+          await series.remove(seriesId);
+          events.dropLocal((e) => e.seriesId === seriesId);
+          attendance.dropLocal((a) => sessionIds.has(a.eventId));
+        }
+        await courses.remove(id);
+      }
     }),
     [
       workspaceId,
@@ -429,7 +465,8 @@ export function AppProvider({
       series,
       groups,
       enrollments,
-      attendance
+      attendance,
+      courses
     ]
   );
 

@@ -33,6 +33,7 @@ const GROUPS: NavGroup[] = [
       { route: "projects", label: "Obra", icon: "palette" },
       { route: "contacts", label: "Contactos", icon: "users" },
       { route: "classes", label: "Clases", icon: "graduation", practice: ["classes", "workshops"] },
+      { route: "studies", label: "Estudios", icon: "book", practice: ["studies"] },
       { route: "expos", label: "Expos", icon: "map-pin", practice: ["expos"] }
     ]
   },
@@ -61,7 +62,7 @@ export function Drawer({
   onClose: (() => void) | null;
   rail?: boolean;
 }) {
-  const { settings, workspace, projects, contacts, rules, events, groups } = useApp();
+  const { settings, workspace, projects, contacts, rules, events, groups, courses } = useApp();
   const session = useSession();
   const { exiting, animatedClose } = useSheetExit(true, onClose);
   useEscape(rail ? null : animatedClose);
@@ -73,7 +74,8 @@ export function Drawer({
     contacts: contacts.length,
     recurring: rules.filter((r) => r.active).length,
     expos: events.filter((e) => e.kind === "expo" && !e.cancelled).length,
-    classes: groups.filter((g) => g.active).length
+    classes: groups.filter((g) => g.active).length,
+    studies: courses.filter((c) => c.status === "active" || c.status === "upcoming").length
   };
 
   const go = useCallback(

@@ -20,14 +20,14 @@ const enroll = (id: string, contactId: string, over: Partial<ClassEnrollment> = 
 });
 const session = (id: string, date: string): ScheduleEvent => ({
   id, title: "Óleo", kind: "class", date, startTime: "17:00", endTime: "19:00", location: "", projectId: null, contactId: null,
-  budget: null, seriesId: "ser1", cancelled: false, detached: false, notes: "", createdAt: date
+  budget: null, courseId: null, missed: false, seriesId: "ser1", cancelled: false, detached: false, notes: "", createdAt: date
 });
 const att = (eventId: string, contactId: string, status: Attendance["status"]): Attendance => ({
   id: `${eventId}-${contactId}`, eventId, contactId, status, createdAt: "2026-09-01"
 });
 const rule = (contactId: string): RecurringRule => ({
   id: `r-${contactId}`, kind: "income", title: `Colegiatura ${contactId}`, amount: 1800, category: "class", cadence: "monthly",
-  interval: 1, startDate: "2026-08-05", endDate: null, contactId, projectId: null, groupId: "g1", active: true, notes: "", createdAt: "2026-08-01"
+  interval: 1, startDate: "2026-08-05", endDate: null, contactId, projectId: null, groupId: "g1", courseId: null, active: true, notes: "", createdAt: "2026-08-01"
 });
 const sale = (id: string, ruleId: string, date: string, contactId: string): Sale => ({
   id, title: "Colegiatura", amount: 1800, date, status: "confirmed", category: "class", paymentTerms: "single", projectId: null,

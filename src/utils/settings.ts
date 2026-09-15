@@ -21,6 +21,7 @@ export const PRACTICES: Practice[] = [
   "commissions",
   "classes",
   "workshops",
+  "studies",
   "expos",
   "murals",
   "illustration",

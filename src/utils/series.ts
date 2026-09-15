@@ -61,6 +61,8 @@ export function missingOccurrences(
       projectId: series.projectId,
       contactId: series.contactId,
       budget: null,
+      courseId: series.courseId,
+      missed: false,
       seriesId: series.id,
       cancelled: false,
       detached: false,

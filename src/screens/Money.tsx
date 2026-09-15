@@ -330,6 +330,7 @@ function ExpensesView({
                   <div className="row-sub">
                     {formatShort(expense.date)}
                     {expense.recurringRuleId ? " · fijo" : ""}
+                    {expense.courseId ? " · curso" : ""}
                   </div>
                 </div>
                 <div className="money-row-right">

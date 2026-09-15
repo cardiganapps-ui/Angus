@@ -23,6 +23,7 @@ export type IconName =
   | "download"
   | "tag"
   | "graduation"
+  | "book"
   | "map-pin"
   | "target"
   | "sparkles"
@@ -70,6 +71,7 @@ const PATHS: Record<IconName, string> = {
   download: "M12 3v12M6 11l6 6 6-6M4 21h16",
   tag: "M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01",
   graduation: "M2 9l10-5 10 5-10 5zM6 11.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.5M22 9v6",
+  book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15zM9 7h6",
   "map-pin": "M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
   target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z",
   sparkles: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8zM5 2l.6 1.6L7 4l-1.4.5L5 6l-.6-1.5L3 4l1.4-.4z",

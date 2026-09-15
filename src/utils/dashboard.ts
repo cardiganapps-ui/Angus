@@ -240,6 +240,8 @@ export interface PracticeSnapshot {
   classesAhead: number;
   nextExpo: ScheduleEvent | null;
   nextEvent: ScheduleEvent | null;
+  /** The next session of a course she takes. */
+  nextStudySession: ScheduleEvent | null;
 }
 
 /** The state of the practice itself, as opposed to the money. */
@@ -265,7 +267,8 @@ export function practiceSnapshot(
     soldThisMonthAmount: sumMoney(monthSales.map((s) => s.amount)),
     classesAhead: upcoming.filter((e) => e.kind === "class" && daysUntil(e.date) <= horizonDays).length,
     nextExpo: upcoming.find((e) => e.kind === "expo") ?? null,
-    nextEvent: upcoming[0] ?? null
+    nextEvent: upcoming[0] ?? null,
+    nextStudySession: upcoming.find((e) => e.courseId !== null && !e.cancelled) ?? null
   };
 }
 

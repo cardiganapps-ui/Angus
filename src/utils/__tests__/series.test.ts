@@ -17,6 +17,7 @@ function series(over: Partial<EventSeries> = {}): EventSeries {
     projectId: null,
     contactId: null,
     groupId: null,
+    courseId: null,
     notes: "",
     createdAt: "2026-09-15",
     ...over
@@ -24,7 +25,7 @@ function series(over: Partial<EventSeries> = {}): EventSeries {
 }
 const occurrence = (date: string, over: Partial<ScheduleEvent> = {}): ScheduleEvent => ({
   id: `e-${date}`, title: "Óleo", kind: "class", date, startTime: "17:00", endTime: "19:00", location: "Taller",
-  projectId: null, contactId: null, budget: null, seriesId: "ser1", cancelled: false, detached: false, notes: "", createdAt: date, ...over
+  projectId: null, contactId: null, budget: null, courseId: null, missed: false, seriesId: "ser1", cancelled: false, detached: false, notes: "", createdAt: date, ...over
 });
 
 describe("seriesDates", () => {

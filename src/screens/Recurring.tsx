@@ -128,11 +128,12 @@ function RuleSection({
   onAdd: () => void;
   emptyBody: string;
 }) {
-  const { contacts } = useApp();
+  const { contacts, courses } = useApp();
   const sorted = [...rules].sort(
     (a, b) => Number(b.active) - Number(a.active) || b.amount - a.amount || a.title.localeCompare(b.title)
   );
   const contactName = (id: string | null) => (id ? (contacts.find((c) => c.id === id)?.name ?? null) : null);
+  const courseName = (id: string | null) => (id ? (courses.find((c) => c.id === id)?.name ?? null) : null);
   return (
     <div className="section">
       <div className="section-header">
@@ -175,6 +176,7 @@ function RuleSection({
                   <div className="row-title">{rule.title}</div>
                   <div className="row-sub">
                     {contactName(rule.contactId) ? `${contactName(rule.contactId)} · ` : ""}
+                    {courseName(rule.courseId) ? `${courseName(rule.courseId)} · ` : ""}
                     {describeCadence(rule)}
                     {rule.active && next ? ` · próximo ${formatShort(next)}` : rule.active ? " · terminó" : " · en pausa"}
                   </div>

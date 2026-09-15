@@ -14,19 +14,27 @@ import { haptic } from "../lib/haptics";
 export function ExpenseSheet({
   expense,
   initialEventId,
+  initialCourseId,
+  initialTitle,
+  initialAmount,
   onClose
 }: {
   expense: Expense | null;
   /** Pre-link a new expense to an expo. */
   initialEventId?: string;
+  /** Pre-link a new expense to a course she takes (category defaults to Cursos). */
+  initialCourseId?: string;
+  initialTitle?: string;
+  initialAmount?: number | null;
   onClose: () => void;
 }) {
-  const { addExpense, updateExpense, removeExpense, projects, events, rules } = useApp();
+  const { addExpense, updateExpense, removeExpense, projects, events, rules, courses } = useApp();
   const { showSuccess } = useToast();
-  const [title, setTitle] = useState(expense?.title ?? "");
-  const [amount, setAmount] = useState(expense?.amount?.toString() ?? "");
+  const [title, setTitle] = useState(expense?.title ?? initialTitle ?? "");
+  const [amount, setAmount] = useState(expense?.amount?.toString() ?? (initialAmount ? String(initialAmount) : ""));
   const [date, setDate] = useState(expense?.date ?? todayISO());
-  const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? "materials");
+  const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? (initialCourseId ? "courses" : "materials"));
+  const [courseId, setCourseId] = useState(expense?.courseId ?? initialCourseId ?? "");
   const [method, setMethod] = useState<PaymentMethod | "">(expense?.method ?? "");
   const rule = expense?.recurringRuleId ? rules.find((r) => r.id === expense.recurringRuleId) : null;
   const [projectId, setProjectId] = useState(expense?.projectId ?? "");
@@ -48,6 +56,10 @@ export function ExpenseSheet({
     .filter((e) => e.kind === "expo")
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((e) => ({ value: e.id, label: e.title }));
+  const courseOptions = courses
+    .filter((c) => c.status === "active" || c.status === "upcoming" || c.id === courseId)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => ({ value: c.id, label: c.name }));
 
   function handleSave() {
     if (!canSave) return;
@@ -60,6 +72,7 @@ export function ExpenseSheet({
       method: method || null,
       projectId: projectId || null,
       eventId: eventId || null,
+      courseId: courseId || null,
       notes: notes.trim()
     };
     if (expense) {
@@ -186,6 +199,13 @@ export function ExpenseSheet({
         <span className="input-label">Expo</span>
         <PickerField title="Expo" options={expoOptions} value={eventId} onChange={setEventId} />
       </div>
+
+      {courseOptions.length > 0 && (
+        <div className="input-group">
+          <span className="input-label">Curso que tomas</span>
+          <PickerField title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
+        </div>
+      )}
 
       <div className="input-group">
         <label className="input-label" htmlFor="expense-notes">Notas</label>

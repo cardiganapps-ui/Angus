@@ -23,7 +23,7 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    pinned, then this week, then by month) and a month grid whose tap
    filters the list below it. Cancelled series slots never show. */
 export function Schedule() {
-  const { events } = useApp();
+  const { events, courses } = useApp();
   const [view, setView] = useState<View>(lastView);
   const [editing, setEditing] = useState<ScheduleEvent | null | { newOn: string }>(null);
   const today = todayISO();
@@ -37,6 +37,8 @@ export function Schedule() {
   const upcoming = useMemo(() => sortEvents(live.filter((e) => e.date >= today)), [live, today]);
   const past = useMemo(() => sortEvents(live.filter((e) => e.date < today)).reverse(), [live, today]);
   const dayEvents = useMemo(() => sortEvents(live.filter((e) => e.date === selected)), [live, selected]);
+
+  const courseName = (id: string | null) => (id ? (courses.find((c) => c.id === id)?.name ?? null) : null);
 
   function switchView(next: View) {
     lastView = next;
@@ -116,7 +118,7 @@ export function Schedule() {
                 <div className="money-list-empty">Nada agendado este día.</div>
               </div>
             ) : (
-              <EventList events={dayEvents} onSelect={setEditing} showDate={false} />
+              <EventList events={dayEvents} onSelect={setEditing} showDate={false} courseName={courseName} />
             )}
           </div>
         </>
@@ -139,7 +141,7 @@ export function Schedule() {
                 <span className="section-title">{g.title}</span>
                 {g.sub && <span className="eyebrow">{g.sub}</span>}
               </div>
-              <EventList events={g.events} onSelect={setEditing} showDate />
+              <EventList events={g.events} onSelect={setEditing} showDate courseName={courseName} />
             </div>
           ))}
           {past.length > 0 && (
@@ -147,7 +149,7 @@ export function Schedule() {
               <div className="section-header">
                 <span className="section-title">Pasados</span>
               </div>
-              <EventList events={past.slice(0, 12)} onSelect={setEditing} muted showDate />
+              <EventList events={past.slice(0, 12)} onSelect={setEditing} muted showDate courseName={courseName} />
             </div>
           )}
         </>
@@ -172,12 +174,14 @@ function EventList({
   events,
   onSelect,
   muted,
-  showDate
+  showDate,
+  courseName
 }: {
   events: ScheduleEvent[];
   onSelect: (e: ScheduleEvent) => void;
   muted?: boolean;
   showDate: boolean;
+  courseName: (id: string | null) => string | null;
 }) {
   return (
     <div className="card">
@@ -207,9 +211,15 @@ function EventList({
                 {showDate && time ? " · " : ""}
                 {time}
                 {event.location ? ` · ${event.location}` : ""}
+                {event.courseId && courseName(event.courseId) && courseName(event.courseId) !== event.title
+                  ? ` · ${courseName(event.courseId)}`
+                  : ""}
+                {event.missed ? " · no fuiste" : ""}
               </div>
             </div>
-            <span className={`badge ${EVENT_KIND_BADGE[event.kind]}`}>{labelFor(EVENT_KIND, event.kind)}</span>
+            <span className={`badge ${event.courseId ? "badge-purple" : EVENT_KIND_BADGE[event.kind]}`}>
+              {event.courseId ? "Estudio" : labelFor(EVENT_KIND, event.kind)}
+            </span>
           </button>
         );
       })}

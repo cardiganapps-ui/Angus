@@ -60,6 +60,7 @@ function expense(id: string, amount: number, category: Expense["category"], date
     category,
     projectId: null,
     eventId: null,
+    courseId: null,
     method: null,
     recurringRuleId: null,
     periodKey: null,
