@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
-import type { Assignment, Contact, Project, QuickAction, ScheduleEvent } from "../types";
+import type { Assignment, Contact, Note, Project, QuickAction, ScheduleEvent } from "../types";
 import type { Route } from "../hooks/useNavigation";
 import { EVENT_KIND, LEAD_STAGE, labelFor } from "../data/constants";
 import {
@@ -38,6 +38,8 @@ import { EventSheet } from "../components/EventSheet";
 import { QuickAddFab } from "../components/QuickAddFab";
 import { AttendanceSheet } from "../components/AttendanceSheet";
 import { AssignmentSheet } from "../components/AssignmentSheet";
+import { QuickCaptureSheet } from "../components/notes/QuickCaptureSheet";
+import { NoteEditor } from "../components/NoteEditor";
 import { dueAssignments } from "../utils/studies";
 import { haptic } from "../lib/haptics";
 
@@ -75,6 +77,8 @@ type OpenSheet =
   | { kind: "contact"; contact: Contact | null }
   | { kind: "project"; project: Project | null }
   | { kind: "assignment"; assignment: Assignment | null }
+  | { kind: "quickNote" }
+  | { kind: "note"; note: Note }
   | { kind: "newSale" }
   | { kind: "newExpense" }
   | { kind: "newEvent" }
@@ -87,7 +91,8 @@ const QUICK_SHEET: Record<QuickAction, OpenSheet> = {
   event: { kind: "newEvent" },
   project: { kind: "project", project: null },
   contact: { kind: "contact", contact: null },
-  assignment: { kind: "assignment", assignment: null }
+  assignment: { kind: "assignment", assignment: null },
+  note: { kind: "quickNote" }
 };
 
 export function Home({ navigate }: { navigate: (route: Route) => void }) {
@@ -493,6 +498,15 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
       {sheet?.kind === "assignment" && (
         <AssignmentSheet assignment={sheet.assignment} onClose={() => setSheet(null)} />
       )}
+      {sheet?.kind === "quickNote" && (
+        <QuickCaptureSheet
+          onClose={() => setSheet((s) => (s?.kind === "quickNote" ? null : s))}
+          onSaved={(note, { openInEditor }) => {
+            if (openInEditor) setSheet({ kind: "note", note });
+          }}
+        />
+      )}
+      {sheet?.kind === "note" && <NoteEditor key={sheet.note.id} note={sheet.note} onClose={() => setSheet(null)} />}
     </div>
   );
 }

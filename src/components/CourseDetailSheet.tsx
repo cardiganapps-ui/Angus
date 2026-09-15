@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
-import type { Assignment, Course, Expense, ScheduleEvent } from "../types";
+import type { Assignment, Course, Expense, Note, ScheduleEvent } from "../types";
 import { COURSE_KIND, COURSE_KIND_BADGE, COURSE_MODALITY, COURSE_PAYMENT_PLAN, COURSE_STATUS, COURSE_STATUS_BADGE, EXPENSE_CATEGORY, labelFor } from "../data/constants";
 import { assignmentProgress, courseCost, courseSessions, courseTimeline, dueAssignments, nextSession } from "../utils/studies";
 import { describeSeries } from "../utils/series";
@@ -16,13 +16,18 @@ import { EventSheet } from "./EventSheet";
 import { ExpenseSheet } from "./ExpenseSheet";
 import { AssignmentSheet } from "./AssignmentSheet";
 import { AssignmentRow } from "./AssignmentRow";
+import { NoteEditor } from "./NoteEditor";
+import { useNotes } from "../hooks/useNotes";
+import { NOTE_TEMPLATES, applyTemplate } from "../data/noteTemplates";
+import { notePreview, relativeTime } from "../utils/noteText";
 import { haptic } from "../lib/haptics";
 
-type Tab = "summary" | "sessions" | "tareas" | "expenses";
+type Tab = "summary" | "sessions" | "tareas" | "notes" | "expenses";
 const TAB_ITEMS = [
   { k: "summary", l: "Resumen" },
   { k: "sessions", l: "Sesiones" },
   { k: "tareas", l: "Tareas" },
+  { k: "notes", l: "Notas" },
   { k: "expenses", l: "Gastos" }
 ];
 
@@ -38,6 +43,8 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
   const [session, setSession] = useState<ScheduleEvent | null | "new">(null);
   const [expense, setExpense] = useState<Expense | null | "new">(null);
   const [tarea, setTarea] = useState<Assignment | null | "new">(null);
+  const [noteOpen, setNoteOpen] = useState<Note | null>(null);
+  const { notes, createNote } = useNotes();
   const closeRef = useRef<(() => void) | null>(null);
   const today = todayISO();
 
@@ -52,7 +59,30 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
     [expenses, courseId]
   );
   const courseTareas = useMemo(() => assignments.filter((a) => a.courseId === courseId), [assignments, courseId]);
+  const courseNotes = useMemo(
+    () => notes.filter((n) => n.courseId === courseId).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt)),
+    [notes, courseId]
+  );
   if (!course) return null;
+
+  // "Apuntes" on a session: open its note, or start one from the class template.
+  async function openSessionNote(s: ScheduleEvent) {
+    if (!course) return;
+    const existing = notes.find((n) => n.eventId === s.id);
+    if (existing) {
+      setNoteOpen(existing);
+      return;
+    }
+    const tpl = NOTE_TEMPLATES.find((t) => t.id === "class");
+    const applied = tpl ? applyTemplate(tpl, formatWithWeekday(s.date)) : { title: "", content: "" };
+    const created = await createNote({ ...applied, courseId: course.id, eventId: s.id });
+    if (created) setNoteOpen(created);
+  }
+  async function newCourseNote() {
+    if (!course) return;
+    const created = await createNote({ courseId: course.id });
+    if (created) setNoteOpen(created);
+  }
 
   const tareas = dueAssignments(courseTareas, today);
   const progress = assignmentProgress(courseTareas);
@@ -103,6 +133,10 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
                 <button type="button" className="btn btn-primary" onClick={() => setTarea("new")}>
                   Nueva tarea
                 </button>
+              ) : tab === "notes" ? (
+                <button type="button" className="btn btn-primary" onClick={() => void newCourseNote()}>
+                  Nueva nota
+                </button>
               ) : (
                 <button type="button" className="btn btn-primary" onClick={() => setSession("new")}>
                   Agregar sesión
@@ -151,7 +185,9 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
           </div>
         </div>
 
-        <SegmentedControl items={TAB_ITEMS} value={tab} onChange={(k) => setTab(k as Tab)} size="sm" ariaLabel="Sección" />
+        <div className="course-tabs">
+          <SegmentedControl items={TAB_ITEMS} value={tab} onChange={(k) => setTab(k as Tab)} size="sm" ariaLabel="Sección" />
+        </div>
 
         {tab === "summary" && (
           <div className="money-list" style={{ marginTop: 14 }}>
@@ -204,19 +240,19 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
             ) : (
               <>
                 {upcoming.slice(0, 12).map((s) => (
-                  <button key={s.id} type="button" className="row-item" onClick={() => setSession(s)}>
-                    <div className="row-content">
+                  <div key={s.id} className="row-item" style={{ cursor: "default" }}>
+                    <button type="button" className="row-content btn-tap" style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer" }} onClick={() => setSession(s)}>
                       <div className="row-title">{formatWithWeekday(s.date)}</div>
                       <div className="row-sub">
                         {s.startTime ? `${s.startTime}${s.endTime ? `–${s.endTime}` : ""}` : "Sin hora"}
                         {s.location ? ` · ${s.location}` : ""}
                       </div>
-                    </div>
+                    </button>
                     <span className={`badge ${s.date === today ? "badge-teal" : "badge-gray"}`}>{relativeDayLabel(daysUntil(s.date))}</span>
-                    <span className="row-chevron" aria-hidden="true">
-                      <Icon name="chevron-right" size={16} />
-                    </span>
-                  </button>
+                    <button type="button" className={`row-icon-btn btn-tap ${notes.some((n) => n.eventId === s.id) ? "row-icon-btn--on" : ""}`} onClick={() => void openSessionNote(s)} aria-label={`Apuntes de ${formatWithWeekday(s.date)}`}>
+                      <Icon name="edit" size={16} strokeWidth={2.2} />
+                    </button>
+                  </div>
                 ))}
                 {past.length > 0 && (
                   <div className="money-sheet-section-title" style={{ padding: "12px 16px 4px" }}>
@@ -227,7 +263,10 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
                   <div key={s.id} className="row-item row-item--muted" style={{ cursor: "default" }}>
                     <button type="button" className="row-content btn-tap" style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer" }} onClick={() => setSession(s)}>
                       <div className="row-title">{formatWithWeekday(s.date)}</div>
-                      <div className="row-sub">{s.startTime ?? ""}{s.missed ? " · no fuiste" : ""}</div>
+                      <div className="row-sub">{s.startTime ?? ""}{s.missed ? " · no fuiste" : ""}{notes.some((n) => n.eventId === s.id) ? " · con apuntes" : ""}</div>
+                    </button>
+                    <button type="button" className={`row-icon-btn btn-tap ${notes.some((n) => n.eventId === s.id) ? "row-icon-btn--on" : ""}`} onClick={() => void openSessionNote(s)} aria-label={`Apuntes de ${formatWithWeekday(s.date)}`}>
+                      <Icon name="edit" size={16} strokeWidth={2.2} />
                     </button>
                     <button
                       type="button"
@@ -299,6 +338,34 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
           </>
         )}
 
+        {tab === "notes" && (
+          <div className="money-list" style={{ marginTop: 14 }}>
+            {courseNotes.length === 0 ? (
+              <div className="money-list-empty">Sin apuntes todavía. Escribe una nota aquí, o toca el lápiz de una sesión para empezar con la plantilla de clase.</div>
+            ) : (
+              courseNotes.map((n) => (
+                <button key={n.id} type="button" className="row-item" onClick={() => setNoteOpen(n)}>
+                  <div className="row-content">
+                    <div className="row-title">
+                      {n.pinned ? <Icon name="star" size={12} strokeWidth={2.6} /> : null}
+                      {n.pinned ? " " : ""}
+                      {n.title || "Sin título"}
+                    </div>
+                    <div className="row-sub">
+                      {relativeTime(n.updatedAt)}
+                      {n.eventId ? " · sesión" : n.assignmentId ? " · tarea" : ""}
+                      {notePreview(n.content) ? ` · ${notePreview(n.content)}` : ""}
+                    </div>
+                  </div>
+                  <span className="row-chevron" aria-hidden="true">
+                    <Icon name="chevron-right" size={16} />
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
         {tab === "expenses" && (
           <>
             {course.paymentPlan !== "free" && (
@@ -366,6 +433,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
           onClose={() => setSession(null)}
         />
       )}
+      {noteOpen && <NoteEditor key={noteOpen.id} note={noteOpen} onClose={() => setNoteOpen(null)} />}
       {tarea && (
         <AssignmentSheet
           assignment={tarea === "new" ? null : tarea}

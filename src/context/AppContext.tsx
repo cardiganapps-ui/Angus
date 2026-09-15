@@ -3,6 +3,9 @@ import type {
   Assignment,
   Attendance,
   ClassEnrollment,
+  Note,
+  NoteTag,
+  NoteTagLink,
   ClassGroup,
   Contact,
   Course,
@@ -29,6 +32,9 @@ import {
   eventStore,
   expenseStore,
   installmentStore,
+  noteStore,
+  noteTagLinkStore,
+  noteTagStore,
   paymentStore,
   projectStore,
   recurringRuleStore,
@@ -65,84 +71,100 @@ interface AppContextValue {
 
   projects: Project[];
   addProject: (p: Project) => Promise<boolean>;
-  updateProject: (id: string, patch: Partial<Project>) => Promise<void>;
+  updateProject: (id: string, patch: Partial<Project>) => Promise<boolean>;
   removeProject: (id: string) => Promise<void>;
 
   contacts: Contact[];
   addContact: (c: Contact) => Promise<boolean>;
-  updateContact: (id: string, patch: Partial<Contact>) => Promise<void>;
+  updateContact: (id: string, patch: Partial<Contact>) => Promise<boolean>;
   removeContact: (id: string) => Promise<void>;
 
   events: ScheduleEvent[];
   addEvent: (e: ScheduleEvent) => Promise<boolean>;
   addEvents: (rows: ScheduleEvent[]) => Promise<boolean>;
-  updateEvent: (id: string, patch: Partial<ScheduleEvent>) => Promise<void>;
+  updateEvent: (id: string, patch: Partial<ScheduleEvent>) => Promise<boolean>;
   removeEvent: (id: string) => Promise<void>;
   removeEvents: (ids: string[]) => Promise<void>;
 
   series: EventSeries[];
   addSeries: (s: EventSeries) => Promise<boolean>;
-  updateSeries: (id: string, patch: Partial<EventSeries>) => Promise<void>;
+  updateSeries: (id: string, patch: Partial<EventSeries>) => Promise<boolean>;
   /** Deletes the series AND every occurrence (Postgres cascades; mirrored locally). */
   removeSeries: (id: string) => Promise<void>;
 
   sales: Sale[];
   addSale: (s: Sale) => Promise<boolean>;
   addSales: (rows: Sale[]) => Promise<boolean>;
-  updateSale: (id: string, patch: Partial<Sale>) => Promise<void>;
+  updateSale: (id: string, patch: Partial<Sale>) => Promise<boolean>;
   removeSale: (id: string) => Promise<void>;
 
   payments: Payment[];
   addPayment: (p: Payment) => Promise<boolean>;
-  updatePayment: (id: string, patch: Partial<Payment>) => Promise<void>;
+  updatePayment: (id: string, patch: Partial<Payment>) => Promise<boolean>;
   removePayment: (id: string) => Promise<void>;
 
   installments: Installment[];
   addInstallment: (i: Installment) => Promise<boolean>;
   /** A whole plan in one request. */
   addInstallments: (rows: Installment[]) => Promise<boolean>;
-  updateInstallment: (id: string, patch: Partial<Installment>) => Promise<void>;
+  updateInstallment: (id: string, patch: Partial<Installment>) => Promise<boolean>;
   removeInstallment: (id: string) => Promise<void>;
   removeInstallments: (ids: string[]) => Promise<void>;
 
   expenses: Expense[];
   addExpense: (e: Expense) => Promise<boolean>;
   addExpenses: (rows: Expense[]) => Promise<boolean>;
-  updateExpense: (id: string, patch: Partial<Expense>) => Promise<void>;
+  updateExpense: (id: string, patch: Partial<Expense>) => Promise<boolean>;
   removeExpense: (id: string) => Promise<void>;
 
   rules: RecurringRule[];
   addRule: (r: RecurringRule) => Promise<boolean>;
   addRules: (rows: RecurringRule[]) => Promise<boolean>;
-  updateRule: (id: string, patch: Partial<RecurringRule>) => Promise<void>;
+  updateRule: (id: string, patch: Partial<RecurringRule>) => Promise<boolean>;
   removeRule: (id: string) => Promise<void>;
 
   groups: ClassGroup[];
   addGroup: (g: ClassGroup) => Promise<boolean>;
-  updateGroup: (id: string, patch: Partial<ClassGroup>) => Promise<void>;
+  updateGroup: (id: string, patch: Partial<ClassGroup>) => Promise<boolean>;
   /** Deletes the group and its enrollments (cascade); its series and rules stay. */
   removeGroup: (id: string) => Promise<void>;
 
   enrollments: ClassEnrollment[];
   addEnrollment: (e: ClassEnrollment) => Promise<boolean>;
-  updateEnrollment: (id: string, patch: Partial<ClassEnrollment>) => Promise<void>;
+  updateEnrollment: (id: string, patch: Partial<ClassEnrollment>) => Promise<boolean>;
   removeEnrollment: (id: string) => Promise<void>;
 
   attendance: Attendance[];
   addAttendance: (rows: Attendance[]) => Promise<boolean>;
-  updateAttendance: (id: string, patch: Partial<Attendance>) => Promise<void>;
+  updateAttendance: (id: string, patch: Partial<Attendance>) => Promise<boolean>;
   removeAttendance: (ids: string[]) => Promise<void>;
 
   courses: Course[];
   addCourse: (c: Course) => Promise<boolean>;
-  updateCourse: (id: string, patch: Partial<Course>) => Promise<void>;
+  updateCourse: (id: string, patch: Partial<Course>) => Promise<boolean>;
   /** Deletes the course and its schedule (series + sessions) and tareas; expenses, rules, notes and pieces stay unlinked. */
   removeCourse: (id: string) => Promise<void>;
 
   assignments: Assignment[];
   addAssignment: (a: Assignment) => Promise<boolean>;
-  updateAssignment: (id: string, patch: Partial<Assignment>) => Promise<void>;
+  updateAssignment: (id: string, patch: Partial<Assignment>) => Promise<boolean>;
   removeAssignment: (id: string) => Promise<void>;
+
+  notes: Note[];
+  addNote: (n: Note) => Promise<boolean>;
+  updateNote: (id: string, patch: Partial<Note>) => Promise<boolean>;
+  /** Deletes the note; its tag links cascade (mirrored locally). */
+  removeNote: (id: string) => Promise<void>;
+  removeNotes: (ids: string[]) => Promise<void>;
+
+  noteTags: NoteTag[];
+  addNoteTag: (t: NoteTag) => Promise<boolean>;
+  updateNoteTag: (id: string, patch: Partial<NoteTag>) => Promise<boolean>;
+  removeNoteTag: (id: string) => Promise<void>;
+
+  noteTagLinks: NoteTagLink[];
+  addNoteTagLink: (l: NoteTagLink) => Promise<boolean>;
+  removeNoteTagLink: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -174,6 +196,9 @@ export function AppProvider({
   const attendance = useCloudStore(workspaceId, attendanceStore);
   const courses = useCloudStore(workspaceId, courseStore);
   const assignments = useCloudStore(workspaceId, assignmentStore);
+  const notes = useCloudStore(workspaceId, noteStore);
+  const noteTags = useCloudStore(workspaceId, noteTagStore);
+  const noteTagLinks = useCloudStore(workspaceId, noteTagLinkStore);
 
   const loading =
     projects.loading ||
@@ -189,7 +214,10 @@ export function AppProvider({
     enrollments.loading ||
     attendance.loading ||
     courses.loading ||
-    assignments.loading;
+    assignments.loading ||
+    notes.loading ||
+    noteTags.loading ||
+    noteTagLinks.loading;
 
   // Materialize due recurring rules into real rows. Runs once the data
   // is in, and again whenever a rule or its rows change; the unique
@@ -299,7 +327,10 @@ export function AppProvider({
         enrollments.error ??
         attendance.error ??
         courses.error ??
-        assignments.error,
+        assignments.error ??
+        notes.error ??
+        noteTags.error ??
+        noteTagLinks.error,
       clearError: () => {
         actions.clearError();
         projects.clearError();
@@ -316,6 +347,9 @@ export function AppProvider({
         attendance.clearError();
         courses.clearError();
         assignments.clearError();
+        notes.clearError();
+        noteTags.clearError();
+        noteTagLinks.clearError();
       },
       refreshAll: async () => {
         failedMaterialization.current = null;
@@ -334,7 +368,10 @@ export function AppProvider({
           enrollments.reload(),
           attendance.reload(),
           courses.reload(),
-          assignments.reload()
+          assignments.reload(),
+          notes.reload(),
+          noteTags.reload(),
+          noteTagLinks.reload()
         ]);
       },
       projects: projects.items,
@@ -464,7 +501,29 @@ export function AppProvider({
       assignments: assignments.items,
       addAssignment: assignments.add,
       updateAssignment: assignments.update,
-      removeAssignment: assignments.remove
+      removeAssignment: assignments.remove,
+      notes: notes.items,
+      addNote: notes.add,
+      updateNote: notes.update,
+      removeNote: async (id: string) => {
+        await notes.remove(id);
+        noteTagLinks.dropLocal((l) => l.noteId === id);
+      },
+      removeNotes: async (ids: string[]) => {
+        await notes.removeMany(ids);
+        const gone = new Set(ids);
+        noteTagLinks.dropLocal((l) => gone.has(l.noteId));
+      },
+      noteTags: noteTags.items,
+      addNoteTag: noteTags.add,
+      updateNoteTag: noteTags.update,
+      removeNoteTag: async (id: string) => {
+        await noteTags.remove(id);
+        noteTagLinks.dropLocal((l) => l.tagId === id);
+      },
+      noteTagLinks: noteTagLinks.items,
+      addNoteTagLink: noteTagLinks.add,
+      removeNoteTagLink: noteTagLinks.remove
     }),
     [
       workspaceId,
@@ -484,7 +543,10 @@ export function AppProvider({
       enrollments,
       attendance,
       courses,
-      assignments
+      assignments,
+      notes,
+      noteTags,
+      noteTagLinks
     ]
   );
 

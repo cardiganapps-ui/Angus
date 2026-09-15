@@ -2,6 +2,9 @@ import type {
   Assignment,
   Attendance,
   ClassEnrollment,
+  Note,
+  NoteTag,
+  NoteTagLink,
   ClassGroup,
   Contact,
   Course,
@@ -352,6 +355,89 @@ export const assignmentStore: CloudStoreConfig<Assignment, AssignmentRow> = {
     if (a.projectId !== undefined) row.project_id = a.projectId;
     if (a.grade !== undefined) row.grade = a.grade;
     if (a.feedback !== undefined) row.feedback = a.feedback;
+    return row;
+  }
+};
+
+/* ── Notas ── */
+
+export interface NoteRow {
+  id: string;
+  title: string;
+  content: string;
+  pinned: boolean;
+  course_id: string | null;
+  event_id: string | null;
+  assignment_id: string | null;
+  project_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const noteStore: CloudStoreConfig<Note, NoteRow> = {
+  table: "notes",
+  fromRow: (r) => ({
+    id: r.id,
+    title: r.title,
+    content: r.content,
+    pinned: r.pinned,
+    courseId: r.course_id,
+    eventId: r.event_id,
+    assignmentId: r.assignment_id,
+    projectId: r.project_id,
+    createdAt: r.created_at.slice(0, 10),
+    updatedAt: r.updated_at
+  }),
+  // updated_at is the server's (trigger); a local patch may carry a
+  // fresh updatedAt for the recency groups, and it stays local.
+  toRow: (n) => {
+    const row: Partial<NoteRow> = {};
+    if (n.id !== undefined) row.id = n.id;
+    if (n.title !== undefined) row.title = n.title;
+    if (n.content !== undefined) row.content = n.content;
+    if (n.pinned !== undefined) row.pinned = n.pinned;
+    if (n.courseId !== undefined) row.course_id = n.courseId;
+    if (n.eventId !== undefined) row.event_id = n.eventId;
+    if (n.assignmentId !== undefined) row.assignment_id = n.assignmentId;
+    if (n.projectId !== undefined) row.project_id = n.projectId;
+    return row;
+  }
+};
+
+export interface NoteTagRow {
+  id: string;
+  label: string;
+  color: string;
+  created_at: string;
+}
+
+export const noteTagStore: CloudStoreConfig<NoteTag, NoteTagRow> = {
+  table: "note_tags",
+  fromRow: (r) => ({ id: r.id, label: r.label, color: r.color, createdAt: r.created_at.slice(0, 10) }),
+  toRow: (t) => {
+    const row: Partial<NoteTagRow> = {};
+    if (t.id !== undefined) row.id = t.id;
+    if (t.label !== undefined) row.label = t.label;
+    if (t.color !== undefined) row.color = t.color;
+    return row;
+  }
+};
+
+export interface NoteTagLinkRow {
+  id: string;
+  note_id: string;
+  tag_id: string;
+  created_at: string;
+}
+
+export const noteTagLinkStore: CloudStoreConfig<NoteTagLink, NoteTagLinkRow> = {
+  table: "note_tag_links",
+  fromRow: (r) => ({ id: r.id, noteId: r.note_id, tagId: r.tag_id, createdAt: r.created_at.slice(0, 10) }),
+  toRow: (l) => {
+    const row: Partial<NoteTagLinkRow> = {};
+    if (l.id !== undefined) row.id = l.id;
+    if (l.noteId !== undefined) row.note_id = l.noteId;
+    if (l.tagId !== undefined) row.tag_id = l.tagId;
     return row;
   }
 };

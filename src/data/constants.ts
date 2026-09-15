@@ -292,7 +292,8 @@ export const QUICK_ACTION: { value: QuickAction; label: string; icon: IconName }
   { value: "event", label: "Nuevo evento", icon: "calendar" },
   { value: "project", label: "Nueva pieza", icon: "palette" },
   { value: "contact", label: "Nuevo contacto", icon: "users" },
-  { value: "assignment", label: "Nueva tarea", icon: "clipboard" }
+  { value: "assignment", label: "Nueva tarea", icon: "clipboard" },
+  { value: "note", label: "Nota rápida", icon: "edit" }
 ];
 
 /* ── Clases ── */

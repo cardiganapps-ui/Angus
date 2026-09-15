@@ -13,6 +13,7 @@ export type Route =
   | "contacts"
   | "classes"
   | "studies"
+  | "notes"
   | "expos"
   | "recurring"
   | "budgets"
@@ -28,6 +29,7 @@ const ROUTES: readonly Route[] = [
   "contacts",
   "classes",
   "studies",
+  "notes",
   "expos",
   "recurring",
   "budgets",

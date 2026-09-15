@@ -1,0 +1,302 @@
+/* ── Notas (Angus additions on top of notes-editor.css) ──
+   The editor shell, the slash menu, tag chips, version rows, the
+   list's cards and the bulk bar. Everything here is tokens; the
+   ported editor CSS supplies the typography and motion. */
+
+:root {
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --z-note-editor: 400;
+}
+
+.note-editor-shell {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-note-editor);
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+}
+
+.mde-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 10px 0 6px;
+  border: none;
+  background: none;
+  color: var(--accent-dark);
+  font-family: var(--font-d);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  cursor: pointer;
+}
+
+.mde-context-chevron { display: inline-flex; color: var(--charcoal-xl); margin-left: 2px; }
+.mde-context-icon { display: inline-flex; }
+
+.mde-flash {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--sab) + 70px);
+  transform: translateX(-50%);
+  background: var(--charcoal);
+  color: var(--white);
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-sheet);
+}
+
+/* The 44px hit-target rule for buttons must not stretch the inline
+   task checkbox (its tap target is the whole line). */
+.mde-root .mde-check { min-height: 0; min-width: 0; }
+
+/* Per-session "Apuntes" pencil: lit once the session has a note. */
+.row-icon-btn--on { background: var(--accent-pale); color: var(--accent-dark); }
+
+/* Slash command menu */
+.slash-menu {
+  position: fixed;
+  z-index: calc(var(--z-note-editor) + 1);
+  background: var(--white);
+  border: 1px solid var(--border-lt);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  animation: slashMenuIn var(--dur-base) var(--ease-spring);
+  font-family: var(--font);
+}
+.slash-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--charcoal);
+  font-family: var(--font);
+  text-align: left;
+}
+.slash-menu-item:hover,
+.slash-menu-item:focus-visible { background: var(--accent-mist); }
+.slash-menu-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+  color: var(--charcoal-md);
+  flex-shrink: 0;
+}
+
+/* Outline entries are buttons (keyboard-operable) inside the ported list. */
+.mde-outline-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-family: var(--font);
+  font-size: var(--text-md);
+  color: var(--charcoal);
+  cursor: pointer;
+}
+.mde-outline-item.is-active .mde-outline-btn { background: var(--accent-pale); color: var(--accent-dark); font-weight: 700; }
+
+/* Tag chips */
+.note-tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.note-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 4px 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.note-tag-chip-label { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-tag-chip-x {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: var(--white);
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+.note-tag-suggest {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--border);
+  background: var(--white);
+  color: var(--charcoal-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-filter-pill-count { font-variant-numeric: tabular-nums; font-weight: 500; opacity: 0.8; }
+
+/* Version history */
+.note-version-head { width: 100%; text-align: left; }
+.note-version-delta { display: inline-flex; gap: 6px; font-size: var(--text-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
+.note-version-added { color: var(--green); }
+.note-version-removed { color: var(--red); }
+.note-version-body { padding: 0 16px 14px; }
+.note-version-title { font-family: var(--font-d); font-weight: 700; font-size: var(--text-md); margin-bottom: 10px; }
+.note-version-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.note-diff {
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  max-height: 40vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--border-lt);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: var(--white);
+}
+.note-diff-chunk { padding: 2px 6px; margin: 2px 0; border-radius: 4px; }
+.note-diff-chunk--added { background: var(--green-bg); }
+.note-diff-chunk--removed { background: var(--red-bg); color: var(--charcoal-md); text-decoration: line-through; }
+
+/* Quick capture */
+.quick-note-title {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-d);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  color: var(--charcoal);
+  padding: 10px 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  border-bottom: 1px solid var(--border-lt);
+  margin-bottom: 12px;
+}
+.quick-note-title:focus { border-bottom-color: var(--accent); }
+.quick-note-body { min-height: 150px; resize: vertical; line-height: 1.55; }
+
+/* List */
+.notes-groups { display: flex; flex-direction: column; gap: 4px; }
+.notes-group { display: flex; flex-direction: column; gap: 8px; }
+.note-card-inner { display: flex; align-items: center; }
+.note-card-inner .task-check-btn { margin: 0 -4px 0 8px; }
+.note-card {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.note-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.note-card-pin { display: inline-flex; color: var(--amber); flex-shrink: 0; }
+.note-card-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-d);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--charcoal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.note-card-time { font-size: var(--text-xs); color: var(--charcoal-xl); font-weight: 500; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.note-card-sub {
+  font-size: var(--text-sm);
+  color: var(--charcoal-lt);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.note-card-sub.is-linked { color: var(--accent-dark); font-weight: 600; }
+.note-card-pressing { transform: scale(0.985); }
+.note-longpress-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--charcoal-xl);
+  opacity: 0.35;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: noteLongPressFill var(--dur-slower) var(--ease-in-out) forwards;
+  pointer-events: none;
+}
+@keyframes noteLongPressFill { to { transform: scaleX(1); } }
+
+.notes-bulk-bar {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--sab) + 84px);
+  background: var(--charcoal);
+  color: var(--white);
+  border-radius: var(--radius-pill);
+  padding: 12px 8px 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-fab);
+  font-weight: 700;
+  font-size: var(--text-md);
+  animation: slideUp var(--dur-base) var(--ease-spring);
+}
+.notes-bulk-btn {
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--red);
+  color: var(--white);
+  font-family: var(--font-d);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-longpress-progress { animation-duration: 1ms; }
+  .notes-bulk-bar { animation: none; }
+}

@@ -1,0 +1,197 @@
+import { useCallback, useMemo } from "react";
+import { useApp } from "../context/AppContext";
+import { supabase } from "../lib/supabase";
+import type { Note, NoteTag, NoteVersion } from "../types";
+import { makeId } from "../utils/id";
+import { todayISO } from "../utils/dates";
+
+/* ── useNotes ──
+   The note operations the editor and the list need, on top of the
+   stores in AppContext: create with links, save (+ a server-side
+   version snapshot), restore, pin, link, tags, and full-text search.
+   Every write goes through the optimistic stores; the snapshot RPC is
+   best-effort and never blocks a save. */
+
+export interface NoteLinks {
+  courseId?: string | null;
+  eventId?: string | null;
+  assignmentId?: string | null;
+  projectId?: string | null;
+}
+
+export function useNotes() {
+  const {
+    workspaceId,
+    notes,
+    addNote,
+    updateNote,
+    removeNote,
+    removeNotes,
+    noteTags,
+    noteTagLinks,
+    addNoteTag,
+    addNoteTagLink,
+    removeNoteTagLink
+  } = useApp();
+
+  const createNote = useCallback(
+    async (input: { title?: string; content?: string } & NoteLinks): Promise<Note | null> => {
+      const now = new Date().toISOString();
+      const note: Note = {
+        id: makeId(),
+        title: input.title ?? "",
+        content: input.content ?? "",
+        pinned: false,
+        courseId: input.courseId ?? null,
+        eventId: input.eventId ?? null,
+        assignmentId: input.assignmentId ?? null,
+        projectId: input.projectId ?? null,
+        createdAt: todayISO(),
+        updatedAt: now
+      };
+      const ok = await addNote(note);
+      return ok ? note : null;
+    },
+    [addNote]
+  );
+
+  const snapshot = useCallback(async (id: string, title: string, content: string, debounceSeconds = 60) => {
+    try {
+      await supabase.rpc("snapshot_note", {
+        p_note_id: id,
+        p_title: title,
+        p_content: content,
+        p_debounce_seconds: debounceSeconds
+      });
+    } catch {
+      /* history is a convenience; the note itself is already saved */
+    }
+  }, []);
+
+  /** Persists title + content; throws when the server refused (the editor keeps its dirty state). */
+  const saveNote = useCallback(
+    async (id: string, data: { title: string; content: string }) => {
+      const ok = await updateNote(id, { ...data, updatedAt: new Date().toISOString() });
+      if (!ok) throw new Error("save_failed");
+      void snapshot(id, data.title, data.content);
+    },
+    [updateNote, snapshot]
+  );
+
+  /** Keeps the pre-restore text as its own version, then saves the restored one. */
+  const restoreNote = useCallback(
+    async (id: string, current: { title: string; content: string }, restored: { title: string; content: string }) => {
+      await snapshot(id, current.title, current.content, 0);
+      await saveNote(id, restored);
+    },
+    [snapshot, saveNote]
+  );
+
+  const togglePin = useCallback(
+    (id: string) => {
+      const note = notes.find((n) => n.id === id);
+      if (!note) return Promise.resolve(false);
+      return updateNote(id, { pinned: !note.pinned });
+    },
+    [notes, updateNote]
+  );
+
+  const linkNote = useCallback(
+    (id: string, links: NoteLinks) =>
+      updateNote(id, {
+        courseId: links.courseId ?? null,
+        eventId: links.eventId ?? null,
+        assignmentId: links.assignmentId ?? null,
+        projectId: links.projectId ?? null
+      }),
+    [updateNote]
+  );
+
+  const upsertTag = useCallback(
+    async (label: string): Promise<NoteTag | null> => {
+      const clean = label.trim();
+      if (!clean) return null;
+      const existing = noteTags.find((t) => t.label.toLowerCase() === clean.toLowerCase());
+      if (existing) return existing;
+      const tag: NoteTag = { id: makeId(), label: clean, color: "accent", createdAt: todayISO() };
+      const ok = await addNoteTag(tag);
+      return ok ? tag : (noteTags.find((t) => t.label.toLowerCase() === clean.toLowerCase()) ?? null);
+    },
+    [noteTags, addNoteTag]
+  );
+
+  const linkTag = useCallback(
+    async (noteId: string, tagId: string) => {
+      if (noteTagLinks.some((l) => l.noteId === noteId && l.tagId === tagId)) return true;
+      return addNoteTagLink({ id: makeId(), noteId, tagId, createdAt: todayISO() });
+    },
+    [noteTagLinks, addNoteTagLink]
+  );
+
+  const unlinkTag = useCallback(
+    async (noteId: string, tagId: string) => {
+      const link = noteTagLinks.find((l) => l.noteId === noteId && l.tagId === tagId);
+      if (link) await removeNoteTagLink(link.id);
+    },
+    [noteTagLinks, removeNoteTagLink]
+  );
+
+  const tagsByNote = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const l of noteTagLinks) {
+      let set = m.get(l.noteId);
+      if (!set) {
+        set = new Set();
+        m.set(l.noteId, set);
+      }
+      set.add(l.tagId);
+    }
+    return m;
+  }, [noteTagLinks]);
+
+  /** Server full-text search (Spanish stemming); ids ranked best first. Falls back to [] on error. */
+  const searchNotes = useCallback(
+    async (query: string): Promise<string[]> => {
+      const { data, error } = await supabase.rpc("search_notes", { p_workspace_id: workspaceId, p_query: query, p_limit: 50 });
+      if (error || !data) return [];
+      return (data as { id: string }[]).map((r) => r.id);
+    },
+    [workspaceId]
+  );
+
+  const loadVersions = useCallback(async (noteId: string): Promise<NoteVersion[] | null> => {
+    const { data, error } = await supabase
+      .from("note_versions")
+      .select("id, note_id, version_no, title, content, created_at")
+      .eq("note_id", noteId)
+      .order("version_no", { ascending: false });
+    if (error || !data) return null;
+    return data.map((v) => ({
+      id: v.id as string,
+      noteId: v.note_id as string,
+      versionNo: v.version_no as number,
+      title: (v.title as string) ?? "",
+      content: (v.content as string) ?? "",
+      createdAt: v.created_at as string
+    }));
+  }, []);
+
+  return {
+    notes,
+    noteTags,
+    noteTagLinks,
+    tagsByNote,
+    createNote,
+    saveNote,
+    restoreNote,
+    togglePin,
+    linkNote,
+    deleteNote: removeNote,
+    deleteNotes: removeNotes,
+    upsertTag,
+    linkTag,
+    unlinkTag,
+    searchNotes,
+    loadVersions
+  };
+}

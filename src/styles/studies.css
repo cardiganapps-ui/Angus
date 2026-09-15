@@ -52,6 +52,10 @@
 .task-due--overdue { color: var(--red); }
 .task-due--today { color: var(--amber); }
 
+/* Five tabs in the course sheet: tighter segments so "Sesiones" still
+   fits at 360px without truncating. */
+.course-tabs .segmented-btn { padding: 0 4px; font-size: var(--text-sm); letter-spacing: -0.2px; }
+
 /* The "3 de 8 entregadas" band above the list. */
 .tareas-head {
   display: flex;

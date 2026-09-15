@@ -270,6 +270,46 @@ export interface Assignment {
   createdAt: string; // ISO
 }
 
+/* ── Notas ──
+   Her apuntes: markdown, optionally linked to a course, one of its
+   sessions, a tarea or a piece. Unlinked notes are the Inbox. Tags
+   are per workspace; versions are snapshots the server keeps. */
+export interface Note {
+  id: string;
+  title: string;
+  content: string; // markdown
+  pinned: boolean;
+  courseId: string | null;
+  eventId: string | null; // a session of the course
+  assignmentId: string | null;
+  projectId: string | null;
+  createdAt: string; // ISO date
+  updatedAt: string; // ISO datetime — drives the recency groups
+}
+
+export interface NoteTag {
+  id: string;
+  label: string;
+  color: string;
+  createdAt: string; // ISO date
+}
+
+export interface NoteTagLink {
+  id: string;
+  noteId: string;
+  tagId: string;
+  createdAt: string; // ISO date
+}
+
+export interface NoteVersion {
+  id: string;
+  noteId: string;
+  versionNo: number;
+  title: string;
+  content: string;
+  createdAt: string; // ISO datetime
+}
+
 /* ── Clases ──
    A group she teaches (schedule = an EventSeries), the students
    enrolled in it (contacts), one attendance row per student per
@@ -326,7 +366,7 @@ export type Practice =
   | "illustration"
   | "other";
 
-export type QuickAction = "sale" | "expense" | "event" | "project" | "contact" | "assignment";
+export type QuickAction = "sale" | "expense" | "event" | "project" | "contact" | "assignment" | "note";
 export type ThemePreference = "light" | "dark" | "system";
 export type TextScale = "sm" | "md" | "lg";
 

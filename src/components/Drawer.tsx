@@ -34,6 +34,7 @@ const GROUPS: NavGroup[] = [
       { route: "contacts", label: "Contactos", icon: "users" },
       { route: "classes", label: "Clases", icon: "graduation", practice: ["classes", "workshops"] },
       { route: "studies", label: "Estudios", icon: "book", practice: ["studies"] },
+      { route: "notes", label: "Notas", icon: "edit" },
       { route: "expos", label: "Expos", icon: "map-pin", practice: ["expos"] }
     ]
   },

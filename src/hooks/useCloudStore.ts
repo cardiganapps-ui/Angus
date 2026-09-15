@@ -25,7 +25,8 @@ export interface CloudStore<T extends Entity> {
   add: (item: T) => Promise<boolean>;
   /** Insert several rows in ONE request — a plan, a materialized batch. */
   addMany: (items: T[]) => Promise<boolean>;
-  update: (id: string, patch: Partial<T>) => Promise<void>;
+  /** Resolves true once the server accepted the patch; false after a revert. */
+  update: (id: string, patch: Partial<T>) => Promise<boolean>;
   remove: (id: string) => Promise<void>;
   /** Delete several rows in ONE request. */
   removeMany: (ids: string[]) => Promise<void>;
@@ -110,8 +111,8 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   const addMany = useCallback((next: T[]) => insertRows(next), [insertRows]);
 
   const update = useCallback(
-    async (id: string, patch: Partial<T>) => {
-      if (!workspaceId) return;
+    async (id: string, patch: Partial<T>): Promise<boolean> => {
+      if (!workspaceId) return false;
       // The prior row is read inside the updater so it is the row as it
       // stood when this patch applied, not as of the last render.
       let before: T | undefined = itemsRef.current.find((it) => it.id === id);
@@ -131,7 +132,9 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
         const restore = before;
         if (restore) setItems((current) => current.map((it) => (it.id === id ? restore : it)));
         setError(error.message);
+        return false;
       }
+      return true;
     },
     [workspaceId, config]
   );

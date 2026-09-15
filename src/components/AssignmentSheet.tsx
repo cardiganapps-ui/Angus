@@ -11,6 +11,10 @@ import { ProjectSheet } from "./ProjectSheet";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
 import { taskProgress } from "../utils/studies";
+import { useNotes } from "../hooks/useNotes";
+import { NoteEditor } from "./NoteEditor";
+import { Icon } from "./Icon";
+import type { Note } from "../types";
 import { haptic } from "../lib/haptics";
 
 const STATUS_ITEMS = ASSIGNMENT_STATUS.map((s) => ({ k: s.value, l: s.label }));
@@ -47,6 +51,9 @@ export function AssignmentSheet({
   const [feedback, setFeedback] = useState(assignment?.feedback ?? "");
   const [newProject, setNewProject] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [noteOpen, setNoteOpen] = useState<Note | null>(null);
+  const { notes, createNote } = useNotes();
+  const linkedNotes = assignment ? notes.filter((n) => n.assignmentId === assignment.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : [];
 
   const safeClose = submitting ? null : onClose;
   const courseOptions = courses
@@ -180,6 +187,37 @@ export function AssignmentSheet({
           />
         </div>
 
+        {assignment && (
+          <div className="input-group">
+            <span className="input-label">Notas de esta tarea</span>
+            <div className="money-list">
+              {linkedNotes.map((n) => (
+                <button key={n.id} type="button" className="row-item" style={{ minHeight: 48 }} onClick={() => setNoteOpen(n)}>
+                  <div className="row-content">
+                    <div className="row-title" style={{ fontWeight: 600 }}>{n.title || "Sin título"}</div>
+                  </div>
+                  <span className="row-chevron" aria-hidden="true">
+                    <Icon name="chevron-right" size={16} />
+                  </span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="row-item"
+                style={{ minHeight: 48 }}
+                onClick={async () => {
+                  const created = await createNote({ courseId: assignment.courseId, assignmentId: assignment.id, title: `Notas · ${assignment.title}` });
+                  if (created) setNoteOpen(created);
+                }}
+              >
+                <div className="row-content">
+                  <div className="row-title" style={{ color: "var(--accent-dark)", fontWeight: 700 }}>+ Nueva nota</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
         {status === "done" && (
           <>
             <div className="input-group">
@@ -194,6 +232,7 @@ export function AssignmentSheet({
         )}
       </Sheet>
 
+      {noteOpen && <NoteEditor key={noteOpen.id} note={noteOpen} onClose={() => setNoteOpen(null)} />}
       {newProject && (
         <ProjectSheet
           project={null}

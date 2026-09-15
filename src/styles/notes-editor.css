@@ -1,0 +1,1521 @@
+/* ── Cardigan notes — live markdown editor ────────────────────────────
+   Styles for MarkdownEditor.jsx. The editor body is a contenteditable
+   <div class="mde-root"> containing one <div class="mde-line"> per
+   line of raw markdown. When the caret is on a line (`.has-caret`),
+   raw syntax stays visible (at reduced opacity) so the user can edit
+   it. When the caret leaves, syntax collapses to zero width and
+   decorators (bullet dot, ordered number, heading size) take over.
+
+   The DOM always contains the raw markdown as text — decorators are
+   pure CSS ::before content, so caret positions map 1:1 to raw-text
+   columns. */
+
+.mde-root {
+  outline: none;
+  caret-color: var(--accent-dark);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--charcoal);
+  padding: 4px 0 120px;
+  /* Allow long words to break on mobile */
+  overflow-wrap: break-word;
+  word-break: break-word;
+  /* Allow selection of the editor text */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.mde-root[aria-readonly="true"] {
+  caret-color: transparent;
+}
+
+.mde-line {
+  position: relative;
+  min-height: 1.7em;
+  padding: 2px 0;
+  transition: padding var(--dur-base) ease;
+}
+
+/* Raw markdown syntax (**, #, -, etc.) — visible only on the line
+   with the caret. Off-caret, we collapse them to zero width so they
+   stop occupying space. Using font-size:0 over display:none so the
+   nodes remain in the DOM and caret math works. */
+.mde-syntax, .md-syntax {
+  color: var(--accent-light);
+  opacity: 0.6;
+  font-weight: 400;
+  transition: opacity var(--dur-fast) ease;
+}
+.mde-line {
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+/* Bear / Apple Notes-style focus dimming — once the user is editing,
+   the active line stays at full opacity and the rest of the document
+   gently fades, so the eye lands where the caret is. Falls back to no
+   dimming on browsers without :has() — graceful degradation, the
+   editor still works. */
+.mde-root:has(.mde-line.has-caret) .mde-line:not(.has-caret) {
+  opacity: 0.62;
+}
+/* Find-jump landing flash — when the user jumps via Find or the
+   outline drawer, briefly tint the target line so the eye lands. */
+.mde-line.is-jump-flash {
+  animation: mdeLineFlash 700ms var(--ease-out);
+  border-radius: 6px;
+}
+@keyframes mdeLineFlash {
+  0%   { background: color-mix(in srgb, var(--amber) 28%, transparent); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-line { transition: none; }
+  .mde-line.is-jump-flash { animation: none; }
+  .mde-root:has(.mde-line.has-caret) .mde-line:not(.has-caret) { opacity: 1; }
+}
+
+.mde-line:not(.has-caret) .md-syntax {
+  font-size: 0;
+  letter-spacing: -0.5em;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Zero-width end-of-line anchor so caret can always land at line end.
+   Contains a single U+200B (zero-width space). */
+.mde-eol {
+  display: inline;
+}
+
+/* Inline format visuals */
+.md-strong { font-weight: 800; }
+.md-em     { font-style: italic; }
+.md-strike { text-decoration: line-through; text-decoration-color: var(--charcoal-lt); }
+.md-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  background: var(--cream);
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: var(--charcoal-md);
+}
+
+/* Headings — full display size off-caret, a touch smaller on-caret so
+   editing doesn't jump the layout too much. */
+.md-heading {
+  font-family: var(--font-d);
+  font-weight: 800;
+  color: var(--charcoal);
+  letter-spacing: -0.01em;
+  display: inline;
+}
+.mde-line--h1 { margin-top: 14px; }
+.mde-line--h2 { margin-top: 10px; }
+.mde-line--h3 { margin-top: 6px; }
+.mde-line--h1:first-child,
+.mde-line--h2:first-child,
+.mde-line--h3:first-child { margin-top: 0; }
+
+.mde-line--h1 .md-heading { font-size: 22px; line-height: 1.3; }
+.mde-line--h2 .md-heading { font-size: 18px; line-height: 1.35; }
+.mde-line--h3 .md-heading { font-size: 15.5px; line-height: 1.4; }
+.mde-line--h1.has-caret .md-heading,
+.mde-line--h2.has-caret .md-heading,
+.mde-line--h3.has-caret .md-heading { /* same size, just keeps syntax visible alongside */ }
+
+/* Empty heading placeholder — show "Encabezado" hint when line is
+   empty (after `# `) and not focused. Cheap UX win. */
+.md-heading.is-empty::after {
+  content: "";
+}
+
+/* ── List decorators (visible only off-caret) ────────────────────────
+   Pure CSS ::before markers. They replace the raw `- ` / `1. ` /
+   `[ ] ` that's dimmed to zero width. Padding-left moves the line's
+   text over to make room. */
+.mde-line--ul, .mde-line--ol, .mde-line--task {
+  padding-left: 26px;
+  text-indent: 0;
+}
+.mde-line--ul[data-indent="1"],
+.mde-line--ol[data-indent="1"],
+.mde-line--task[data-indent="1"] { padding-left: 42px; }
+.mde-line--ul[data-indent="2"],
+.mde-line--ol[data-indent="2"],
+.mde-line--task[data-indent="2"] { padding-left: 58px; }
+.mde-line--ul[data-indent="3"],
+.mde-line--ol[data-indent="3"],
+.mde-line--task[data-indent="3"] { padding-left: 74px; }
+
+/* Off-caret bullet + ordered markers */
+.mde-line--ul:not(.has-caret)::before {
+  content: "•";
+  position: absolute;
+  left: 10px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1.25em;
+  line-height: 1.5;
+  top: 2px;
+}
+.mde-line--ul[data-indent="1"]:not(.has-caret)::before { left: 26px; }
+.mde-line--ul[data-indent="2"]:not(.has-caret)::before { left: 42px; }
+.mde-line--ul[data-indent="3"]:not(.has-caret)::before { left: 58px; }
+
+.mde-line--ol:not(.has-caret)::before {
+  content: attr(data-marker);
+  position: absolute;
+  left: 6px;
+  color: var(--accent-dark);
+  font-weight: 700;
+  font-size: 0.92em;
+  line-height: 1.85;
+  top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.mde-line--ol[data-indent="1"]:not(.has-caret)::before { left: 22px; }
+.mde-line--ol[data-indent="2"]:not(.has-caret)::before { left: 38px; }
+.mde-line--ol[data-indent="3"]:not(.has-caret)::before { left: 54px; }
+
+/* ── Task checkbox ───────────────────────────────────────────────────
+   Real interactive button overlaid at the line's left margin. Visible
+   always (even on-caret), centered in the indent gutter. The raw
+   "[ ] " / "[x] " markdown still lives in a zero-width-off-caret
+   span for column-math; the button is the only thing the user sees
+   as a "checkbox". */
+.mde-check {
+  position: absolute;
+  left: 4px;
+  top: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.8px solid var(--charcoal-xl);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease, transform var(--dur-fast) var(--ease-spring);
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.mde-line--task[data-indent="1"] .mde-check { left: 20px; }
+.mde-line--task[data-indent="2"] .mde-check { left: 36px; }
+.mde-line--task[data-indent="3"] .mde-check { left: 52px; }
+
+@media (hover: hover) {
+  .mde-check:hover { border-color: var(--accent-dark); }
+}
+.mde-check:active { transform: scale(0.88); }
+.mde-check.is-checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.mde-check.is-checked::after {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 1px;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Task lines: the button IS the checkbox UI. Other list blocks swap
+   between ::before marker (off-caret) and raw syntax (on-caret), but
+   task lines render the button always — so if we also show the raw
+   "[ ] " / "[x] " on the focused line the user sees two checkboxes in
+   a row and the text gets pushed out. Keep the block syntax span
+   collapsed on task lines regardless of caret. Use `> .md-syntax` so
+   inline markdown syntax nested inside <strong>/<em>/etc. (which the
+   user DOES want to see while editing) stays visible. */
+.mde-line--task > .md-syntax {
+  font-size: 0;
+  letter-spacing: -0.5em;
+  opacity: 0;
+  pointer-events: none;
+}
+.mde-check:disabled { cursor: default; }
+
+.mde-line--task.is-checked .md-heading,
+.mde-line--task.is-checked { color: var(--charcoal-xl); }
+.mde-line--task.is-checked:not(.has-caret) {
+  text-decoration: line-through;
+  text-decoration-color: var(--charcoal-xl);
+}
+
+/* ── Placeholder when the whole editor is empty ─────────────────────── */
+.mde-root[data-empty="true"] .mde-line:first-child::after {
+  content: attr(data-placeholder);
+  color: var(--charcoal-xl);
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 2px;
+  opacity: 0.7;
+}
+.mde-line--ul.mde-root[data-empty="true"]::after { left: 26px; }
+
+/* ── Format toolbar ───────────────────────────────────────────────── */
+.mde-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--border-lt);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.mde-toolbar::-webkit-scrollbar { display: none; }
+
+.mde-tool {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  color: var(--charcoal-md);
+  flex-shrink: 0;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font);
+}
+@media (hover: hover) {
+  .mde-tool:hover:not(:disabled) { background: rgba(255, 255, 255, 0.6); color: var(--charcoal); }
+}
+.mde-tool:active:not(:disabled) { transform: scale(0.92); }
+.mde-tool:disabled { opacity: 0.35; cursor: default; }
+
+.mde-tool.is-active {
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+  transform: scale(1.04);
+  animation: mdeToolActivate var(--dur-base) var(--ease-spring) 1;
+}
+/* Punch on the moment a format toggle becomes active. The settle to
+   scale(1.04) is handled by the transition above; this keyframe just
+   adds the brief overshoot so toggles read tactile, not flat. */
+@keyframes mdeToolActivate {
+  0%   { transform: scale(0.92); }
+  60%  { transform: scale(1.12); }
+  100% { transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-tool.is-active { animation: none; }
+}
+
+.mde-tool-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── Voice dictation — mic + recording strip ───────────────────────
+   Mic icon inherits the active-tool color treatment; while
+   recording it gets a soft red pulse so the user has an obvious
+   "we are listening" cue even when the toolbar scrolls out of
+   view. */
+.mde-voice-mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mde-voice-mic.is-recording {
+  color: var(--red);
+  animation: mdeVoicePulse 1.4s ease-in-out infinite;
+}
+@keyframes mdeVoicePulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+
+.mde-voice-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  margin: 0 14px 6px;
+  background: var(--red-bg);
+  color: var(--charcoal);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  border: 1px solid color-mix(in srgb, var(--red) 25%, transparent);
+}
+.mde-voice-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  flex-shrink: 0;
+  animation: mdeVoicePulse 1.2s ease-in-out infinite;
+}
+.mde-voice-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--charcoal-md);
+}
+.mde-voice-stop {
+  background: var(--white);
+  color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-height: 28px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-voice-mic.is-recording,
+  .mde-voice-dot { animation: none; }
+}
+
+/* ── Image attachments — strip + lightbox + drop overlay ──────────
+   The strip sits below the markdown body inside the scroll
+   container so it scrolls with the note rather than docking. Each
+   tile is 80×80 with a small delete chip in the corner; tap the
+   tile to open the lightbox. */
+.mde-attach-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px 0 8px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-lt);
+}
+.mde-attach-tile {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--cream-dark, var(--cream));
+  box-shadow: var(--shadow-sm);
+}
+.mde-attach-thumb {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mde-attach-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mde-attach-loading {
+  background: linear-gradient(110deg, var(--cream) 8%, var(--cream-dark, #eee) 50%, var(--cream) 92%);
+  background-size: 200% 100%;
+  animation: mdeAttachShimmer 1.4s linear infinite;
+}
+@keyframes mdeAttachShimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.mde-attach-failed {
+  background: var(--red-bg);
+  color: var(--red);
+  font-weight: 800;
+  font-size: 18px;
+}
+.mde-attach-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--white);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.mde-attach-delete:hover { background: var(--red); }
+
+.mde-attach-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: var(--z-note-editor);
+  animation: noteEditorIn var(--dur-base) var(--ease-out);
+}
+.mde-attach-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+.mde-attach-lightbox-close {
+  position: absolute;
+  top: calc(var(--sat, 0px) + 16px);
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--white);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Drop overlay — surface inside the scroll area when the user is
+   dragging a file over the editor body. Pointer-events:none so
+   the underlying scroll area still receives the drop events. */
+.mde-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+.mde-drop-overlay-inner {
+  background: var(--white);
+  color: var(--accent-dark);
+  font-family: var(--font-d);
+  font-weight: 800;
+  font-size: var(--text-md);
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow);
+}
+.mde-scroll.is-drag-over { position: relative; }
+
+/* Desktop hint badge on hover (keyboard shortcut) */
+.mde-tool-hint {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--charcoal);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow: var(--shadow);
+}
+@media (hover: hover) {
+  .mde-tool:hover .mde-tool-hint { display: block; }
+}
+
+/* ── Editor shell entrance animation (mobile overlay) ──────────────── */
+@keyframes noteEditorIn {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.985); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes noteEditorOut {
+  0%   { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(12px) scale(0.99); }
+}
+.note-editor-enter {
+  animation: noteEditorIn var(--dur-slow) var(--ease-spring);
+  will-change: transform, opacity;
+}
+/* Row-anchored entrance: when the caller passes an originRect,
+   start the morph from that screen position by composing translate
+   + scale. transform-origin = top-left so the scale grows from the
+   row's anchor (the user's finger). Same duration as the default
+   entrance but spring-anchored to the source point reads "the
+   card lifted" rather than "the screen slid up". */
+@keyframes noteEditorOriginIn {
+  0% {
+    transform: translate(var(--mde-origin-x, 0), var(--mde-origin-y, 0))
+               scale(var(--mde-origin-sx, 1), var(--mde-origin-sy, 1));
+    opacity: 0.55;
+    border-radius: var(--radius-lg);
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+    border-radius: 0;
+  }
+}
+.note-editor-enter[data-from-origin="true"] {
+  animation: noteEditorOriginIn var(--dur-slow) var(--ease-spring);
+  transform-origin: top left;
+  overflow: hidden;
+}
+.note-editor-exit {
+  animation: noteEditorOut var(--dur-base) var(--ease-out) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-editor-enter, .note-editor-exit { animation: none; }
+  .mde-tool { transition: none; }
+  .mde-check { transition: none; }
+}
+
+/* ── Header scroll-shadow ──────────────────────────────────────────── */
+.mde-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(var(--sat, 0px) + 10px) 14px 10px;
+  border-bottom: 1px solid transparent;
+  flex-shrink: 0;
+  background: var(--white);
+  transition: border-color var(--dur-base) ease, box-shadow var(--dur-base) ease;
+  position: relative;
+  z-index: 2;
+}
+.mde-header.is-scrolled {
+  border-bottom-color: var(--border-lt);
+  box-shadow: 0 1px 0 rgba(46, 46, 46, 0.03);
+}
+.note-editor-inline .mde-header {
+  padding-top: 10px;
+}
+
+.mde-back {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  padding: 6px 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+.mde-back:active { opacity: 0.6; }
+
+.mde-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mde-save-indicator {
+  font-size: 11px;
+  color: var(--charcoal-xl);
+  margin-right: 4px;
+  transition: color var(--dur-base) ease, opacity var(--dur-base) ease;
+  font-variant-numeric: tabular-nums;
+}
+.mde-save-indicator.is-saving { color: var(--amber); }
+.mde-save-indicator.is-saved  { color: var(--charcoal-xl); }
+
+.mde-icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--charcoal-md);
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .mde-icon-btn:hover { background: var(--cream); }
+}
+.mde-icon-btn:active { transform: scale(0.92); }
+.mde-icon-btn.is-pinned { color: var(--amber); }
+.mde-icon-btn.is-danger { color: var(--red); }
+
+/* ── Context chip (patient/session pill) ───────────────────────────── */
+.mde-context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  background: var(--cream);
+  border: 1px solid var(--border-lt);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--charcoal-md);
+  cursor: pointer;
+  max-width: 100%;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font);
+}
+@media (hover: hover) {
+  .mde-context-chip:hover { background: var(--white); border-color: var(--accent-light); }
+}
+.mde-context-chip:active { transform: scale(0.97); }
+.mde-context-chip.is-linked { color: var(--accent-dark); border-color: var(--accent-light); background: var(--accent-mist); }
+.mde-context-chip.is-linked .mde-context-sep { color: var(--accent-light); }
+.mde-context-chip .mde-context-icon { color: var(--charcoal-xl); flex-shrink: 0; }
+.mde-context-chip.is-linked .mde-context-icon { color: var(--accent); }
+.mde-context-chip .mde-context-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.mde-context-row {
+  display: flex;
+  padding: 10px 16px 4px;
+  flex-shrink: 0;
+}
+
+/* ── Editor body container ─────────────────────────────────────────── */
+.mde-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 20px 60px;
+}
+
+.mde-title {
+  width: 100%;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin-bottom: 10px;
+  font-family: var(--font-d);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--charcoal);
+  background: transparent;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.mde-title::placeholder { color: var(--charcoal-xl); font-weight: 700; }
+
+.mde-date {
+  font-size: 11px;
+  color: var(--charcoal-xl);
+  text-align: center;
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mde-footer {
+  padding: 8px 20px calc(var(--sab, 0px) + 6px);
+  border-top: 1px solid var(--border-lt);
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--charcoal-xl);
+  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--white);
+}
+.mde-footer-left,
+.mde-footer-right {
+  color: var(--charcoal-xl);
+  /* Tabular numerals so the word count + reading time don't shift
+     horizontally between keystrokes. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Templates bar (shown only for brand-new empty notes) ─────────── */
+.mde-templates {
+  margin-bottom: 16px;
+  overflow: hidden;
+  /* Smooth height + opacity collapse when the user starts typing.
+     `max-height` is interpolated from a generous ceiling (templates
+     wrap to at most 2 rows on a phone — ~120px) down to 0; the
+     same transition handles opacity + margin so the body slides up
+     in one motion. ease-spring-soft lands without bounce — a hop
+     here would steal attention back from the caret. */
+  max-height: 200px;
+  opacity: 1;
+  transition:
+    max-height var(--dur-slow) var(--ease-spring-soft),
+    opacity var(--dur-base) var(--ease-out),
+    margin-bottom var(--dur-slow) var(--ease-spring-soft);
+}
+.mde-templates.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-templates { transition: none; }
+}
+.mde-templates-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--charcoal-xl);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.mde-template-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mde-template-pill {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border);
+  background: var(--white);
+  color: var(--charcoal-md);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .mde-template-pill:hover { border-color: var(--accent-light); background: var(--accent-mist); color: var(--accent-dark); }
+}
+.mde-template-pill:active { transform: scale(0.96); }
+
+/* ── Context sheet (patient/session editor) ────────────────────────── */
+.mde-context-sheet {
+  padding: 0 20px 22px;
+}
+.mde-context-sheet .input-group + .input-group { margin-top: 6px; }
+
+/* ── Overflow menu (⋯) dropdown ────────────────────────────────────── */
+.mde-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 10px;
+  min-width: 200px;
+  background: var(--white);
+  border: 1px solid var(--border-lt);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 5;
+  animation: noteEditorIn 0.22s var(--ease-spring);
+}
+.mde-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--charcoal);
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+}
+.mde-menu-item.is-danger { color: var(--red); }
+@media (hover: hover) {
+  .mde-menu-item:hover { background: var(--cream); }
+  .mde-menu-item.is-danger:hover { background: var(--red-bg); }
+}
+.mde-menu-sep {
+  height: 1px;
+  background: var(--border-lt);
+  margin: 2px 0;
+}
+
+/* ── Selection highlight — match brand teal ──────────────────────── */
+.mde-root ::selection {
+  background: var(--accent-pale);
+  color: var(--charcoal);
+}
+
+/* ── Find-in-note bar ───────────────────────────────────────────────
+   Slim floating bar pinned between the toolbar and body. Slide-in
+   animation; Esc / X closes. */
+.mde-find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--accent-mist);
+  border-bottom: 1px solid var(--border-lt);
+  flex-shrink: 0;
+  animation: findIn var(--dur-base) var(--ease-out);
+}
+@keyframes findIn {
+  0%   { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: none; }
+}
+.mde-find-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--white);
+  border: 1px solid var(--border-lt);
+  border-radius: 9px;
+  padding: 5px 10px;
+  min-width: 0;
+}
+.mde-find-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--charcoal);
+  background: transparent;
+  padding: 0;
+  min-width: 0;
+}
+.mde-find-counter {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--charcoal-xl);
+  min-width: 48px;
+  text-align: right;
+  white-space: nowrap;
+}
+.mde-find-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--charcoal-md);
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+  .mde-find-btn:hover:not(:disabled) { background: var(--white); color: var(--charcoal); }
+}
+.mde-find-btn:active:not(:disabled) { transform: scale(0.9); }
+.mde-find-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Outline drawer ─────────────────────────────────────────────── */
+.mde-outline {
+  padding: 10px 20px 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.mde-outline-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--charcoal-xl);
+  margin-bottom: 10px;
+}
+.mde-outline-empty {
+  font-size: 13px;
+  color: var(--charcoal-xl);
+  padding: 20px 0;
+  text-align: center;
+}
+.mde-outline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mde-outline-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--charcoal);
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) ease;
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .mde-outline-item:hover { background: var(--cream); }
+}
+.mde-outline-item:active { transform: scale(0.99); }
+.mde-outline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.mde-outline-text {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mde-outline-lvl-1 .mde-outline-text { font-weight: 800; font-family: var(--font-d); font-size: 15px; }
+.mde-outline-lvl-2 { padding-left: 22px; }
+.mde-outline-lvl-2 .mde-outline-dot { background: var(--accent-light); }
+.mde-outline-lvl-2 .mde-outline-text { font-weight: 700; font-size: 13.5px; }
+.mde-outline-lvl-3 { padding-left: 34px; }
+.mde-outline-lvl-3 .mde-outline-dot { background: var(--accent-pale); width: 5px; height: 5px; }
+.mde-outline-lvl-3 .mde-outline-text { font-weight: 600; font-size: 13px; color: var(--charcoal-md); }
+
+.mde-icon-btn.is-active { background: var(--accent-pale); color: var(--accent-dark); }
+
+/* ── Notes list group headers ──────────────────────────────────────
+   Section dividers in the notes list ("Hoy", "Ayer", "Esta semana",
+   monthly). Matches the .section-title typography vocabulary. */
+.notes-group-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--charcoal-md);
+  padding: 14px 2px 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notes-group-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-lt);
+  opacity: 0.45;
+}
+
+/* ── Phase B polish: note card row ──────────────────────────────────
+   The row used to be a bare inline-styled div. Promoted to a real
+   card class so we can drive hover/lift/accent variants from CSS.
+   The accent stripe on the left is a CSS custom property
+   (--note-row-accent) set inline by Notes.jsx based on pin/patient
+   state — teal-light for patient-linked, amber for pinned, neither
+   for general unfiled notes. */
+.note-card-row {
+  position: relative;
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-lt);
+  border-left: 3px solid var(--note-row-accent, transparent);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition:
+    transform var(--dur-base) var(--ease-spring-soft),
+    background var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+@media (hover: hover) {
+  .note-card-row:hover {
+    /* Must stay OPAQUE: this row sits over a SwipeableRow delete button.
+       --teal-mist is opaque in light but translucent in dark
+       (rgba(...,0.08)), which let the red action bleed through on hover.
+       color-mix(teal over --white) reproduces the mist tint opaque in
+       both themes. */
+    background: color-mix(in srgb, var(--accent) 8%, var(--white));
+    box-shadow: var(--shadow);
+    transform: translateY(-1px);
+  }
+}
+/* Pinned wins over the patient-color stripe — it's the user's
+   explicit "this matters" signal. Subtle amber wash so the row
+   reads as flagged even when the card stripe is small. Uses --amber
+   (opaque in both themes) rather than --amber-bg (translucent in dark)
+   so the SwipeableRow delete button can't bleed through a pinned row. */
+.note-card-row.is-pinned {
+  background: color-mix(in srgb, var(--amber) 6%, var(--white));
+}
+@media (hover: hover) {
+  .note-card-row.is-pinned:hover {
+    background: color-mix(in srgb, var(--amber) 10%, var(--white));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-card-row { transition: none; }
+  .note-card-row:hover { transform: none; }
+}
+
+/* ── Phase B polish: tag filter pill ────────────────────────────────
+   Migrated from inline styles → class so we can drive hover from
+   CSS. Active state still uses the teal-pale accent for "this filter
+   is on"; idle hover lifts to cream to match the rest of the
+   tappable surfaces in the app. */
+.tag-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-lt);
+  background: var(--white);
+  color: var(--charcoal-md);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font);
+  transition:
+    background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+.tag-filter-pill.is-active {
+  border-color: var(--accent);
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+}
+@media (hover: hover) {
+  .tag-filter-pill:not(.is-active):hover {
+    background: var(--cream);
+    border-color: var(--border);
+  }
+}
+
+/* ── Phase A polish: title focus underline ───────────────────────────
+   The plain <input> can't carry pseudo-elements, so we wrap it in a
+   span and put the underline on the wrap. scaleX(0)→scaleX(1) from
+   the left edge so the underline draws in like a focus hint, not a
+   border that snaps on. Soft spring so it lands without bouncing. */
+.mde-title-wrap {
+  display: block;
+  position: relative;
+}
+.mde-title-wrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-base) var(--ease-spring-soft);
+  pointer-events: none;
+}
+.mde-title-wrap:focus-within::after {
+  transform: scaleX(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-title-wrap::after { transition: none; }
+}
+
+/* ── Phase A polish: animated save indicator ─────────────────────────
+   The static "Guardando…/Guardado" text was passive. A pulsing dot
+   during saves + a quick check-flash on success reads as actively
+   reassuring without taking more space. */
+.mde-save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mde-save-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.mde-save-indicator.is-saving .mde-save-dot {
+  background: var(--amber);
+  animation: mdeSavingPulse 1.2s ease-in-out infinite;
+}
+.mde-save-indicator.is-saved .mde-save-dot {
+  background: var(--green);
+  animation: mdeSavedFlash var(--dur-slow) var(--ease-spring) 1;
+}
+@keyframes mdeSavingPulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%      { transform: scale(0.6);  opacity: 0.45; }
+}
+@keyframes mdeSavedFlash {
+  0%   { transform: scale(0); }
+  55%  { transform: scale(1.6); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-save-indicator.is-saving .mde-save-dot,
+  .mde-save-indicator.is-saved  .mde-save-dot { animation: none; }
+}
+
+/* ── Phase A polish: find bar entrance ──────────────────────────────
+   Soft-spring overshoot reads as deliberate, not abrupt. */
+.mde-find {
+  animation: findIn var(--dur-slow) var(--ease-spring-soft);
+}
+
+/* ── Phase A polish: attachment tile hover lift ─────────────────────
+   Tile elevates, scales subtly, picks up a teal-tinted border on
+   hover so it reads as a real interactive surface, not a static
+   thumbnail. Pointer-only — keeps mobile taps free of hover state. */
+.mde-attach-tile {
+  transition:
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring-soft),
+    border-color var(--dur-base) var(--ease-out);
+  border: 1px solid transparent;
+}
+@media (hover: hover) {
+  .mde-attach-tile:hover {
+    box-shadow: var(--shadow);
+    transform: translateY(-1px) scale(1.02);
+    border-color: var(--accent-light);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-attach-tile { transition: none; }
+  .mde-attach-tile:hover { transform: none; }
+}
+
+/* ── Phase A polish: voice mic sonar halo ───────────────────────────
+   Adds a soft expanding ring around the recording-dot so the live
+   state reads at-a-glance even when the strip is out of the user's
+   immediate gaze. */
+.mde-voice-dot {
+  position: relative;
+}
+.mde-voice-dot::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: var(--red);
+  opacity: 0.45;
+  animation: mdeVoiceHalo 1.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes mdeVoiceHalo {
+  0%   { transform: scale(0.6); opacity: 0.55; }
+  100% { transform: scale(3);   opacity: 0;    }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-voice-dot::before { animation: none; opacity: 0; }
+}
+
+/* ── Phase C polish: slash command menu entrance ────────────────────
+   The menu portal renders into document.body with its own inline
+   positioning, but the entrance animation is named here so the
+   keyframes file stays the single source of motion truth. */
+@keyframes slashMenuIn {
+  0%   { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* ── Phase D: inline image rendering ────────────────────────────────
+   When a line is solely "![alt](attachment:<id>)", the markdown
+   model now tokenises it as block=image. The renderer emits the
+   raw markdown (.md-image-raw — a .md-syntax member so it inherits
+   the off-caret hide rule) PLUS a sibling <span class="md-image-frame">
+   containing the actual <img>. Off-caret the syntax is hidden and
+   the image shows; on-caret the syntax appears and the image
+   hides — same WYSIWYG-ish pattern as Bear / Apple Notes. */
+.md-image-frame {
+  display: block;
+  margin: 6px 0;
+}
+.mde-line.has-caret .md-image-frame {
+  display: none;
+}
+.md-attachment-img {
+  display: block;
+  max-width: 100%;
+  max-height: 380px;
+  border-radius: var(--radius);
+  background: var(--cream);
+}
+/* Loading state — no src set yet. The shimmer pattern from the
+   strip is reused so the loading affordance reads consistently
+   across surfaces. */
+.md-attachment-img:not([src]) {
+  min-height: 140px;
+  background: linear-gradient(110deg, var(--cream) 8%, var(--cream-dark, #eee) 50%, var(--cream) 92%);
+  background-size: 200% 100%;
+  animation: mdeAttachShimmer 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-attachment-img:not([src]) { animation: none; }
+}
+
+/* ── Phase D: outline drawer active-heading highlight ──────────────
+   IntersectionObserver in NoteEditor identifies the topmost-visible
+   heading; the outline drawer marks the matching entry with .is-
+   active. Soft teal tint so it reads as "you are here" without
+   shouting. */
+.note-outline-entry.is-active {
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Phase D.2: text highlighting (==text==) ──────────────────────
+   <mark> renders a soft amber highlight by default. The browser's
+   built-in <mark> styling is too saturated and clashes with the
+   teal accent; this override keeps the highlight readable as
+   "marker over text" without overpowering the surrounding prose.
+   Inherit color so highlighted text doesn't get the browser's
+   default black — it should stay in flow with the paragraph. */
+.md-mark {
+  background: color-mix(in srgb, var(--amber) 32%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 1px 2px;
+  /* Compensate for the padding so highlighted text doesn't shift
+     the surrounding baseline. box-decoration-break wraps the
+     highlight cleanly when it spans a soft line wrap. */
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* ── Phase E.2: cover hero ─────────────────────────────────────────
+   Optional image rendered above the title when the note has a
+   cover_attachment_id. Tapping reopens the cover picker so the
+   user can swap or clear it. The button reset + image fill keep
+   the surface looking like a hero, not a clickable button. */
+.mde-cover {
+  display: block;
+  width: 100%;
+  margin: 0 0 16px;
+  padding: 0;
+  border: none;
+  background: var(--cream);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  /* 16:9 reads as "hero" without going so wide that narrow phones
+     end up with a 100px sliver. Min-height keeps the surface a
+     usable target even when the parent is very narrow; max-height
+     prevents the hero from eating the screen on a tablet. */
+  aspect-ratio: 16 / 9;
+  min-height: 140px;
+  max-height: 320px;
+  -webkit-tap-highlight-color: transparent;
+}
+.mde-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform var(--dur-slower) var(--ease-out);
+}
+@media (hover: hover) {
+  .mde-cover:hover img { transform: scale(1.02); }
+}
+/* Reserve the 16:9 slot while the attachment URL resolves so the
+   title doesn't jump down when the image lands. Same shimmer the
+   attachment strip uses, scaled to the hero. */
+.mde-cover.is-loading {
+  cursor: default;
+}
+.mde-cover.is-failed {
+  cursor: pointer;
+  background: var(--red-bg);
+}
+.mde-cover-retry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 28px;
+  color: var(--red);
+  font-weight: 700;
+}
+.mde-cover-shimmer {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--cream) 0%,
+    color-mix(in srgb, var(--cream) 60%, var(--white)) 50%,
+    var(--cream) 100%
+  );
+  background-size: 200% 100%;
+  animation: mdeCoverShimmer 1.4s linear infinite;
+}
+@keyframes mdeCoverShimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mde-cover img { transition: none; }
+  .mde-cover:hover img { transform: none; }
+  .mde-cover-shimmer { animation: none; }
+}
+
+/* ── Phase E.1: reading mode ───────────────────────────────────────
+   Distraction-free presentation. Strips the editor chrome (toolbar,
+   header action buttons, save indicator), suppresses the syntax-
+   dimming pattern that surfaces raw markdown on the focused line,
+   widens the body to a centered max-width column, raises type
+   size + line-height. Reading-mode is an editor STATE (toggled via
+   the kebab "Modo lectura"), not a separate component — same
+   contenteditable, just visually quieted. Tap "Salir de modo
+   lectura" in the kebab to return. */
+.mde-reading-mode .mde-toolbar,
+.mde-reading-mode .mde-context-row,
+.mde-reading-mode .mde-find,
+.mde-reading-mode .mde-voice-strip {
+  display: none;
+}
+/* Header — keep the back button + the kebab (so the user can exit
+   reading mode) but hide everything else. */
+.mde-reading-mode .mde-save-indicator,
+.mde-reading-mode .mde-header-actions > button:not([data-menu-trigger]) {
+  display: none;
+}
+/* Body: widen, center, breathe. Cap max-width so long lines don't
+   sprawl; line-height bumps from default 1.55 → 1.75 (matches
+   reading-app norms). */
+.mde-reading-mode .mde-scroll {
+  padding-left: clamp(20px, 6vw, 64px);
+  padding-right: clamp(20px, 6vw, 64px);
+}
+.mde-reading-mode .mde-root,
+.mde-reading-mode .mde-title-wrap {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.mde-reading-mode .mde-line {
+  font-size: var(--text-lg);
+  line-height: 1.75;
+}
+.mde-reading-mode .mde-title {
+  font-size: clamp(26px, 4vw, 32px);
+}
+.mde-reading-mode .mde-line--h1 .md-heading { font-size: 28px; }
+.mde-reading-mode .mde-line--h2 .md-heading { font-size: 22px; }
+.mde-reading-mode .mde-line--h3 .md-heading { font-size: 18px; }
+/* Suppress syntax dimming so raw markdown stays hidden even on the
+   "focused" line — reading-mode shows OUTPUT only. Off-caret is
+   already handled by the base `.mde-line:not(.has-caret) .md-syntax`
+   rule; this targets the on-caret case so the focused line matches.
+   Specificity (0,4,0) beats the base off-caret rule (0,3,0) so no
+   `!important` needed. */
+.mde-reading-mode .mde-line.has-caret .md-syntax {
+  font-size: 0;
+  letter-spacing: -0.5em;
+  opacity: 0;
+  pointer-events: none;
+}
+.mde-reading-mode .mde-line:not(.has-caret) {
+  opacity: 1; /* defeat Phase A's focus dimming — every line equal */
+}
+/* Images stay visible regardless of caret since we suppress
+   .has-caret-driven hide rules. Specificity (0,3,0) beats the
+   on-caret hide rule (0,2,0). */
+.mde-reading-mode .mde-line .md-image-frame { display: block; }
+
+/* ── Phase D.2: fenced code blocks ───────────────────────────────
+   Lines inside ```...``` fences render as a single code block
+   spanning the run. The fence-marker lines themselves (``` lang)
+   get a hidden/dimmed treatment — they're syntax the user typed
+   but shouldn't dominate the visual. Inside-fence lines render
+   with monospace, tinted background, no inline tokenising. */
+.mde-line--code-fence {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--cream);
+  color: var(--charcoal);
+  padding: 2px 12px;
+  margin: 0;
+  white-space: pre;
+}
+/* First/last lines of a fence run get rounded corners + breathing
+   room. The `data-fence-pos` attribute is set by the renderer. */
+.mde-line--code-fence[data-fence-pos="top"] {
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding-top: 8px;
+  margin-top: 6px;
+}
+.mde-line--code-fence[data-fence-pos="bottom"] {
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+}
+.mde-line--code-fence[data-fence-pos="only"] {
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin: 6px 0;
+}
+/* Fence-marker lines (```) — dim them, smaller, monospace, with the
+   language hint trailing in a faint pill. Visually they read as
+   "this is the boundary" without taking up the spotlight. */
+.mde-line--code-fence-marker {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 11px;
+  color: var(--charcoal-xl);
+  background: var(--cream);
+  padding: 2px 12px;
+  border-radius: 0;
+}
+.mde-line--code-fence-marker[data-fence-pos="top"] {
+  border-radius: var(--radius) var(--radius) 0 0;
+  margin-top: 6px;
+}
+.mde-line--code-fence-marker[data-fence-pos="bottom"] {
+  border-radius: 0 0 var(--radius) var(--radius);
+  margin-bottom: 6px;
+}
+/* Hide the fence markers when off-caret — the user shouldn't see
+   `lang` clutter once they're done writing. Show again on focus so
+   the markers can be deleted / edited. */
+.mde-line--code-fence-marker:not(.has-caret) {
+  font-size: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 0;
+}
+.mde-line--code-fence-marker:not(.has-caret)[data-fence-pos="top"] {
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Portal child inherits this via animation-name; reduced-motion
+     scope kills it across the board. */
+}

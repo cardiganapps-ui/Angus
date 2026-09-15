@@ -114,6 +114,7 @@ const drawerRoutes = [
   ["Contactos", "Nuevo contacto"],
   ["Clases", "Nueva clase"],
   ["Estudios", "Nuevo curso"],
+  ["Notas", "Nota rápida"],
   ["Expos", "Nueva expo"],
   ["Recurrentes", "Nueva regla"],
   ["Presupuestos", null],

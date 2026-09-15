@@ -31,6 +31,7 @@ import { Reports } from "./screens/Reports";
 import { Expos } from "./screens/Expos";
 import { Classes } from "./screens/Classes";
 import { Studies } from "./screens/Studies";
+import { Notes } from "./screens/Notes";
 import { Onboarding } from "./screens/Onboarding";
 import { applyTextScale } from "./lib/appearance";
 import { haptic } from "./lib/haptics";
@@ -65,6 +66,8 @@ function Screen({ route, navigate }: { route: Route; navigate: (r: Route) => voi
       return <Classes />;
     case "studies":
       return <Studies />;
+    case "notes":
+      return <Notes />;
     default:
       return <Home navigate={navigate} />;
   }

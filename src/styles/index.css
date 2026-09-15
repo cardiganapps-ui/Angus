@@ -12,5 +12,7 @@
 @import './charts.css';
 @import './calendar.css';
 @import './studies.css';
+@import './notes-editor.css';
+@import './notes.css';
 @import './responsive.css';
 @import './dark.css';

@@ -38,7 +38,13 @@ export type IconName =
   | "user"
   | "pause"
   | "play"
-  | "clipboard";
+  | "clipboard"
+  | "link"
+  | "more"
+  | "list"
+  | "history"
+  | "eye"
+  | "copy";
 
 const PATHS: Record<IconName, string> = {
   home: "M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -87,7 +93,13 @@ const PATHS: Record<IconName, string> = {
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-3.9 3.6-7 8-7s8 3.1 8 7z",
   pause: "M8 5v14M16 5v14",
   play: "M7 4l12 8-12 8z",
-  clipboard: "M9 4h6a1 1 0 0 1 1 1v2H8V5a1 1 0 0 1 1-1zM8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 13l2 2 4-4"
+  clipboard: "M9 4h6a1 1 0 0 1 1 1v2H8V5a1 1 0 0 1 1-1zM8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 13l2 2 4-4",
+  link: "M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1L11.5 4.4M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.5-1.5",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
+  list: "M4 7h16M8 12h12M8 17h8",
+  history: "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l4 2",
+  eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  copy: "M9 9h11v11H9zM5 15H4V4h11v1"
 };
 
 export function Icon({
