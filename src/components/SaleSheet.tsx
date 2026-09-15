@@ -8,7 +8,7 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
 import { makeId } from "../utils/id";
-import { todayISO } from "../utils/dates";
+import { formatShort, todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
 
 const STATUS_ITEMS = SALE_STATUS.map((s) => ({ k: s.value, l: s.label }));
@@ -24,7 +24,7 @@ export function SaleSheet({
       stacked underneath can close itself too. */
   onDeleted?: () => void;
 }) {
-  const { addSale, updateSale, removeSale, projects, contacts } = useApp();
+  const { addSale, updateSale, removeSale, projects, contacts, events } = useApp();
   const { showSuccess } = useToast();
   const [title, setTitle] = useState(sale?.title ?? "");
   const [amount, setAmount] = useState(sale?.amount?.toString() ?? "");
@@ -32,6 +32,7 @@ export function SaleSheet({
   const [status, setStatus] = useState<SaleStatus>(sale?.status ?? "confirmed");
   const [projectId, setProjectId] = useState(sale?.projectId ?? "");
   const [contactId, setContactId] = useState(sale?.contactId ?? "");
+  const [eventId, setEventId] = useState(sale?.eventId ?? "");
   const [notes, setNotes] = useState(sale?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
 
@@ -46,6 +47,11 @@ export function SaleSheet({
   const contactOptions = [...contacts]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => ({ value: c.id, label: c.name }));
+  // Only expos — attributing a sale to a class or a deadline is meaningless.
+  const expoOptions = events
+    .filter((e) => e.kind === "expo")
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((e) => ({ value: e.id, label: `${e.title} · ${formatShort(e.date)}` }));
 
   function handleSave() {
     if (!canSave) return;
@@ -57,6 +63,7 @@ export function SaleSheet({
       status,
       projectId: projectId || null,
       contactId: contactId || null,
+      eventId: eventId || null,
       notes: notes.trim()
     };
     if (sale) {
@@ -164,6 +171,14 @@ export function SaleSheet({
           onChange={setContactId}
         />
       </div>
+
+      {expoOptions.length > 0 && (
+        <div className="input-group">
+          <span className="input-label">Expo</span>
+          <PickerField title="Expo" options={expoOptions} value={eventId} onChange={setEventId} />
+          <div className="input-help">Para saber si la expo se pagó sola.</div>
+        </div>
+      )}
 
       <div className="input-group">
         <label className="input-label" htmlFor="sale-notes">Notas</label>

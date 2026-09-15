@@ -49,6 +49,7 @@ export interface Sale {
   status: SaleStatus;
   projectId: string | null;
   contactId: string | null; // the buyer
+  eventId: string | null; // the expo it sold at, if any
   notes: string;
   createdAt: string; // ISO
 }

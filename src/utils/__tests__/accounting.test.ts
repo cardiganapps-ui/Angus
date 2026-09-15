@@ -6,8 +6,11 @@ import {
   expenseBreakdown,
   expensesByCategory,
   generateInstallmentSchedule,
+  clientBalances,
+  expoEconomics,
   installmentPlan,
   overdueInstallments,
+  projectEconomics,
   paidForSale,
   profitLoss,
   saleBalance,
@@ -26,6 +29,7 @@ function sale(id: string, amount: number, status: SaleStatus, contactId = "c1"):
     status,
     projectId: null,
     contactId,
+    eventId: null,
     notes: "",
     createdAt: "2026-09-01"
   };
@@ -264,5 +268,85 @@ describe("generating a payment plan", () => {
 
   it("returns nothing for a non-positive count", () => {
     expect(generateInstallmentSchedule(8500, 0, "2026-10-01", "monthly")).toEqual([]);
+  });
+});
+
+describe("economics — was it worth it?", () => {
+  const sales = [
+    { ...sale("s1", 8500, "confirmed"), projectId: "p1", eventId: "e1" },
+    { ...sale("s2", 2000, "delivered"), projectId: "p1", eventId: null },
+    { ...sale("s3", 9000, "quoted"), projectId: "p1", eventId: "e1" },
+    { ...sale("s4", 5000, "cancelled"), projectId: "p1", eventId: "e1" }
+  ];
+  const payments = [payment("pay1", "s1", 3000), payment("pay2", "s2", 2000)];
+  const expenses = [
+    { ...expense("x1", 1200, "materials", "2026-09-02"), projectId: "p1" },
+    { ...expense("x2", 300, "transport", "2026-09-03"), projectId: "p1" },
+    { ...expense("x3", 4000, "expo", "2026-09-04"), eventId: "e1" },
+    { ...expense("x4", 999, "materials", "2026-09-05"), projectId: "p2" }
+  ];
+
+  it("a piece: revenue and spend counted only from what is linked to it", () => {
+    const e = projectEconomics("p1", sales, payments, expenses);
+    expect(e.revenue).toBe(10500); // quoted and cancelled excluded
+    expect(e.collected).toBe(5000);
+    expect(e.spent).toBe(1500); // p2's expense excluded
+    expect(e.margin).toBe(9000);
+    expect(e.cash).toBe(3500);
+  });
+
+  it("an expo can come out negative, and says so", () => {
+    const e = expoEconomics("e1", sales, payments, expenses);
+    expect(e.revenue).toBe(8500);
+    expect(e.spent).toBe(4000);
+    expect(e.margin).toBe(4500);
+
+    const flop = expoEconomics("e1", [sales[3]], [], expenses);
+    expect(flop.revenue).toBe(0);
+    expect(flop.margin).toBe(-4000);
+  });
+
+  it("an unlinked piece has nothing attributed to it", () => {
+    expect(projectEconomics("nope", sales, payments, expenses)).toEqual({
+      revenue: 0,
+      collected: 0,
+      spent: 0,
+      margin: 0,
+      cash: 0
+    });
+  });
+});
+
+describe("clientBalances", () => {
+  it("puts whoever owes the most first and skips settled-but-smaller buyers correctly", () => {
+    const sales = [
+      sale("s1", 5000, "confirmed", "c1"),
+      sale("s2", 1000, "confirmed", "c2"),
+      sale("s3", 9000, "delivered", "c3")
+    ];
+    const payments = [payment("p1", "s1", 1000), payment("p3", "s3", 9000)];
+    const rows = clientBalances(sales, payments);
+    expect(rows.map((r) => [r.contactId, r.owed])).toEqual([
+      ["c1", 4000],
+      ["c2", 1000],
+      ["c3", 0]
+    ]);
+    expect(rows[2]).toMatchObject({ committed: 9000, collected: 9000, saleCount: 1 });
+  });
+
+  it("ignores sales with no client and sales that don't count", () => {
+    const sales = [
+      { ...sale("s1", 5000, "confirmed"), contactId: null },
+      sale("s2", 1000, "quoted", "c2"),
+      sale("s3", 700, "cancelled", "c3")
+    ];
+    expect(clientBalances(sales, [])).toEqual([]);
+  });
+
+  it("aggregates several sales for the same client", () => {
+    const sales = [sale("s1", 1000, "confirmed", "c1"), sale("s2", 2500, "delivered", "c1")];
+    const rows = clientBalances(sales, [payment("p1", "s1", 400)]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ contactId: "c1", committed: 3500, collected: 400, owed: 3100, saleCount: 2 });
   });
 });

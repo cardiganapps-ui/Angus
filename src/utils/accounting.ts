@@ -223,3 +223,102 @@ export function expenseBreakdown(expenses: Expense[], from: string, to: string):
     share: totalCents > 0 ? toCents(c.amount) / totalCents : 0
   }));
 }
+
+/* ── Economics ──
+   "Was it worth it?" for a piece, an expo, or a client. The same shape
+   answers all three, because the question is identical and only the
+   filter changes:
+
+     revenue   = Σ amount over counting sales attributed to it
+     collected = Σ payments actually received on those sales
+     spent     = Σ expenses attributed to it
+     margin    = revenue − spent   (what the work earned)
+     cash      = collected − spent (what has actually landed)
+
+   `margin` can be negative, and that is the point — an expo that cost
+   more than it sold is exactly what she needs to see. Attribution is by
+   explicit link (projectId / eventId); nothing is inferred. */
+
+export interface Economics {
+  revenue: number;
+  collected: number;
+  spent: number;
+  margin: number;
+  cash: number;
+}
+
+function economicsOf(sales: Sale[], payments: Payment[], expenses: Expense[]): Economics {
+  const counting = sales.filter(saleCountsTowardRevenue);
+  const revenue = sumMoney(counting.map((s) => s.amount));
+  const collected = sumMoney(counting.map((s) => paidForSale(payments, s.id)));
+  const spent = sumMoney(expenses.map((e) => e.amount));
+  return {
+    revenue,
+    collected,
+    spent,
+    margin: subtractMoney(revenue, spent),
+    cash: subtractMoney(collected, spent)
+  };
+}
+
+/** What a piece cost to make versus what it sold for. */
+export function projectEconomics(
+  projectId: string,
+  sales: Sale[],
+  payments: Payment[],
+  expenses: Expense[]
+): Economics {
+  return economicsOf(
+    sales.filter((s) => s.projectId === projectId),
+    payments,
+    expenses.filter((e) => e.projectId === projectId)
+  );
+}
+
+/** Whether an expo paid for itself. */
+export function expoEconomics(
+  eventId: string,
+  sales: Sale[],
+  payments: Payment[],
+  expenses: Expense[]
+): Economics {
+  return economicsOf(
+    sales.filter((s) => s.eventId === eventId),
+    payments,
+    expenses.filter((e) => e.eventId === eventId)
+  );
+}
+
+export interface ClientBalance {
+  contactId: string;
+  committed: number;
+  collected: number;
+  owed: number;
+  saleCount: number;
+}
+
+/* Every client with at least one counting sale, those who owe money
+   first, then by how much they've bought. Sales with no client attached
+   are skipped — an unnamed buyer isn't someone you can chase. */
+export function clientBalances(sales: Sale[], payments: Payment[]): ClientBalance[] {
+  const byContact = new Map<string, Sale[]>();
+  for (const sale of sales) {
+    if (!sale.contactId || !saleCountsTowardRevenue(sale)) continue;
+    const list = byContact.get(sale.contactId);
+    if (list) list.push(sale);
+    else byContact.set(sale.contactId, [sale]);
+  }
+
+  return [...byContact.entries()]
+    .map(([contactId, contactSales]) => {
+      const t = totals(contactSales, payments);
+      return {
+        contactId,
+        committed: t.committed,
+        collected: t.paid,
+        owed: t.owed,
+        saleCount: contactSales.length
+      };
+    })
+    .sort((a, b) => b.owed - a.owed || b.committed - a.committed);
+}

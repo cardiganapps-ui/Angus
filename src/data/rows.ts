@@ -149,6 +149,7 @@ export interface SaleRow {
   status: Sale["status"];
   project_id: string | null;
   contact_id: string | null;
+  event_id: string | null;
   notes: string;
   created_at: string;
 }
@@ -194,6 +195,7 @@ export const saleStore: CloudStoreConfig<Sale, SaleRow> = {
     status: r.status,
     projectId: r.project_id,
     contactId: r.contact_id,
+    eventId: r.event_id,
     notes: r.notes,
     createdAt: r.created_at.slice(0, 10)
   }),
@@ -206,6 +208,7 @@ export const saleStore: CloudStoreConfig<Sale, SaleRow> = {
     if (s.status !== undefined) row.status = s.status;
     if (s.projectId !== undefined) row.project_id = s.projectId;
     if (s.contactId !== undefined) row.contact_id = s.contactId;
+    if (s.eventId !== undefined) row.event_id = s.eventId;
     if (s.notes !== undefined) row.notes = s.notes;
     return row;
   }
