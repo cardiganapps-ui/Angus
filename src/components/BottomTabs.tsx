@@ -16,6 +16,7 @@ const TABS: { key: Route; label: string; icon: IconName }[] = [
   { key: "projects", label: "Proyectos", icon: "palette" },
   { key: "contacts", label: "Contactos", icon: "users" },
   { key: "schedule", label: "Agenda",    icon: "calendar" },
+  { key: "money",    label: "Dinero",    icon: "banknote" },
 ];
 
 /* Tab order, exported so App.tsx derives the screen slide direction

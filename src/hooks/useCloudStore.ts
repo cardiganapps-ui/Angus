@@ -20,6 +20,8 @@ export interface CloudStore<T extends Entity> {
   add: (item: T) => Promise<void>;
   update: (id: string, patch: Partial<T>) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** Drop rows from local state only — mirrors a server-side cascade. */
+  dropLocal: (predicate: (item: T) => boolean) => void;
 }
 
 // Optimistic CRUD over one Supabase table, scoped to a workspace. Every
@@ -101,7 +103,14 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
     [config]
   );
 
+  // Local-only prune, for mirroring a server-side cascade. The rows are
+  // already gone in Postgres; this stops a derivation from seeing orphans
+  // in the window between the delete and the next load.
+  const dropLocal = useCallback((predicate: (item: T) => boolean) => {
+    setItems((current) => current.filter((it) => !predicate(it)));
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
-  return { items, loading, error, clearError, reload, add, update, remove };
+  return { items, loading, error, clearError, reload, add, update, remove, dropLocal };
 }

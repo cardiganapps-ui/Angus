@@ -1,5 +1,6 @@
 import type { Expense, Installment, Payment, Sale } from "../types";
-import { remainder, subtractMoney, sumMoney, toCents } from "./money";
+import { addDays, addMonths } from "./dates";
+import { remainder, splitEvenly, subtractMoney, sumMoney, toCents } from "./money";
 
 /* ── Canonical money formulas ──
    These are the only place balances are derived. Nothing is stored
@@ -39,16 +40,23 @@ export interface SaleBalance {
   owed: number;
   credit: number;
   settled: boolean;
+  /** Share of the total already received, 0–1. For progress bars. */
+  progress: number;
 }
 
 export function saleBalance(sale: Sale, payments: Payment[]): SaleBalance {
   const paid = paidForSale(payments, sale.id);
+  const totalCents = toCents(sale.amount);
+  const paidCents = toCents(paid);
+  // Ratio, not money: clamped so an overpayment can't overflow a bar.
+  const progress =
+    totalCents > 0 ? Math.min(1, paidCents / totalCents) : paidCents > 0 ? 1 : 0;
   if (!saleCountsTowardRevenue(sale)) {
-    return { sale, paid, owed: 0, credit: 0, settled: true };
+    return { sale, paid, owed: 0, credit: 0, settled: true, progress };
   }
   const owed = remainder(sale.amount, paid);
   const credit = remainder(paid, sale.amount);
-  return { sale, paid, owed, credit, settled: toCents(owed) === 0 };
+  return { sale, paid, owed, credit, settled: toCents(owed) === 0, progress };
 }
 
 export interface Totals {
@@ -121,6 +129,29 @@ export function installmentPlan(
   });
 }
 
+export type InstallmentFrequency = "monthly" | "biweekly";
+
+export interface PlannedInstallment {
+  amount: number;
+  dueDate: string;
+}
+
+/* A plan is generated once and then stored as rows — `splitEvenly` is what
+   guarantees the cuotas add back up to the sale total exactly: the leftover
+   cents go onto the EARLIEST installments (8500/3 → 2833.34, 2833.33,
+   2833.33), so the plan can't quietly under- or over-shoot the sale. */
+export function generateInstallmentSchedule(
+  total: number,
+  count: number,
+  firstDueDate: string,
+  frequency: InstallmentFrequency
+): PlannedInstallment[] {
+  return splitEvenly(total, count).map((amount, i) => ({
+    amount,
+    dueDate: frequency === "monthly" ? addMonths(firstDueDate, i) : addDays(firstDueDate, i * 15)
+  }));
+}
+
 /** Installments already due and not fully covered, oldest first. */
 export function overdueInstallments(
   sales: Sale[],
@@ -174,4 +205,21 @@ export function expensesByCategory(expenses: Expense[], from: string, to: string
   return [...buckets.entries()]
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+export interface CategoryShare {
+  category: string;
+  amount: number;
+  /** Share of the range's total spend, 0–1 — the width of a bar. */
+  share: number;
+}
+
+/** expensesByCategory plus each category's share of the total, for bars. */
+export function expenseBreakdown(expenses: Expense[], from: string, to: string): CategoryShare[] {
+  const byCategory = expensesByCategory(expenses, from, to);
+  const totalCents = toCents(sumMoney(byCategory.map((c) => c.amount)));
+  return byCategory.map((c) => ({
+    ...c,
+    share: totalCents > 0 ? toCents(c.amount) / totalCents : 0
+  }));
 }

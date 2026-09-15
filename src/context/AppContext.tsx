@@ -148,7 +148,13 @@ export function AppProvider({ workspaceId, children }: { workspaceId: string; ch
       sales: sales.items,
       addSale: sales.add,
       updateSale: sales.update,
-      removeSale: sales.remove,
+      // Postgres cascades a sale's payments and installments; mirror that
+      // locally so no balance is ever derived from orphaned rows.
+      removeSale: async (id: string) => {
+        await sales.remove(id);
+        payments.dropLocal((p) => p.saleId === id);
+        installments.dropLocal((i) => i.saleId === id);
+      },
       payments: payments.items,
       addPayment: payments.add,
       updatePayment: payments.update,

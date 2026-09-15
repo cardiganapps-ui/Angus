@@ -69,8 +69,8 @@ If a change makes the app feel less like this, it's a regression even if the fea
 - `hooks/useCloudStore.ts` — generic optimistic CRUD over one Supabase table, filtered by `workspace_id` and stamping it on inserts (see Prime Directive #1).
 - `components/AccountSheet.tsx` — account identity, workspace switcher, sign out. `config/admin.ts` — `ADMIN_EMAIL`.
 - `lib/supabase.ts` — the single client instance. `lib/importLocal.ts` — one-shot migration of pre-login localStorage data.
-- **Routing** is hash-based (`hooks/useNavigation.ts`): `home | projects | contacts | schedule`. Sheets are component state, not routes.
-- `screens/` — one file per tab (`Home`, `Projects`, `Contacts`, `Schedule`) plus `AuthScreen`. `components/` — sheets (`ProjectSheet`, `ContactSheet`, `EventSheet` over the shared `Sheet` + `SheetActions`), pickers (`SegmentedControl`, `ChipSelect`, `PickerField`/`PickerSheet` — **never a native `<select>`**), chrome (`BottomTabs`, `PullToRefresh`, `Toast`), primitives (`Icon`, `EmptyState`, `AnimatedNumber`, `LoadingSkeleton`). Full catalog with props in `docs/playbook.md` §1.
+- **Routing** is hash-based (`hooks/useNavigation.ts`): `home | projects | contacts | schedule | money`. Sheets are component state, not routes.
+- `screens/` — one file per tab (`Home`, `Projects`, `Contacts`, `Schedule`, `Money`) plus `AuthScreen`. `components/` — sheets (`ProjectSheet`, `ContactSheet`, `EventSheet` over the shared `Sheet` + `SheetActions`), pickers (`SegmentedControl`, `ChipSelect`, `PickerField`/`PickerSheet` — **never a native `<select>`**), chrome (`BottomTabs`, `PullToRefresh`, `Toast`), primitives (`Icon`, `EmptyState`, `AnimatedNumber`, `LoadingSkeleton`). Full catalog with props in `docs/playbook.md` §1.
 - `data/constants.ts` — enums with Spanish labels + semantic colors. **Every enum here is mirrored by a check constraint in `supabase/migrations/`** — change both, in the same commit.
 - `types.ts` — the domain model. Dates are ISO `YYYY-MM-DD` strings; times are `HH:MM`. Format for display only via `utils/dates.ts`.
 - `styles/` — split by concern (`fonts`, `base`, `components`, `responsive`, `dark`), aggregated by `index.css`. Keep files narrow.
@@ -80,6 +80,10 @@ If a change makes the app feel less like this, it's a regression even if the fea
 - **Project** — a piece, commission, or series: `status` (idea / in_progress / on_hold / completed), medium, start/due dates, price, optional linked contact (the client or gallery).
 - **Contact** — `relationship` (lead / client / gallery / supplier / collaborator / other). Leads carry a `leadStage` (new / contacted / negotiating / won / lost) and a `followUpDate`; the Home KPI "Seguimientos" counts leads whose follow-up is today or overdue.
 - **ScheduleEvent** — one unified calendar: `kind` (class / expo / meeting / deadline / personal / other), date, optional times/location, optional links to a project and a contact.
+- **Sale** — money owed to her: title, amount, date, `status` (quoted / confirmed / delivered / cancelled), optional project + contact (the buyer). Only confirmed and delivered count toward revenue.
+- **Payment** — money actually received against a sale (`saleId`, amount, date, `method`). The source of truth for "paid"; a refund is a deleted payment, never a negative one.
+- **Installment** — one scheduled step of a payment plan (`saleId`, amount, `dueDate`). An expectation, not money: `utils/accounting.ts` allocates the sale's payments across its installments in due-date order rather than storing a "paid" flag that could drift.
+- **Expense** — money out: title, amount, date, `category` (8 values), optional project and expo event.
 
 Roadmap (in order): sales + payment plans → expenses + investments → expo budgeting → recurring classes → documents/photos (R2, mirroring Cardigan's `api/_r2.ts` pattern).
 

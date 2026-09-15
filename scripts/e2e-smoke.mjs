@@ -80,7 +80,8 @@ await shot("01-home");
 const tabs = [
   ["Proyectos", "Nuevo proyecto"],
   ["Contactos", "Nuevo contacto"],
-  ["Agenda", "Nuevo evento"]
+  ["Agenda", "Nuevo evento"],
+  ["Dinero", "Nueva venta"]
 ];
 for (const [tab, fab] of tabs) {
   await page.click(`nav >> text=${tab}`);

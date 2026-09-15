@@ -27,6 +27,8 @@ All in `src/components/` unless noted. Props are the real signatures.
 | `AccountSheet` | Topbar avatar → account, workspace switcher, sign out. | Wired in `App.tsx`. |
 | `lib/haptics.ts` | `haptic.tap()` on selection, `haptic.success()` on save, `haptic.warn()` on delete. Pickers and tabs already fire it. | |
 
+Money-specific classes live in `src/styles/money.css` (imported by `styles/index.css`): `.money-row-right`, `.money-submeta`, `.money-progress` + `.money-progress-fill`, `.money-stats` + `.money-stat-label` / `.money-stat-value`, `.money-panel` (cream info band inside a sheet), `.money-sheet-section` + `.money-sheet-section-title`, `.money-list` + `.money-list-empty`, `.cat-bar-row` (+ label / track / fill / value), `.money-summary`, `.money-section-total`, `.money-confirm`, `.btn-mini`.
+
 CSS classes that pair with these (`src/styles/components.css`): `.page`, `.page-header` + `.eyebrow` + `.page-title`, `.section` + `.section-header` + `.section-title`, `.card`, `.row-item` (+ `.row-content` / `.row-title` / `.row-sub`, `.row-item--muted`, `.row-item--selected`), `.kpi-grid` + `.kpi-card` + `.kpi-label` + `.kpi-value`, `.badge badge-{teal,green,amber,purple,blue,red,rose,gray}`, `.input-group` + `.input-label` + `.input` + `.input-help` + `.input-error-msg.is-visible`, `.form-row` (two inputs side by side), `.money-input-wrap` + `.money-input`, `.chip-row` + `.chip`, `.segmented`, `.fab`, `.list-entry-stagger` (+ `--stagger-i`), `.empty-state`, `.sk-bar` / `.sk-circle`.
 
 Which picker? **≤ 4 short labels → `SegmentedControl`. 3–8 labels or labels with colors → `ChipSelect`. Entities or > 8 → `PickerField`. Dates/times → native `<input type="date|time">`. Never `<select>`.**

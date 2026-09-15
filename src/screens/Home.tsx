@@ -1,15 +1,19 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import { EVENT_KIND, EVENT_KIND_BADGE, labelFor } from "../data/constants";
-import { formatWithWeekday, todayISO } from "../utils/dates";
+import { overdueInstallments } from "../utils/accounting";
+import { formatMXN } from "../utils/money";
+import { daysUntil, formatWithWeekday, todayISO } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
 import { AnimatedNumber } from "../components/AnimatedNumber";
+import { SaleDetailSheet } from "../components/SaleDetailSheet";
 
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) } as CSSProperties);
 
 export function Home() {
-  const { events, projects, contacts } = useApp();
+  const { events, projects, contacts, sales, installments, payments } = useApp();
   const today = todayISO();
+  const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
 
   const upcoming = events
     .filter((e) => e.date >= today)
@@ -20,6 +24,8 @@ export function Home() {
   const dueFollowUps = contacts.filter(
     (c) => c.followUpDate && c.followUpDate <= today
   ).length;
+
+  const overdue = overdueInstallments(sales, installments, payments, today);
 
   return (
     <div className="page">
@@ -72,6 +78,44 @@ export function Home() {
           </div>
         )}
       </div>
+
+      {overdue.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <span className="section-title">Cuotas vencidas</span>
+            <span className="badge badge-red">{overdue.length}</span>
+          </div>
+          <div className="card">
+            {overdue.map(({ installment, remaining }, i) => {
+              const sale = sales.find((s) => s.id === installment.saleId);
+              const contact = contacts.find((c) => c.id === sale?.contactId);
+              const late = -daysUntil(installment.dueDate);
+              return (
+                <button
+                  key={installment.id}
+                  type="button"
+                  className="row-item list-entry-stagger"
+                  style={stagger(i)}
+                  onClick={() => setDetailSaleId(installment.saleId)}
+                >
+                  <div className="row-content">
+                    <div className="row-title">{contact?.name ?? sale?.title ?? "Venta"}</div>
+                    <div className="row-sub">
+                      Venció hace {late} {late === 1 ? "día" : "días"}
+                      {sale ? ` · ${sale.title}` : ""}
+                    </div>
+                  </div>
+                  <span className="row-amount amount-owe">{formatMXN(remaining)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {detailSaleId && (
+        <SaleDetailSheet saleId={detailSaleId} onClose={() => setDetailSaleId(null)} />
+      )}
     </div>
   );
 }

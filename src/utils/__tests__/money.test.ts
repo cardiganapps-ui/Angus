@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatMXN,
+  formatMXNShortSigned,
   formatMXNShort,
   fromCents,
   remainder,
@@ -47,5 +48,12 @@ describe("money", () => {
     expect(formatMXN(1234.5)).toBe("$1,234.50");
     expect(formatMXNShort(1234.5)).toBe("$1,235");
     expect(formatMXNShort(0)).toBe("$0");
+  });
+
+  it("puts the minus sign outside the currency symbol", () => {
+    expect(formatMXNShortSigned(-3300)).toBe("-$3,300");
+    expect(formatMXNShortSigned(3300)).toBe("$3,300");
+    expect(formatMXNShortSigned(0)).toBe("$0");
+    expect(formatMXNShortSigned(-0.4)).toBe("$0");
   });
 });

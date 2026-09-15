@@ -16,6 +16,7 @@ import { Home } from "./screens/Home";
 import { Projects } from "./screens/Projects";
 import { Contacts } from "./screens/Contacts";
 import { Schedule } from "./screens/Schedule";
+import { Money } from "./screens/Money";
 
 function Screen({ route }: { route: Route }) {
   switch (route) {
@@ -27,6 +28,8 @@ function Screen({ route }: { route: Route }) {
       return <Contacts />;
     case "schedule":
       return <Schedule />;
+    case "money":
+      return <Money />;
   }
 }
 

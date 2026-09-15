@@ -584,7 +584,10 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
     inset 0 0 0 1px color-mix(in srgb, var(--teal) 16%, transparent);
 }
 .bottom-tab-label {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.01em;
+  /* 5 tabs of Spanish labels ("Proyectos", "Contactos") crowd each other
+     at 360px; the clamp shaves a hair off the smallest phones only and
+     leaves 390px+ at the designed 11px. */
+  font-size: clamp(10px, 2.9vw, 11px); font-weight: 700; letter-spacing: 0.01em;
   line-height: 1;
   /* Active label scales up a hair, springing in alongside the icon hop. */
   transition: transform var(--dur-slow) var(--ease-spring);

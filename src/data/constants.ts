@@ -89,6 +89,22 @@ export const EXPENSE_CATEGORY: { value: ExpenseCategory; label: string }[] = [
   { value: "other", label: "Otro" }
 ];
 
+/* Badge class per expense category — semantic, not decorative: teal for
+   the materials that become the work, amber for the fixed cost of the
+   studio, blue for equipment, purple for travel, rose for learning,
+   green for expos (money spent to sell), red for commissions taken out
+   of a sale, gray for the rest. */
+export const EXPENSE_CATEGORY_BADGE: Record<ExpenseCategory, string> = {
+  materials: "badge-teal",
+  studio: "badge-amber",
+  equipment: "badge-blue",
+  transport: "badge-purple",
+  courses: "badge-rose",
+  expo: "badge-green",
+  fees: "badge-red",
+  other: "badge-gray"
+};
+
 export function labelFor<T extends { value: string; label: string }>(
   list: T[],
   value: string

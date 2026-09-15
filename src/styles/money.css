@@ -1,0 +1,209 @@
+/* ── MONEY (Dinero tab, sale detail, expense summary) ──
+   New patterns the therapist-app vocabulary didn't cover yet: a
+   paid/total progress bar, the total/pagado/restante trio, the
+   category-share bars on Gastos, and the small section headings used
+   inside the sale-detail sheet. Everything else reuses the existing
+   classes (.card, .row-item, .row-amount + .amount-owe/.amount-paid,
+   .badge, .input-group, .btn). */
+
+/* Right-hand column of a money row: badge above, amount below. */
+.money-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.money-row-right .row-amount { margin-bottom: 0; }
+/* Check mark next to a settled amount — status never by color alone. */
+.money-amount-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.money-submeta {
+  font-size: 11px;
+  color: var(--charcoal-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Paid / total progress. */
+.money-progress {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--cream-dark);
+  overflow: hidden;
+}
+.money-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.money-progress-fill--settled { background: var(--green); }
+
+/* Total / pagado / restante trio at the top of the sale detail sheet. */
+.money-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.money-stat-label {
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--charcoal-xl);
+  margin-bottom: 4px;
+}
+.money-stat-value {
+  font-family: var(--font-d);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--charcoal);
+  font-variant-numeric: tabular-nums;
+}
+.money-stat-value--owed { color: var(--red); }
+.money-stat-value--paid { color: var(--green); }
+
+/* Inline information band inside a white card / sheet (--cream is an
+   accent here, never a wrapper background). */
+.money-panel {
+  background: var(--cream);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+/* Section heading inside a sheet body. */
+.money-sheet-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 18px 0 8px;
+}
+.money-sheet-section-title {
+  font-family: var(--font-d);
+  font-size: var(--text-md);
+  font-weight: 800;
+  color: var(--charcoal);
+}
+
+/* A list of rows inside a sheet (pagos, cuotas). */
+.money-list {
+  border: 1px solid var(--border-lt);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--white);
+}
+.money-list .row-item,
+.money-list button.row-item {
+  padding: 10px 14px;
+  min-height: 54px;
+}
+.money-list-empty {
+  padding: 14px;
+  font-size: 13px;
+  color: var(--charcoal-md);
+  line-height: 1.5;
+}
+
+/* Expense-category share bars (Gastos summary). No chart library —
+   one flex row per category, width driven by CategoryShare.share. */
+.cat-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+}
+.cat-bar-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--charcoal-md);
+  width: 82px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-bar-track {
+  flex: 1;
+  min-width: 0;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--cream-dark);
+  overflow: hidden;
+}
+.cat-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.cat-bar-value {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--charcoal);
+  font-variant-numeric: tabular-nums;
+  width: 62px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Gastos month summary card. */
+.money-summary { padding: 14px 16px 12px; }
+.money-summary-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.money-summary-total {
+  font-family: var(--font-d);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Trailing total in a month section header. */
+.money-section-total {
+  font-family: var(--font-d);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--charcoal-md);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inline destructive confirm inside a sheet (borrar un plan). */
+.money-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.money-confirm-question {
+  flex: 1 1 100%;
+  margin: 0 0 2px;
+}
+
+/* Small inline buttons — .btn is full-width by default in the primary
+   and danger variants, which is wrong for a section-header action. */
+.btn.btn-mini {
+  width: auto;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+/* The segmented Ventas | Gastos switcher sits in its own band above
+   the list, matching the .section horizontal rhythm. */
+.money-switch { padding: 12px 16px 0; }

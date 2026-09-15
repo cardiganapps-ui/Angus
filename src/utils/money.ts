@@ -49,3 +49,10 @@ export function formatMXN(value: number): string {
 export function formatMXNShort(value: number): string {
   return `$${Math.round(value).toLocaleString("es-MX")}`;
 }
+
+/** Compact form that can go negative — "-$3,300", never "$-3,300". */
+export function formatMXNShortSigned(value: number): string {
+  // `+ 0` normalizes -0 (Math.round(-0.4)), which otherwise formats as "-0".
+  const rounded = Math.round(value) + 0;
+  return rounded < 0 ? `-${formatMXNShort(-rounded)}` : formatMXNShort(rounded);
+}

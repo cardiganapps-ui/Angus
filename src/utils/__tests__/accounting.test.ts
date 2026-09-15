@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Expense, Installment, Payment, Sale, SaleStatus } from "../../types";
+import { sumMoney } from "../money";
 import {
   contactOwed,
+  expenseBreakdown,
   expensesByCategory,
+  generateInstallmentSchedule,
   installmentPlan,
   overdueInstallments,
   paidForSale,
@@ -208,5 +211,58 @@ describe("profit & loss", () => {
       { category: "materials", amount: 800 },
       { category: "transport", amount: 200 }
     ]);
+  });
+});
+
+describe("expense breakdown shares", () => {
+  const expenses = [
+    expense("e1", 750, "materials", "2026-09-02"),
+    expense("e2", 250, "transport", "2026-09-10")
+  ];
+
+  it("adds each category's share of the range total", () => {
+    expect(expenseBreakdown(expenses, "2026-09-01", "2026-09-30")).toEqual([
+      { category: "materials", amount: 750, share: 0.75 },
+      { category: "transport", amount: 250, share: 0.25 }
+    ]);
+  });
+
+  it("returns an empty list (no division by zero) for an empty range", () => {
+    expect(expenseBreakdown(expenses, "2026-10-01", "2026-10-31")).toEqual([]);
+  });
+});
+
+describe("sale progress", () => {
+  it("is the paid share of the total, clamped at 1", () => {
+    const s = sale("s1", 8500, "confirmed");
+    expect(saleBalance(s, []).progress).toBe(0);
+    expect(saleBalance(s, [payment("p1", "s1", 4250)]).progress).toBe(0.5);
+    expect(saleBalance(s, [payment("p1", "s1", 9000)]).progress).toBe(1);
+  });
+
+  it("is 0 for a zero-amount sale with no payments", () => {
+    expect(saleBalance(sale("s1", 0, "confirmed"), []).progress).toBe(0);
+  });
+});
+
+describe("generating a payment plan", () => {
+  it("splits the total so the cuotas sum EXACTLY to the sale", () => {
+    const plan = generateInstallmentSchedule(8500, 3, "2026-10-01", "monthly");
+    expect(plan.map((p) => p.amount)).toEqual([2833.34, 2833.33, 2833.33]);
+    expect(sumMoney(plan.map((p) => p.amount))).toBe(8500);
+  });
+
+  it("spaces monthly cuotas by month, clamping short months", () => {
+    const plan = generateInstallmentSchedule(900, 3, "2026-01-31", "monthly");
+    expect(plan.map((p) => p.dueDate)).toEqual(["2026-01-31", "2026-02-28", "2026-03-31"]);
+  });
+
+  it("spaces biweekly cuotas 15 days apart, across a month boundary", () => {
+    const plan = generateInstallmentSchedule(600, 3, "2026-09-25", "biweekly");
+    expect(plan.map((p) => p.dueDate)).toEqual(["2026-09-25", "2026-10-10", "2026-10-25"]);
+  });
+
+  it("returns nothing for a non-positive count", () => {
+    expect(generateInstallmentSchedule(8500, 0, "2026-10-01", "monthly")).toEqual([]);
   });
 });

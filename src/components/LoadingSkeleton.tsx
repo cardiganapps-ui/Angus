@@ -16,17 +16,27 @@ export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
         <span className="sk-bar sk-bar-xs" style={{ width: 90 }} />
         <span className="sk-bar sk-bar-lg" style={{ width: 140, marginTop: 6 }} />
       </div>
-      {route === "home" && (
+      {(route === "home" || route === "money") && (
         <div className="kpi-grid">
           {[0, 1].map((i) => (
             <div className="kpi-card" key={i}>
               <span className="sk-bar sk-bar-xs" style={{ width: "60%", marginBottom: 10 }} />
-              <span className="sk-bar sk-bar-lg" style={{ width: 44 }} />
+              <span className="sk-bar sk-bar-lg" style={{ width: route === "money" ? 82 : 44 }} />
             </div>
           ))}
         </div>
       )}
-      <SkeletonRows header={route === "home" || route === "schedule"} count={route === "home" ? 3 : 5} dot={route !== "contacts"} />
+      {/* Dinero's segmented control (Ventas | Gastos) sits above the list. */}
+      {route === "money" && (
+        <div className="section">
+          <span className="sk-bar" style={{ display: "block", height: 40, borderRadius: 100 }} />
+        </div>
+      )}
+      <SkeletonRows
+        header={route === "home" || route === "schedule"}
+        count={route === "home" ? 3 : 5}
+        dot={route !== "contacts" && route !== "money"}
+      />
       {route === "schedule" && <SkeletonRows header count={2} dot />}
     </div>
   );
