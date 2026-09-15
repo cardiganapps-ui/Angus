@@ -79,7 +79,7 @@ export function ProjectSheet({
 
   return (
     <Sheet
-      title={project ? "Editar proyecto" : "Nuevo proyecto"}
+      title={project ? "Editar pieza" : "Nueva pieza"}
       onClose={safeClose}
       footer={
         <SheetActions

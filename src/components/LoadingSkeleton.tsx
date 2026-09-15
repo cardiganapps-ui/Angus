@@ -43,7 +43,13 @@ export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
           <span className="sk-bar" style={{ display: "block", height: 40, borderRadius: 100 }} />
         </div>
       )}
-      {route !== "home" && (
+      {route === "settings" && (
+        <>
+          <SkeletonRows header count={3} dot={false} />
+          <SkeletonRows header count={3} dot={false} />
+        </>
+      )}
+      {route !== "home" && route !== "settings" && (
         <SkeletonRows
           header={route === "schedule"}
           count={5}

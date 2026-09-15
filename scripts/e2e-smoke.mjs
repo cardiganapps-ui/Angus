@@ -73,24 +73,46 @@ await shot("00-auth");
 await page.fill("#auth-email", EMAIL);
 await page.fill("#auth-password", PASS);
 await page.click("button[type=submit]");
-await page.waitForSelector("text=Tu día", { timeout: 20000 });
+await page.waitForSelector("nav.bottom-tabs", { timeout: 20000 });
 await page.waitForTimeout(800);
 await shot("01-home");
 
+// The pill carries three tabs; Obra and Contactos live in the drawer.
 const tabs = [
-  ["Proyectos", "Nuevo proyecto"],
-  ["Contactos", "Nuevo contacto"],
   ["Agenda", "Nuevo evento"],
   ["Dinero", "Nueva venta"]
 ];
 for (const [tab, fab] of tabs) {
-  await page.click(`nav >> text=${tab}`);
+  await page.click(`nav.bottom-tabs >> text=${tab}`);
   await page.waitForTimeout(700);
   await shot(`02-${tab.toLowerCase()}`);
   await page.click(`[aria-label="${fab}"]`);
   await page.waitForTimeout(600);
   await shot(`03-${tab.toLowerCase()}-sheet`);
   await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+}
+
+const drawerRoutes = [
+  ["Obra", "Nueva pieza"],
+  ["Contactos", "Nuevo contacto"],
+  ["Ajustes", null]
+];
+for (const [item, fab] of drawerRoutes) {
+  await page.click('[aria-label="Menú"]');
+  await page.waitForTimeout(500);
+  await shot(`04-drawer-${item.toLowerCase()}`);
+  await page.click(`nav.drawer >> text=${item}`);
+  await page.waitForTimeout(700);
+  await shot(`05-${item.toLowerCase()}`);
+  if (fab) {
+    await page.click(`[aria-label="${fab}"]`);
+    await page.waitForTimeout(600);
+    await shot(`06-${item.toLowerCase()}-sheet`);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+  }
+  await page.click('[aria-label="Volver"]');
   await page.waitForTimeout(500);
 }
 

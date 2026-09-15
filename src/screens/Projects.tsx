@@ -25,8 +25,8 @@ export function Projects() {
   return (
     <div className="page">
       <div className="page-header">
-        <div className="eyebrow">{sorted.length} {sorted.length === 1 ? "proyecto" : "proyectos"}</div>
-        <h1 className="page-title">Proyectos</h1>
+        <div className="eyebrow">{sorted.length} {sorted.length === 1 ? "pieza" : "piezas"}</div>
+        <h1 className="page-title">Obra</h1>
       </div>
 
       <div className="section">
@@ -34,7 +34,7 @@ export function Projects() {
           <div className="card">
             <EmptyState
               icon="palette"
-              title="Sin proyectos todavía"
+              title="Sin piezas todavía"
               body="Agrega una pieza, encargo o serie en la que estés trabajando."
             />
           </div>
@@ -67,7 +67,7 @@ export function Projects() {
         )}
       </div>
 
-      <button className="fab" onClick={() => setEditing("new")} aria-label="Nuevo proyecto">
+      <button className="fab" onClick={() => setEditing("new")} aria-label="Nueva pieza">
         <Icon name="plus" size={24} strokeWidth={2.2} />
       </button>
 

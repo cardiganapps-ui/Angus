@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
-import type { Contact, Project, ScheduleEvent } from "../types";
+import type { Contact, Project, QuickAction, ScheduleEvent } from "../types";
 import type { Route } from "../hooks/useNavigation";
 import { EVENT_KIND, LEAD_STAGE, labelFor } from "../data/constants";
 import {
@@ -29,6 +29,10 @@ import { Icon, type IconName } from "../components/Icon";
 import { ContactSheet } from "../components/ContactSheet";
 import { ProjectSheet } from "../components/ProjectSheet";
 import { SaleDetailSheet } from "../components/SaleDetailSheet";
+import { SaleSheet } from "../components/SaleSheet";
+import { ExpenseSheet } from "../components/ExpenseSheet";
+import { EventSheet } from "../components/EventSheet";
+import { QuickAddFab } from "../components/QuickAddFab";
 import { haptic } from "../lib/haptics";
 
 /* ── Home ──
@@ -60,9 +64,20 @@ const ATTENTION_ICON: Record<AttentionItem["kind"], IconName> = {
 
 type OpenSheet =
   | { kind: "sale"; id: string }
-  | { kind: "contact"; contact: Contact }
-  | { kind: "project"; project: Project }
+  | { kind: "contact"; contact: Contact | null }
+  | { kind: "project"; project: Project | null }
+  | { kind: "newSale" }
+  | { kind: "newExpense" }
+  | { kind: "newEvent" }
   | null;
+
+const QUICK_SHEET: Record<QuickAction, OpenSheet> = {
+  sale: { kind: "newSale" },
+  expense: { kind: "newExpense" },
+  event: { kind: "newEvent" },
+  project: { kind: "project", project: null },
+  contact: { kind: "contact", contact: null }
+};
 
 export function Home({ navigate }: { navigate: (route: Route) => void }) {
   const { sales, payments, installments, expenses, contacts, projects, events } = useApp();
@@ -340,9 +355,14 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
         </div>
       </div>
 
+      <QuickAddFab onPick={(action) => setSheet(QUICK_SHEET[action])} />
+
       {sheet?.kind === "sale" && (
         <SaleDetailSheet saleId={sheet.id} onClose={() => setSheet(null)} />
       )}
+      {sheet?.kind === "newSale" && <SaleSheet sale={null} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "newExpense" && <ExpenseSheet expense={null} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "newEvent" && <EventSheet event={null} onClose={() => setSheet(null)} />}
       {sheet?.kind === "contact" && (
         <ContactSheet contact={sheet.contact} onClose={() => setSheet(null)} />
       )}

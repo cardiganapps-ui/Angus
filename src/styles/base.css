@@ -629,7 +629,9 @@ a[href^="tel:"], a[href^="mailto:"] {
    solid, so every token consumer (this bar included) degrades at once. */
 .topbar-brand { display: flex; align-items: center; gap: 6px; font-family: var(--font-d); font-size: 16px; font-weight: 800; color: var(--charcoal); letter-spacing: -0.3px; position: absolute; left: 50%; transform: translateX(-50%); transition: background var(--dur-base) ease, color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring); -webkit-tap-highlight-color: transparent; user-select: none; padding: 4px 12px; border-radius: var(--radius-pill); }
 .topbar-brand:active { background: var(--accent-pale); color: var(--accent-dark); transform: translateX(-50%) scale(0.88); }
-.topbar-right { display: flex; align-items: center; gap: 6px; }
+.topbar-left, .topbar-right { display: flex; align-items: center; gap: 6px; min-width: 36px; }
+.topbar-left { justify-content: flex-start; }
+.topbar-right { justify-content: flex-end; }
 
 .icon-btn {
   /* Hit target bumped to 44px (iOS HIG minimum) — previously 38px, which

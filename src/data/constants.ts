@@ -4,9 +4,14 @@ import type {
   ExpenseCategory,
   LeadStage,
   PaymentMethod,
+  Practice,
   ProjectStatus,
-  SaleStatus
+  QuickAction,
+  SaleStatus,
+  TextScale,
+  ThemePreference
 } from "../types";
+import type { IconName } from "../components/Icon";
 
 export const PROJECT_STATUS: { value: ProjectStatus; label: string }[] = [
   { value: "idea", label: "Idea" },
@@ -123,3 +128,58 @@ export function labelFor<T extends { value: string; label: string }>(
 ): string {
   return list.find((item) => item.value === value)?.label ?? value;
 }
+
+/* ── Workspace settings ──
+   Labels for the onboarding + Ajustes controls. PRACTICE values are
+   validated by utils/settings.ts (PRACTICES); keep both lists equal. */
+export const PRACTICE: { value: Practice; label: string }[] = [
+  { value: "pieces", label: "Piezas" },
+  { value: "commissions", label: "Comisiones" },
+  { value: "classes", label: "Clases" },
+  { value: "workshops", label: "Talleres" },
+  { value: "expos", label: "Expos" },
+  { value: "murals", label: "Murales" },
+  { value: "illustration", label: "Ilustración" },
+  { value: "other", label: "Otro" }
+];
+
+export const MEDIUM_SUGGESTIONS = [
+  "Óleo",
+  "Acrílico",
+  "Acuarela",
+  "Tinta",
+  "Grabado",
+  "Cerámica",
+  "Textil",
+  "Escultura",
+  "Collage",
+  "Digital",
+  "Mixta"
+];
+
+export const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "light", label: "Claro" },
+  { value: "dark", label: "Oscuro" },
+  { value: "system", label: "Sistema" }
+];
+
+export const TEXT_SCALE_OPTIONS: { value: TextScale; label: string }[] = [
+  { value: "sm", label: "Chica" },
+  { value: "md", label: "Normal" },
+  { value: "lg", label: "Grande" }
+];
+
+export const DEPOSIT_PERCENT_OPTIONS = [25, 30, 40, 50];
+
+export const INSTALLMENT_FREQUENCY: { value: "monthly" | "biweekly"; label: string }[] = [
+  { value: "monthly", label: "Mensual" },
+  { value: "biweekly", label: "Quincenal" }
+];
+
+export const QUICK_ACTION: { value: QuickAction; label: string; icon: IconName }[] = [
+  { value: "sale", label: "Nueva venta", icon: "banknote" },
+  { value: "expense", label: "Nuevo gasto", icon: "receipt" },
+  { value: "event", label: "Nuevo evento", icon: "calendar" },
+  { value: "project", label: "Nueva pieza", icon: "palette" },
+  { value: "contact", label: "Nuevo contacto", icon: "users" }
+];
