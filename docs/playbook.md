@@ -99,7 +99,8 @@ Never write raw `cubic-bezier(...)` or `ms` literals — tokens only. Reduced mo
 ## 7. Verification loop
 
 - **Unit:** `npm test` (vitest, `src/**/__tests__`). Money/date helpers must have tests.
-- **Browser smoke:** `npm run e2e -- http://localhost:5173/` (or the live URL) with `E2E_EMAIL` / `E2E_PASS` set (they're in `.env.local`; the test account is `gaxioladiego+angus-e2e@gmail.com`). It signs in, visits every tab, opens every "new" sheet, fails on any console/page error, and writes screenshots to `e2e-out/`.
+- **Browser smoke:** `npm run e2e -- http://localhost:5173/` (or the live URL) with `E2E_EMAIL` / `E2E_PASS` set. It signs in, visits every tab, opens every "new" sheet, fails on any console/page error, and writes screenshots to `e2e-out/`.
+  **There is no standing test account on purpose:** the admin is a member of every workspace, so any permanent test user would clutter the real workspace switcher forever. Create a disposable one with the SQL recipe in §9, run the test, then `delete from auth.users where email = '<throwaway>';` (workspaces and data cascade). Never point the smoke test at the owner's real account — it writes rows.
 - **Motion:** capture frames at 60/140/260/600 ms after a tap (see the pattern in `scripts/e2e-smoke.mjs`; a `burst()` helper that screenshots at offsets). Judge the frames, not just the end state.
 - **In a Claude Code sandbox:** headless Chromium is at `/opt/pw-browsers/chromium`, Playwright at `/opt/node22/lib/node_modules/playwright`; launch with `proxy: { server: process.env.HTTPS_PROXY }` + `args: ["--proxy-bypass-list=localhost;127.0.0.1"]`, run node with `NODE_USE_ENV_PROXY=1`, and relay `https://<ref>.supabase.co/**` through Node `fetch` via `page.route` (Chromium POSTs die on the intercepting proxy). `scripts/e2e-smoke.mjs` does all of this when `HTTPS_PROXY` is set.
 - **CI** (`.github/workflows/ci.yml`) runs typecheck, lint, test, build on every push/PR.
