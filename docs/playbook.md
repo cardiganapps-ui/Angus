@@ -114,7 +114,22 @@ Never write raw `cubic-bezier(...)` or `ms` literals — tokens only. Reduced mo
 - `ADMIN_EMAIL` (`src/config/admin.ts` ↔ `public.is_admin()` in migration 002) is implicitly a member of every workspace with full read/write, and sees the workspace switcher in the account sheet. Change both places together.
 - The active workspace is remembered per account in `localStorage["angus.workspace.<uid>"]`; `AppProvider` is keyed on it so a switch remounts the stores.
 - Email confirmation uses Supabase's built-in mailer, which is rate-limited to a handful of messages per hour **project-wide**. Hitting it makes sign-up fail outright (`over_email_send_rate_limit`) — no account is created. For more than two users, wire a custom SMTP (Resend) first, and/or turn confirmation off (`mailer_autoconfirm: true` via the Management API / dashboard → Authentication → Sign In / Providers → Email → Confirm email).
-- **Creating a confirmed account without sending any email** (rate limit hit, or seeding): insert directly, then verify by actually signing in. `auth.identities.email` is a GENERATED column — never insert it. `handle_new_user` fires on the insert and creates the workspace.
+- **Creating a confirmed account without sending any email** — preferred path, the Auth Admin API with the secret key (GoTrue builds the row itself, so nothing can be subtly malformed). `handle_new_user` still fires and creates the workspace; deleting the user cascades it away.
+
+  ```bash
+  set -a; . .env.local; set +a
+  API="https://xbpvqvlomrnuxydyqyqj.supabase.co"
+  curl -X POST "$API/auth/v1/admin/users" \
+    -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"email":"…","password":"…","email_confirm":true}'
+  # delete (cascades workspace + data):
+  curl -X DELETE "$API/auth/v1/admin/users/<id>" \
+    -H "apikey: $SUPABASE_SECRET_KEY" -H "Authorization: Bearer $SUPABASE_SECRET_KEY"
+  ```
+  Give each workspace a distinct name afterwards (`update public.workspaces set name = … where owner_id = …`) — the admin sees them all in one switcher. Careful in bash: `UID` is readonly, so capture the id into any other variable name.
+
+  **Fallback if no secret key is available** — insert directly, then verify by actually signing in. `auth.identities.email` is a GENERATED column — never insert it.
 
   ```sql
   do $$

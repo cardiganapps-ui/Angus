@@ -18,6 +18,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # `build` ends with check:bundle, which fails if a server-only secret
+      # (service-role key, management token) reached the browser bundle.
       - run: npm run build
         env:
           VITE_SUPABASE_URL: https://example.supabase.co
