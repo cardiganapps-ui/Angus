@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useApp } from "../context/AppContext";
 import { useSession } from "../context/SessionContext";
+import type { Route } from "../hooks/useNavigation";
 import { useToast } from "../context/ToastContext";
 import type { Practice, TextScale, ThemePreference, PaymentMethod } from "../types";
 import {
@@ -29,7 +30,7 @@ const SCALE_ITEMS = TEXT_SCALE_OPTIONS.map((o) => ({ k: o.value, l: o.label }));
 const FREQ_ITEMS = INSTALLMENT_FREQUENCY.map((o) => ({ k: o.value, l: o.label }));
 const DEPOSIT_ITEMS = DEPOSIT_PERCENT_OPTIONS.map((p) => ({ k: String(p), l: `${p}%` }));
 
-export function Settings() {
+export function Settings({ navigate }: { navigate: (r: Route) => void }) {
   const { settings, updateSettings, workspace, renameWorkspace, projects } = useApp();
   const session = useSession();
   const { showSuccess } = useToast();
@@ -205,6 +206,17 @@ export function Settings() {
             </button>
           )}
         </div>
+      </Section>
+
+      <Section title="Tus datos">
+        <Row
+          icon="download"
+          label="Exportar a CSV"
+          hint="Ventas, pagos y gastos por periodo, desde Reportes."
+          onClick={() => navigate("reports")}
+        />
+        <Row icon="repeat" label="Recurrentes" hint="Ingresos y gastos fijos." onClick={() => navigate("recurring")} />
+        <Row icon="target" label="Presupuestos" hint="Límites mensuales por categoría." onClick={() => navigate("budgets")} />
       </Section>
 
       <Section title="Acerca de">

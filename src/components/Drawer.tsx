@@ -38,7 +38,9 @@ const GROUPS: NavGroup[] = [
     title: "Dinero",
     items: [
       { route: "recurring", label: "Recurrentes", icon: "repeat" },
-      { route: "budgets", label: "Presupuestos", icon: "target" }
+      { route: "budgets", label: "Presupuestos", icon: "target" },
+      { route: "forecast", label: "Pronóstico", icon: "trending" },
+      { route: "reports", label: "Reportes", icon: "chart" }
     ]
   }
 ];

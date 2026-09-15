@@ -43,6 +43,17 @@ export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
           <span className="sk-bar" style={{ display: "block", height: 40, borderRadius: 100 }} />
         </div>
       )}
+      {(route === "forecast" || route === "reports") && (
+        <>
+          <div className="section">
+            <span className="sk-bar" style={{ display: "block", height: 96, borderRadius: 16 }} />
+          </div>
+          <div className="section">
+            <span className="sk-bar" style={{ display: "block", height: 180, borderRadius: 16 }} />
+          </div>
+          <SkeletonRows header count={3} dot={false} />
+        </>
+      )}
       {(route === "recurring" || route === "budgets") && (
         <>
           <div className="section">
@@ -57,7 +68,7 @@ export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
           <SkeletonRows header count={3} dot={false} />
         </>
       )}
-      {route !== "home" && route !== "settings" && route !== "recurring" && route !== "budgets" && (
+      {!["home", "settings", "recurring", "budgets", "forecast", "reports"].includes(route) && (
         <SkeletonRows
           header={route === "schedule"}
           count={5}
