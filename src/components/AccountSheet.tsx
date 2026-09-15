@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sheet } from "./Sheet";
 import { Icon } from "./Icon";
+import { ChangePasswordSheet } from "./ChangePasswordSheet";
 import type { Workspace } from "../hooks/useWorkspaces";
 import { isAdminEmail } from "../config/admin";
 
@@ -10,6 +11,7 @@ export function AccountSheet({
   workspaces,
   activeId,
   onSelectWorkspace,
+  onUpdatePassword,
   onSignOut,
   onClose
 }: {
@@ -17,11 +19,13 @@ export function AccountSheet({
   userId: string;
   workspaces: Workspace[];
   activeId: string | null;
+  onUpdatePassword: (password: string) => Promise<string | null>;
   onSelectWorkspace: (id: string) => void;
   onSignOut: () => Promise<void>;
   onClose: () => void;
 }) {
   const [signingOut, setSigningOut] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const admin = isAdminEmail(email);
   const showSwitcher = workspaces.length > 1;
 
@@ -84,6 +88,27 @@ export function AccountSheet({
             Los datos que ves y editas pertenecen al espacio seleccionado.
           </div>
         </div>
+      )}
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Seguridad</span>
+        </div>
+        <div className="card">
+          <button type="button" className="row-item" onClick={() => setPasswordOpen(true)}>
+            <div className="row-content">
+              <div className="row-title">Cambiar contraseña</div>
+              <div className="row-sub">Se aplica de inmediato, sin correo.</div>
+            </div>
+            <span className="row-chevron" aria-hidden="true">
+              <Icon name="chevron-right" size={16} />
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {passwordOpen && (
+        <ChangePasswordSheet updatePassword={onUpdatePassword} onClose={() => setPasswordOpen(false)} />
       )}
     </Sheet>
   );

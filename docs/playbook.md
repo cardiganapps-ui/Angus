@@ -110,7 +110,35 @@ Never write raw `cubic-bezier(...)` or `ms` literals — tokens only. Reduced mo
 - Membership roles: `owner`, `admin`, `member` in `workspace_members`. `is_workspace_member()` gates all data RLS; `is_workspace_admin()` gates membership/workspace edits.
 - `ADMIN_EMAIL` (`src/config/admin.ts` ↔ `public.is_admin()` in migration 002) is implicitly a member of every workspace with full read/write, and sees the workspace switcher in the account sheet. Change both places together.
 - The active workspace is remembered per account in `localStorage["angus.workspace.<uid>"]`; `AppProvider` is keyed on it so a switch remounts the stores.
-- Email confirmation uses Supabase's built-in mailer, which is rate-limited to a handful of messages per hour. For more than two users, wire a custom SMTP (Resend) first.
+- Email confirmation uses Supabase's built-in mailer, which is rate-limited to a handful of messages per hour **project-wide**. Hitting it makes sign-up fail outright (`over_email_send_rate_limit`) — no account is created. For more than two users, wire a custom SMTP (Resend) first, and/or turn confirmation off (`mailer_autoconfirm: true` via the Management API / dashboard → Authentication → Sign In / Providers → Email → Confirm email).
+- **Creating a confirmed account without sending any email** (rate limit hit, or seeding): insert directly, then verify by actually signing in. `auth.identities.email` is a GENERATED column — never insert it. `handle_new_user` fires on the insert and creates the workspace.
+
+  ```sql
+  do $$
+  declare uid uuid := gen_random_uuid();
+  begin
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_sso_user, is_anonymous
+    ) values (
+      '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
+      '<email>', extensions.crypt('<password>', extensions.gen_salt('bf')), now(),
+      '', '', '', '',
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('email', '<email>', 'email_verified', true),
+      now(), now(), false, false
+    );
+    insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (uid::text, uid,
+      jsonb_build_object('sub', uid::text, 'email', '<email>', 'email_verified', true, 'phone_verified', false),
+      'email', now(), now(), now());
+  end $$;
+  ```
+
+  Then prove it works (a row that looks right can still fail GoTrue's checks):
+  `curl -X POST "https://<ref>.supabase.co/auth/v1/token?grant_type=password" -H "apikey: <publishable>" -H "Content-Type: application/json" -d '{"email":"…","password":"…"}'` → expect HTTP 200 with an `access_token`. pgcrypto lives in the `extensions` schema, so qualify `crypt` / `gen_salt`.
+- Changing a password needs no email: `supabase.auth.updateUser({ password })` on a live session — that's what `ChangePasswordSheet` (account sheet → Seguridad) uses. Password **reset** from the sign-in screen would need email, so it isn't offered yet.
 
 ## 9. Gotchas (learned the hard way)
 

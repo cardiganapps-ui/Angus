@@ -8,6 +8,7 @@ export interface AuthState {
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string) => Promise<string | null>;
   sendMagicLink: (email: string) => Promise<string | null>;
+  updatePassword: (password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -44,9 +45,15 @@ export function useAuth(): AuthState {
     return error ? error.message : null;
   }, []);
 
+  // Uses the live session, so it works without any email round-trip.
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    return error ? error.message : null;
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
 
-  return { user: session?.user ?? null, loading, signIn, signUp, sendMagicLink, signOut };
+  return { user: session?.user ?? null, loading, signIn, signUp, sendMagicLink, updatePassword, signOut };
 }

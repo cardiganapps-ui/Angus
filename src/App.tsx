@@ -234,6 +234,7 @@ export default function App() {
             ws.setActive(id);
             setAccountOpen(false);
           }}
+          onUpdatePassword={auth.updatePassword}
           onSignOut={async () => {
             await auth.signOut();
             setAccountOpen(false);
