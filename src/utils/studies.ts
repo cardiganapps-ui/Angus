@@ -1,6 +1,7 @@
 import type { Assignment, Course, Expense, ScheduleEvent } from "../types";
 import { daysBetween, formatWithWeekday, relativeDayLabel } from "./dates";
 import { fromCents, sumMoney, toCents } from "./money";
+import { occurrencesBetween } from "./recurrence";
 import type { RankedRow } from "./insights";
 
 /** What each course cost her in a period, biggest first, with its share of the total. */
@@ -82,7 +83,14 @@ export function courseCost(course: Course, expenses: Expense[], sessions: Schedu
   else if (course.cost !== null) {
     if (course.paymentPlan === "single") total = course.cost;
     else if (course.paymentPlan === "monthly" && course.startDate && course.endDate) {
-      total = fromCents(toCents(course.cost) * monthsSpanned(course.startDate, course.endDate));
+      // The same count the tuition rule bills: one charge per anniversary
+      // of the start date, not one per calendar month touched.
+      const charges = occurrencesBetween(
+        { cadence: "monthly", interval: 1, startDate: course.startDate, endDate: course.endDate, active: true },
+        course.startDate,
+        course.endDate
+      ).length;
+      total = fromCents(toCents(course.cost) * charges);
     } else if (course.paymentPlan === "per_session" && sessions.length > 0) {
       total = fromCents(toCents(course.cost) * sessions.length);
     }

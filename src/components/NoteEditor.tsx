@@ -540,7 +540,25 @@ export function NoteEditor({
           attachmentTiles={src.tiles}
         />
 
-        <AttachmentStrip rows={src.rows} tiles={src.tiles} retryTile={src.retryTile} onDelete={(row) => attachments.remove(row)} />
+        <AttachmentStrip
+          rows={src.rows}
+          tiles={src.tiles}
+          retryTile={src.retryTile}
+          onDelete={async (row) => {
+            await attachments.remove(row);
+            // The body line that pointed at it would render as a broken image.
+            const cur = latest.current.content;
+            const next = cur
+              .split("\n")
+              .filter((line) => !line.includes(`attachment:${row.id}`))
+              .join("\n");
+            if (next !== cur) {
+              setContent(next);
+              editorRef.current?.setContent(next);
+              scheduleSave(latest.current.title, next);
+            }
+          }}
+        />
 
         <input
           ref={attachInputRef}

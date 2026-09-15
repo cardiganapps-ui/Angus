@@ -460,6 +460,19 @@
   padding: 0;
 }
 .mde-attach-delete:hover { background: var(--red); }
+.mde-attach-delete.is-armed {
+  width: auto;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--red);
+  font: 700 var(--text-xs) var(--font-d);
+  animation: mdeArmIn var(--dur-fast) var(--ease-out);
+}
+@keyframes mdeArmIn {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
 
 .mde-attach-lightbox {
   position: fixed;

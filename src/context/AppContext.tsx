@@ -45,6 +45,7 @@ import {
   saleStore
 } from "../data/rows";
 import { importLocalData } from "../lib/importLocal";
+import { deleteFile } from "../lib/files";
 import { pendingMaterializations } from "../utils/materialize";
 import { pendingOccurrences } from "../utils/series";
 import { makeId } from "../utils/id";
@@ -518,6 +519,14 @@ export function AppProvider({
           events.dropLocal((e) => e.seriesId === seriesId);
           attendance.dropLocal((a) => sessionIds.has(a.eventId));
         }
+        // Its material (and its tareas' entregas) would otherwise survive
+        // as rows nothing lists; a piece's photos stay with the piece.
+        const tareas = new Set(assignments.items.filter((a) => a.courseId === id).map((a) => a.id));
+        const material = documents.items.filter(
+          (d) => !d.projectId && (d.courseId === id || (d.assignmentId !== null && tareas.has(d.assignmentId)))
+        );
+        await Promise.all(material.filter((d) => d.r2Path).map((d) => deleteFile(d.r2Path as string).catch(() => false)));
+        if (material.length) await documents.removeMany(material.map((d) => d.id));
         await courses.remove(id);
         assignments.dropLocal((a) => a.courseId === id);
       },

@@ -79,7 +79,15 @@ export function matches(note: NoteLike | null | undefined, patient: PatientLike 
 export function buildExcerpt(note: NoteLike | null | undefined, terms: string[] | null | undefined, maxLen = 120): string {
   const content = note?.content || "";
   if (!content || !terms || terms.length === 0) return "";
-  const norm = normalize(content);
+  // Normalizing drops combining marks, so indexes drift by one per accent
+  // before the match; keep a map from normalized position → original.
+  let norm = "";
+  const origIndex: number[] = [];
+  for (let i = 0; i < content.length; i++) {
+    const piece = normalize(content[i]);
+    for (let k = 0; k < piece.length; k++) origIndex.push(i);
+    norm += piece;
+  }
   let firstAt = -1;
   for (const t of terms) {
     const idx = norm.indexOf(t);
@@ -87,7 +95,7 @@ export function buildExcerpt(note: NoteLike | null | undefined, terms: string[] 
   }
   if (firstAt < 0) return "";
   // Window: ~40 chars before, rest after.
-  const before = Math.max(0, firstAt - 40);
+  const before = Math.max(0, (origIndex[firstAt] ?? firstAt) - 40);
   const slice = content.slice(before, before + maxLen);
   return (before > 0 ? "…" : "") + slice + (before + maxLen < content.length ? "…" : "");
 }

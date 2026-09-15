@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { NoteAttachment } from "../../types";
 import type { TileState } from "../../hooks/useNoteAttachments";
 import { useEscape } from "../../hooks/useEscape";
@@ -22,6 +22,18 @@ export function AttachmentStrip({
   const [lightboxId, setLightboxId] = useState<string | null>(null);
   const closeLightbox = useCallback(() => setLightboxId(null), []);
   useEscape(lightboxId ? closeLightbox : null);
+  // Deleting purges the bytes, so the × arms a "Quitar" step first.
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (armTimer.current) clearTimeout(armTimer.current);
+  }, []);
+  const arm = (id: string) => {
+    haptic.tap();
+    setArmedId(id);
+    if (armTimer.current) clearTimeout(armTimer.current);
+    armTimer.current = setTimeout(() => setArmedId(null), 3500);
+  };
 
   if (lightboxId && !rows.some((r) => r.id === lightboxId)) setLightboxId(null);
   if (rows.length === 0) return null;
@@ -45,17 +57,25 @@ export function AttachmentStrip({
               ) : (
                 <div className="mde-attach-thumb mde-attach-loading" aria-hidden="true" />
               )}
-              <button
-                type="button"
-                className="mde-attach-delete btn-tap"
-                onClick={() => {
-                  haptic.warn();
-                  void onDelete(row);
-                }}
-                aria-label="Quitar imagen"
-              >
-                <Icon name="x" size={12} strokeWidth={2.6} />
-              </button>
+              {armedId === row.id ? (
+                <button
+                  type="button"
+                  className="mde-attach-delete is-armed btn-tap"
+                  onClick={() => {
+                    if (armTimer.current) clearTimeout(armTimer.current);
+                    setArmedId(null);
+                    haptic.warn();
+                    void onDelete(row);
+                  }}
+                  aria-label="Confirmar: quitar imagen"
+                >
+                  Quitar
+                </button>
+              ) : (
+                <button type="button" className="mde-attach-delete btn-tap" onClick={() => arm(row.id)} aria-label="Quitar imagen">
+                  <Icon name="x" size={12} strokeWidth={2.6} />
+                </button>
+              )}
             </div>
           );
         })}

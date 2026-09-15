@@ -69,6 +69,8 @@ export function useAttachmentSrc(noteId: string) {
   const rows = useMemo(() => noteAttachments.filter((a) => a.noteId === noteId), [noteAttachments, noteId]);
   const [tiles, setTiles] = useState<Record<string, TileState>>({});
   const inflight = useRef(new Set<string>());
+  // Bumped by retryTile so the effect below re-runs for the cleared tile.
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -95,9 +97,9 @@ export function useAttachmentSrc(noteId: string) {
     return () => {
       alive = false;
     };
-    // tiles intentionally omitted: only newly seen rows resolve.
+    // tiles intentionally omitted: only newly seen (or retried) rows resolve.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows]);
+  }, [rows, retryNonce]);
 
   const retryTile = useCallback((id: string) => {
     setTiles((prev) => {
@@ -106,6 +108,7 @@ export function useAttachmentSrc(noteId: string) {
       delete next[id];
       return next;
     });
+    setRetryNonce((n) => n + 1);
   }, []);
 
   return { rows, tiles, retryTile };

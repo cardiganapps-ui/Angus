@@ -74,6 +74,8 @@ describe("courseCost", () => {
     expect(courseCost(course({ paymentPlan: "single", cost: 12000 }), paid)).toEqual({ total: 12000, paid: 3500, remaining: 8500 });
     expect(monthsSpanned("2026-09-01", "2026-12-15")).toBe(4);
     expect(courseCost(course(), paid)).toEqual({ total: 12000, paid: 3500, remaining: 8500 });
+    // Charges follow the start-date anniversary like the tuition rule: 09-15, 10-15, 11-15 (12-15 > end).
+    expect(courseCost(course({ startDate: "2026-09-15", endDate: "2026-12-01" }), []).total).toBe(9000);
     expect(courseCost(course({ paymentPlan: "per_session", cost: 250 }), [], [session("2026-09-01"), session("2026-09-08")])).toEqual({
       total: 500,
       paid: 0,

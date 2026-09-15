@@ -74,6 +74,12 @@ describe("buildExcerpt", () => {
     expect(ex).toContain("ANSIEDAD");
     expect(ex.length).toBeLessThanOrEqual(122); // 120 + leading/trailing ellipsis
   });
+  it("keeps the window aligned when accents precede the match", () => {
+    // 60 accented chars before the term would shift a naive slice by 60.
+    const content = "á".repeat(60) + " La sesión sobre el color fue útil.";
+    const ex = buildExcerpt({ content }, ["sesion"]);
+    expect(ex).toContain("sesión sobre el color");
+  });
   it("returns empty when no match", () => {
     expect(buildExcerpt({ content: "hello" }, ["xyz"])).toBe("");
   });

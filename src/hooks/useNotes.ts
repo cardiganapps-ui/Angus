@@ -21,6 +21,8 @@ export interface NoteLinks {
   projectId?: string | null;
 }
 
+const inflightSessionNotes = new Map<string, Promise<Note | null>>();
+
 export function useNotes() {
   const {
     workspaceId,
@@ -64,9 +66,14 @@ export function useNotes() {
     async (session: ScheduleEvent): Promise<Note | null> => {
       const existing = notes.find((n) => n.eventId === session.id);
       if (existing) return existing;
+      // A second tap before the first insert lands must not create a twin.
+      const pending = inflightSessionNotes.get(session.id);
+      if (pending) return pending;
       const tpl = NOTE_TEMPLATES.find((t) => t.id === "class");
       const applied = tpl ? applyTemplate(tpl, formatWithWeekday(session.date)) : { title: "", content: "" };
-      return createNote({ ...applied, courseId: session.courseId, eventId: session.id });
+      const p = createNote({ ...applied, courseId: session.courseId, eventId: session.id }).finally(() => inflightSessionNotes.delete(session.id));
+      inflightSessionNotes.set(session.id, p);
+      return p;
     },
     [notes, createNote]
   );
@@ -86,19 +93,21 @@ export function useNotes() {
 
   /** Persists title + content; throws when the server refused (the editor keeps its dirty state). */
   const saveNote = useCallback(
-    async (id: string, data: { title: string; content: string }) => {
+    async (id: string, data: { title: string; content: string }, debounceSeconds = 60) => {
       const ok = await updateNote(id, { ...data, updatedAt: new Date().toISOString() });
       if (!ok) throw new Error("save_failed");
-      void snapshot(id, data.title, data.content);
+      void snapshot(id, data.title, data.content, debounceSeconds);
     },
     [updateNote, snapshot]
   );
 
-  /** Keeps the pre-restore text as its own version, then saves the restored one. */
+  /* Keeps the pre-restore text as its own version, then saves the
+     restored one as another. Both snapshots run without the debounce:
+     otherwise the second would collapse into (and overwrite) the first. */
   const restoreNote = useCallback(
     async (id: string, current: { title: string; content: string }, restored: { title: string; content: string }) => {
       await snapshot(id, current.title, current.content, 0);
-      await saveNote(id, restored);
+      await saveNote(id, restored, 0);
     },
     [snapshot, saveNote]
   );

@@ -41,7 +41,6 @@ export function CourseSheet({
     removeCourse,
     addSeries,
     updateSeries,
-    removeSeries,
     updateEvent,
     removeEvents,
     addRule,
@@ -149,7 +148,12 @@ export function CourseSheet({
         for (const occ of keep) void updateEvent(occ.id, rowPatch);
         if (drop.length) void removeEvents(drop.map((e) => e.id));
       } else if (parent && !wantsSeries) {
-        void removeSeries(parent.id);
+        // Stop scheduling without touching the past: the series ends
+        // today, only future occurrences go, and attended sessions (with
+        // their "Falté" flags and apuntes) stay on the course.
+        void updateSeries(parent.id, { endDate: today });
+        const future = events.filter((e) => e.seriesId === parent.id && e.date > today);
+        if (future.length) void removeEvents(future.map((e) => e.id));
         void updateCourse(course.id, { seriesId: null });
       } else if (!parent && wantsSeries) {
         const seriesId = makeId();
@@ -208,7 +212,7 @@ export function CourseSheet({
             submitting={submitting}
             onSave={() => void handleSave()}
             onDelete={course ? handleDelete : undefined}
-            confirmText="¿Eliminar este curso? Se quitan sus sesiones agendadas; tus gastos, notas y piezas se conservan."
+            confirmText="¿Eliminar este curso? Se quitan sus sesiones y su material; tus gastos, notas y piezas se conservan."
           />
         }
       >
