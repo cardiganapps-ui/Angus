@@ -8,6 +8,8 @@ import {
   generateInstallmentSchedule,
   clientBalances,
   expoEconomics,
+  expoMargins,
+  projectMargins,
   installmentPlan,
   overdueInstallments,
   projectEconomics,
@@ -314,6 +316,45 @@ describe("economics — was it worth it?", () => {
       margin: 0,
       cash: 0
     });
+  });
+});
+
+describe("margins per piece and per expo", () => {
+  const sales = [
+    { ...sale("s1", 8000, "delivered"), projectId: "p1" },
+    { ...sale("s2", 1000, "confirmed"), projectId: "p2", eventId: "e1" },
+    { ...sale("s3", 4000, "cancelled"), projectId: "p4", eventId: "e2" }
+  ];
+  const payments = [payment("pay1", "s1", 8000)];
+  const expenses = [
+    { ...expense("x1", 2000, "materials", "2026-09-02"), projectId: "p1" },
+    { ...expense("x2", 3500, "materials", "2026-09-03"), projectId: "p3" },
+    { ...expense("x3", 900, "expo", "2026-09-04"), eventId: "e1" }
+  ];
+
+  it("keeps only pieces with a linked sale or expense, best margin first", () => {
+    const rows = projectMargins(["p1", "p2", "p3", "p5"], sales, payments, expenses);
+    expect(rows.map((r) => [r.id, r.economics.margin])).toEqual([
+      ["p1", 6000],
+      ["p2", 1000],
+      ["p3", -3500]
+    ]);
+    expect(rows[0].economics).toMatchObject({ revenue: 8000, spent: 2000, collected: 8000 });
+    expect(rows[2].economics).toMatchObject({ revenue: 0, spent: 3500 });
+  });
+
+  it("a piece linked only to a cancelled sale still shows, at zero", () => {
+    const rows = projectMargins(["p4"], sales, payments, expenses);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].economics).toMatchObject({ revenue: 0, spent: 0, margin: 0 });
+  });
+
+  it("expos keep the caller's order and can come out negative", () => {
+    const rows = expoMargins(["e2", "e1", "e3"], sales, payments, expenses);
+    expect(rows.map((r) => [r.id, r.economics.margin])).toEqual([
+      ["e2", 0],
+      ["e1", 100]
+    ]);
   });
 });
 

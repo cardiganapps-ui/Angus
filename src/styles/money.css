@@ -204,6 +204,58 @@
   flex-shrink: 0;
 }
 
-/* The segmented Ventas | Gastos switcher sits in its own band above
-   the list, matching the .section horizontal rhythm. */
+/* The segmented Ventas | Gastos | Balance switcher sits in its own band
+   above the list, matching the .section horizontal rhythm. */
 .money-switch { padding: 12px 16px 0; }
+
+/* ── BALANCE (¿valió la pena?) ──
+   Margin is the one figure here that can go either way, so it gets its
+   own semantic pair instead of borrowing .amount-owe / .amount-paid,
+   which mean "still owed" and "already received". */
+.money-margin-pos { color: var(--green); }
+.money-margin-neg { color: var(--red); }
+
+/* Economics rows are read-only: no pointer, no hover lift — the tap
+   affordance is reserved for rows that actually go somewhere. */
+.row-item.money-econ-row { cursor: default; }
+.row-item.money-econ-row:active { background: transparent; }
+@media (hover: hover) {
+  .row-item.money-econ-row:hover { background: transparent; }
+}
+/* "Vendido X · Invertido Y" — two figures on one line, tabular so the
+   column doesn't jitter between rows. Wraps rather than truncating,
+   because the numbers are the point. */
+.money-econ-sub {
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+/* A settled client: green, but paired with a check so status is never
+   carried by color alone. */
+.badge.money-settled { gap: 4px; }
+
+/* Contact row where money took the right-hand slot: the relationship
+   badge moves onto the sub-line next to the detail text. */
+.row-sub-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.row-sub-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The FAB floats into the band .page reserves for the tab pill, so the
+   last row of a read-only list needs its own clearance. */
+.money-balance-tail { height: 48px; }
+
+/* A read-only economics band inside an editing sheet sits tighter than
+   a standalone panel — it's context above the form, not a section. */
+.money-panel--compact {
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}

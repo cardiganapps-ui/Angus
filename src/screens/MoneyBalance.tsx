@@ -1,0 +1,216 @@
+import { useState, type CSSProperties } from "react";
+import type { Contact, Expense, Payment, Project, Sale, ScheduleEvent } from "../types";
+import {
+  clientBalances,
+  expoMargins,
+  projectMargins,
+  type EconomicsRow
+} from "../utils/accounting";
+import { formatMXN, formatMXNShort, formatMXNShortSigned } from "../utils/money";
+import { formatShort } from "../utils/dates";
+import { EmptyState } from "../components/EmptyState";
+import { Icon } from "../components/Icon";
+import { ClientBalanceSheet } from "../components/ClientBalanceSheet";
+
+const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
+
+/** How many pieces show before "Ver todas" — enough to read at a glance. */
+const PIECE_PREVIEW = 8;
+
+const marginClass = (margin: number) =>
+  margin < 0 ? "money-margin-neg" : margin > 0 ? "money-margin-pos" : "";
+
+/* ── Balance ──
+   The third money question: was it worth it? Per client, per piece, per
+   expo. Everything here is derived by utils/accounting — this file only
+   decides what to show and in which order. */
+export function BalanceView({
+  sales,
+  payments,
+  expenses,
+  contacts,
+  projects,
+  events
+}: {
+  sales: Sale[];
+  payments: Payment[];
+  expenses: Expense[];
+  contacts: Contact[];
+  projects: Project[];
+  events: ScheduleEvent[];
+}) {
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [allPieces, setAllPieces] = useState(false);
+
+  const clients = clientBalances(sales, payments);
+
+  const pieces = projectMargins(
+    projects.map((p) => p.id),
+    sales,
+    payments,
+    expenses
+  );
+  const piecesById = new Map(projects.map((p) => [p.id, p]));
+
+  const expoEvents = events
+    .filter((e) => e.kind === "expo")
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  const expos = expoMargins(
+    expoEvents.map((e) => e.id),
+    sales,
+    payments,
+    expenses
+  );
+  const exposById = new Map(expoEvents.map((e) => [e.id, e]));
+
+  if (clients.length === 0 && pieces.length === 0 && expos.length === 0) {
+    return (
+      <div className="section">
+        <div className="card">
+          <EmptyState
+            icon="banknote"
+            title="Todavía no hay nada que comparar"
+            body="Registra ventas y gastos, y enlázalos a una pieza o a una expo: aquí verás quién te debe y qué tanto te dejó cada cosa."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const shownPieces = allPieces ? pieces : pieces.slice(0, PIECE_PREVIEW);
+
+  return (
+    <>
+      {clients.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <span className="section-title">Clientes con saldo</span>
+          </div>
+          <div className="card">
+            {clients.map((client, i) => {
+              const contact = contacts.find((c) => c.id === client.contactId);
+              return (
+                <button
+                  key={client.contactId}
+                  type="button"
+                  className="row-item list-entry-stagger"
+                  style={stagger(i)}
+                  onClick={() => setClientId(client.contactId)}
+                >
+                  <div className="row-content">
+                    <div className="row-title">{contact?.name ?? "Cliente sin nombre"}</div>
+                    <div className="row-sub">
+                      {client.saleCount} {client.saleCount === 1 ? "venta" : "ventas"} ·{" "}
+                      {formatMXNShort(client.committed)}
+                    </div>
+                  </div>
+                  {client.owed > 0 ? (
+                    <div className="money-row-right">
+                      <span className="row-amount amount-owe">{formatMXN(client.owed)}</span>
+                      <span className="money-submeta">
+                        {formatMXNShort(client.collected)} de {formatMXNShort(client.committed)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="badge badge-green money-settled">
+                      <Icon name="check" size={12} strokeWidth={2.6} />
+                      Al corriente
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {pieces.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <span className="section-title">Margen por pieza</span>
+            {pieces.length > PIECE_PREVIEW && (
+              <button type="button" className="see-all" onClick={() => setAllPieces(!allPieces)}>
+                {allPieces ? "Ver menos" : `Ver todas (${pieces.length})`}
+              </button>
+            )}
+          </div>
+          <div className="card">
+            {shownPieces.map((row, i) => (
+              <EconomicsRowItem
+                key={row.id}
+                row={row}
+                index={i}
+                title={piecesById.get(row.id)?.title ?? "Pieza"}
+                spentLabel="Invertido"
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {expos.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <span className="section-title">Expos</span>
+          </div>
+          <div className="card">
+            {expos.map((row, i) => {
+              const event = exposById.get(row.id);
+              return (
+                <EconomicsRowItem
+                  key={row.id}
+                  row={row}
+                  index={i}
+                  title={event?.title ?? "Expo"}
+                  meta={event ? formatShort(event.date) : undefined}
+                  spentLabel="Costó"
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Every row here is read-only data, so the floating FAB would sit
+          right on top of the last margin figure. */}
+      <div className="money-balance-tail" aria-hidden="true" />
+
+      {clientId && (
+        <ClientBalanceSheet contactId={clientId} onClose={() => setClientId(null)} />
+      )}
+    </>
+  );
+}
+
+function EconomicsRowItem({
+  row,
+  index,
+  title,
+  meta,
+  spentLabel
+}: {
+  row: EconomicsRow;
+  index: number;
+  title: string;
+  meta?: string;
+  spentLabel: string;
+}) {
+  const { margin, revenue, spent } = row.economics;
+  return (
+    <div className="row-item money-econ-row list-entry-stagger" style={stagger(index)}>
+      <div className="row-content">
+        <div className="row-title">{title}</div>
+        <div className="row-sub money-econ-sub">
+          {meta ? `${meta} · ` : ""}
+          Vendido {formatMXNShort(revenue)} · {spentLabel} {formatMXNShort(spent)}
+        </div>
+      </div>
+      <div className="money-row-right">
+        <span className={`row-amount ${marginClass(margin)}`}>
+          {formatMXNShortSigned(margin)}
+        </span>
+        <span className="money-submeta">Margen</span>
+      </div>
+    </div>
+  );
+}

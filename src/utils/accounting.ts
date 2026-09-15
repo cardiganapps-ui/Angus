@@ -289,6 +289,54 @@ export function expoEconomics(
   );
 }
 
+export interface EconomicsRow {
+  /** The project / event id the economics belong to. */
+  id: string;
+  economics: Economics;
+}
+
+function linkedIds(
+  sales: Sale[],
+  expenses: Expense[],
+  key: "projectId" | "eventId"
+): Set<string> {
+  const ids = new Set<string>();
+  for (const sale of sales) if (sale[key]) ids.add(sale[key]);
+  for (const expense of expenses) if (expense[key]) ids.add(expense[key]);
+  return ids;
+}
+
+/* Only pieces with money attached are judged: a piece nobody bought and
+   nothing was spent on has no margin to read, and listing it as "$0"
+   would bury the ones that do. Best margin first, id as the tie-break so
+   the order is stable across renders. */
+export function projectMargins(
+  projectIds: string[],
+  sales: Sale[],
+  payments: Payment[],
+  expenses: Expense[]
+): EconomicsRow[] {
+  const linked = linkedIds(sales, expenses, "projectId");
+  return projectIds
+    .filter((id) => linked.has(id))
+    .map((id) => ({ id, economics: projectEconomics(id, sales, payments, expenses) }))
+    .sort((a, b) => b.economics.margin - a.economics.margin || a.id.localeCompare(b.id));
+}
+
+/* Same filter for expos, but the caller's order is preserved — expos read
+   chronologically (most recent first), not by how well they did. */
+export function expoMargins(
+  eventIds: string[],
+  sales: Sale[],
+  payments: Payment[],
+  expenses: Expense[]
+): EconomicsRow[] {
+  const linked = linkedIds(sales, expenses, "eventId");
+  return eventIds
+    .filter((id) => linked.has(id))
+    .map((id) => ({ id, economics: expoEconomics(id, sales, payments, expenses) }));
+}
+
 export interface ClientBalance {
   contactId: string;
   committed: number;

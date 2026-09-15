@@ -9,6 +9,8 @@ import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
+import { projectMargins } from "../utils/accounting";
+import { formatMXNShort, formatMXNShortSigned } from "../utils/money";
 import { haptic } from "../lib/haptics";
 
 const STATUS_ITEMS = PROJECT_STATUS.map((s) => ({ k: s.value, l: s.label }));
@@ -20,7 +22,8 @@ export function ProjectSheet({
   project: Project | null;
   onClose: () => void;
 }) {
-  const { addProject, updateProject, removeProject, contacts } = useApp();
+  const { addProject, updateProject, removeProject, contacts, sales, payments, expenses } =
+    useApp();
   const { showSuccess } = useToast();
   const [title, setTitle] = useState(project?.title ?? "");
   const [medium, setMedium] = useState(project?.medium ?? "");
@@ -37,6 +40,11 @@ export function ProjectSheet({
   const contactOptions = [...contacts]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => ({ value: c.id, label: c.name }));
+  // Only for a piece that already has money attached — a brand-new one
+  // has nothing to report, and an empty band would just add weight.
+  const economics = project
+    ? projectMargins([project.id], sales, payments, expenses)[0]?.economics
+    : undefined;
 
   function handleSave() {
     if (!canSave) return;
@@ -83,6 +91,35 @@ export function ProjectSheet({
         />
       }
     >
+      {economics && (
+        <div className="money-panel money-panel--compact">
+          <div className="money-stats" style={{ marginBottom: 0 }}>
+            <div>
+              <div className="money-stat-label">Vendido</div>
+              <div className="money-stat-value">{formatMXNShort(economics.revenue)}</div>
+            </div>
+            <div>
+              <div className="money-stat-label">Invertido</div>
+              <div className="money-stat-value">{formatMXNShort(economics.spent)}</div>
+            </div>
+            <div>
+              <div className="money-stat-label">Margen</div>
+              <div
+                className={`money-stat-value ${
+                  economics.margin < 0
+                    ? "money-margin-neg"
+                    : economics.margin > 0
+                      ? "money-margin-pos"
+                      : ""
+                }`}
+              >
+                {formatMXNShortSigned(economics.margin)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="input-group">
         <label className="input-label" htmlFor="project-title">Título</label>
         <input

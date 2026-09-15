@@ -24,8 +24,9 @@ import { Icon } from "../components/Icon";
 import { SaleSheet } from "../components/SaleSheet";
 import { SaleDetailSheet } from "../components/SaleDetailSheet";
 import { ExpenseSheet } from "../components/ExpenseSheet";
+import { BalanceView } from "./MoneyBalance";
 
-type View = "sales" | "expenses";
+type View = "sales" | "expenses" | "balance";
 
 /* Which half of the tab she was last on. Module scope, not localStorage:
    the tab unmounts on every navigation, but coming back within the same
@@ -34,13 +35,14 @@ let lastView: View = "sales";
 
 const VIEW_ITEMS = [
   { k: "sales", l: "Ventas" },
-  { k: "expenses", l: "Gastos" }
+  { k: "expenses", l: "Gastos" },
+  { k: "balance", l: "Balance" }
 ];
 
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
 
 export function Money() {
-  const { sales, payments, expenses, contacts } = useApp();
+  const { sales, payments, expenses, contacts, projects, events } = useApp();
   const [view, setView] = useState<View>(lastView);
   const [editingSale, setEditingSale] = useState<Sale | "new" | null>(null);
   const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
@@ -95,14 +97,23 @@ export function Money() {
           contacts={contacts}
           onSelect={setDetailSaleId}
         />
-      ) : (
+      ) : view === "expenses" ? (
         <ExpensesView expenses={expenses} month={month} onSelect={setEditingExpense} />
+      ) : (
+        <BalanceView
+          sales={sales}
+          payments={payments}
+          expenses={expenses}
+          contacts={contacts}
+          projects={projects}
+          events={events}
+        />
       )}
 
       <button
         className="fab"
-        onClick={() => (view === "sales" ? setEditingSale("new") : setEditingExpense("new"))}
-        aria-label={view === "sales" ? "Nueva venta" : "Nuevo gasto"}
+        onClick={() => (view === "expenses" ? setEditingExpense("new") : setEditingSale("new"))}
+        aria-label={view === "expenses" ? "Nuevo gasto" : "Nueva venta"}
       >
         <Icon name="plus" size={24} strokeWidth={2.2} />
       </button>
