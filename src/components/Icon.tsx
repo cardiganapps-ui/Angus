@@ -44,7 +44,11 @@ export type IconName =
   | "list"
   | "history"
   | "eye"
-  | "copy";
+  | "copy"
+  | "file"
+  | "image"
+  | "upload"
+  | "paperclip";
 
 const PATHS: Record<IconName, string> = {
   home: "M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -99,7 +103,11 @@ const PATHS: Record<IconName, string> = {
   list: "M4 7h16M8 12h12M8 17h8",
   history: "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l4 2",
   eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
-  copy: "M9 9h11v11H9zM5 15H4V4h11v1"
+  copy: "M9 9h11v11H9zM5 15H4V4h11v1",
+  file: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6",
+  image: "M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 16l-5-5-9 10",
+  upload: "M12 16V4m0 0L8 8m4-4 4 4M4 20h16",
+  paperclip: "M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5L11 17.5a2 2 0 0 1-3-3l7-7"
 };
 
 export function Icon({

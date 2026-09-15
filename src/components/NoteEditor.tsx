@@ -12,6 +12,10 @@ import { NoteOutline } from "./notes/NoteOutline";
 import { NoteLinkChip } from "./notes/NoteLinkChip";
 import { NoteTagPicker } from "./notes/NoteTagPicker";
 import { VersionHistorySheet } from "./notes/VersionHistorySheet";
+import { AttachmentStrip } from "./notes/AttachmentStrip";
+import { CoverPickerSheet } from "./notes/CoverPickerSheet";
+import { useAttachmentSrc, useNoteAttachments } from "../hooks/useNoteAttachments";
+import { isImageMime, storageErrorMessage } from "../lib/files";
 import { useNoteAutosave } from "../hooks/useNoteAutosave";
 import { useNoteOutline } from "../hooks/useNoteOutline";
 import { extractOutline } from "../utils/outline";
@@ -56,8 +60,10 @@ export function NoteEditor({
   /** The row she tapped, so the surface grows out of it. */
   originRect?: DOMRect | null;
 }) {
-  const { notes } = useApp();
+  const { notes, updateNote } = useApp();
   const { saveNote, restoreNote, togglePin, linkNote, deleteNote, noteTags, noteTagLinks, upsertTag, linkTag, unlinkTag } = useNotes();
+  const attachments = useNoteAttachments();
+  const src = useAttachmentSrc(note.id);
   const { showToast, showSuccess } = useToast();
   // The live row (pin, links and tags change underneath the editor).
   const live = notes.find((n) => n.id === note.id) ?? note;
@@ -74,7 +80,11 @@ export function NoteEditor({
   const [tagsOpen, setTagsOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
   const [readingMode, setReadingMode] = useState(false);
+  const [attachBusy, setAttachBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const attachInputRef = useRef<HTMLInputElement>(null);
   const [flash, setFlash] = useState("");
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -119,8 +129,65 @@ export function NoteEditor({
     }, 240);
   }, [doClose]);
 
-  const anySheet = outlineOpen || historyOpen || tagsOpen || linkOpen || confirmDelete;
+  const anySheet = outlineOpen || historyOpen || tagsOpen || linkOpen || confirmDelete || coverOpen;
   useEscape(anySheet || menuOpen ? null : handleClose);
+
+  /* ── Images ──
+     Three ways in — the paperclip, a drop, a paste — all land in
+     uploadImage: bytes to R2, a row, then a markdown reference at
+     the caret so the body keeps the link. Ten per action at most. */
+  const uploadImage = useCallback(
+    async (file: File) => {
+      if (!isImageMime(file.type) && !/\.(heic|heif)$/i.test(file.name)) {
+        showToast("Solo se pueden adjuntar imágenes a una nota.", "error");
+        return;
+      }
+      setAttachBusy(true);
+      try {
+        const row = await attachments.upload(note.id, file);
+        editorRef.current?.insertText(`\n![](attachment:${row.id})\n`);
+        haptic.success();
+      } catch (err) {
+        haptic.warn();
+        showToast(storageErrorMessage(err), "error");
+      } finally {
+        setAttachBusy(false);
+      }
+    },
+    [attachments, note.id, showToast]
+  );
+  const uploadMany = useCallback(
+    async (files: File[]) => {
+      if (files.length > 10) showToast("Máximo 10 imágenes por vez; se adjuntan las primeras 10.", "warning");
+      for (const f of files.slice(0, 10)) await uploadImage(f);
+    },
+    [uploadImage, showToast]
+  );
+  const onPaperclipClick = useCallback(() => {
+    if (attachBusy || readingMode) return;
+    attachInputRef.current?.click();
+  }, [attachBusy, readingMode]);
+  const onScrollPaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      if (readingMode) return;
+      const items = e.clipboardData?.items ? Array.from(e.clipboardData.items) : [];
+      const file = items.find((it) => it.kind === "file" && /^image\//.test(it.type))?.getAsFile();
+      if (file) {
+        e.preventDefault();
+        void uploadImage(file);
+      }
+    },
+    [readingMode, uploadImage]
+  );
+  const onScrollDrop = useCallback(
+    (e: React.DragEvent) => {
+      if (readingMode) return;
+      e.preventDefault();
+      setDragOver(false);
+      void uploadMany(Array.from(e.dataTransfer?.files ?? []).filter((f) => /^image\//.test(f.type)));
+    },
+    [readingMode, uploadMany]
+  );
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTitle(e.target.value);
@@ -318,6 +385,7 @@ export function NoteEditor({
                 <MenuItem icon="tag" label="Etiquetas" onClick={() => { setMenuOpen(false); setTagsOpen(true); }} />
                 <MenuItem icon="link" label="Vincular" onClick={() => { setMenuOpen(false); setLinkOpen(true); }} />
                 <MenuItem icon="history" label="Historial" onClick={() => { setMenuOpen(false); setHistoryOpen(true); }} />
+                <MenuItem icon="image" label={live.coverAttachmentId ? "Cambiar portada" : "Poner portada"} onClick={() => { setMenuOpen(false); setCoverOpen(true); }} />
                 <MenuItem icon="eye" label={readingMode ? "Salir de lectura" : "Modo lectura"} onClick={() => { setMenuOpen(false); setReadingMode((v) => !v); }} />
                 <div className="mde-menu-sep" />
                 <MenuItem icon="copy" label="Copiar texto" onClick={() => void copyText(title ? `${title}\n\n${toPlainText(content)}` : toPlainText(content))} />
@@ -331,7 +399,7 @@ export function NoteEditor({
         </div>
       </div>
 
-      {!readingMode && <FormatToolbar active={activeFormats} onInline={onInlineFormat} onBlock={onBlockFormat} />}
+      {!readingMode && <FormatToolbar active={activeFormats} onInline={onInlineFormat} onBlock={onBlockFormat} onAttachClick={onPaperclipClick} disabled={attachBusy} />}
 
       {findOpen && (
         <FindInNote
@@ -349,8 +417,39 @@ export function NoteEditor({
         <NoteLinkChip note={live} open={linkOpen} onOpen={() => setLinkOpen(true)} onClose={() => setLinkOpen(false)} onChange={handleLinkChange} readOnly={readingMode} />
       </div>
 
-      <div ref={scrollRef} className="mde-scroll scroll-bounce">
+      <div
+        ref={scrollRef}
+        className={"mde-scroll scroll-bounce" + (dragOver ? " is-drag-over" : "")}
+        onPaste={onScrollPaste}
+        onDrop={onScrollDrop}
+        onDragOver={(e) => {
+          if (!readingMode && e.dataTransfer?.types?.includes("Files")) {
+            e.preventDefault();
+            setDragOver(true);
+          }
+        }}
+        onDragLeave={(e) => {
+          if (e.currentTarget === e.target) setDragOver(false);
+        }}
+      >
         <div className="mde-date">{dateStr}</div>
+
+        {live.coverAttachmentId &&
+          (() => {
+            const tile = src.tiles[live.coverAttachmentId];
+            const failed = !tile?.url && tile?.failed;
+            return (
+              <button
+                type="button"
+                className={"mde-cover btn-tap" + (tile?.url ? "" : " is-loading") + (failed ? " is-failed" : "")}
+                onClick={() => (failed ? src.retryTile(live.coverAttachmentId as string) : setCoverOpen(true))}
+                aria-label={failed ? "Reintentar" : "Cambiar portada"}
+                aria-busy={!tile?.url && !failed}
+              >
+                {tile?.url ? <img src={tile.url} alt="" /> : failed ? <span className="mde-cover-retry" aria-hidden="true">↻</span> : <span className="mde-cover-shimmer" aria-hidden="true" />}
+              </button>
+            );
+          })()}
 
         {templatesMounted && (
           <div className={"mde-templates" + (isBrandNewEmpty ? "" : " is-collapsed")} aria-hidden={!isBrandNewEmpty}>
@@ -394,7 +493,29 @@ export function NoteEditor({
           onRequestFind={() => setFindOpen(true)}
           placeholder="Escribe aquí… Usa / para insertar un título o una lista."
           ariaLabel="Cuerpo de la nota"
+          attachmentTiles={src.tiles}
         />
+
+        <AttachmentStrip rows={src.rows} tiles={src.tiles} retryTile={src.retryTile} onDelete={(row) => attachments.remove(row)} />
+
+        <input
+          ref={attachInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            void uploadMany(files);
+          }}
+        />
+
+        {dragOver && (
+          <div className="mde-drop-overlay" aria-hidden="true">
+            <div className="mde-drop-overlay-inner">Suelta la imagen aquí</div>
+          </div>
+        )}
       </div>
 
       {wordCount > 0 && (
@@ -429,6 +550,18 @@ export function NoteEditor({
       )}
 
       {historyOpen && <VersionHistorySheet note={live} onClose={() => setHistoryOpen(false)} onRestore={handleRestore} />}
+
+      {coverOpen && (
+        <CoverPickerSheet
+          rows={src.rows}
+          tiles={src.tiles}
+          currentCoverId={live.coverAttachmentId}
+          onPick={(id) => updateNote(note.id, { coverAttachmentId: id })}
+          onClear={() => updateNote(note.id, { coverAttachmentId: null })}
+          onRequestAttach={onPaperclipClick}
+          onClose={() => setCoverOpen(false)}
+        />
+      )}
 
       {confirmDelete && (
         <Sheet

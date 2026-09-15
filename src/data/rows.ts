@@ -2,7 +2,9 @@ import type {
   Assignment,
   Attendance,
   ClassEnrollment,
+  Document,
   Note,
+  NoteAttachment,
   NoteTag,
   NoteTagLink,
   ClassGroup,
@@ -370,6 +372,7 @@ export interface NoteRow {
   event_id: string | null;
   assignment_id: string | null;
   project_id: string | null;
+  cover_attachment_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -385,6 +388,7 @@ export const noteStore: CloudStoreConfig<Note, NoteRow> = {
     eventId: r.event_id,
     assignmentId: r.assignment_id,
     projectId: r.project_id,
+    coverAttachmentId: r.cover_attachment_id ?? null,
     createdAt: r.created_at.slice(0, 10),
     updatedAt: r.updated_at
   }),
@@ -400,6 +404,99 @@ export const noteStore: CloudStoreConfig<Note, NoteRow> = {
     if (n.eventId !== undefined) row.event_id = n.eventId;
     if (n.assignmentId !== undefined) row.assignment_id = n.assignmentId;
     if (n.projectId !== undefined) row.project_id = n.projectId;
+    if (n.coverAttachmentId !== undefined) row.cover_attachment_id = n.coverAttachmentId;
+    return row;
+  }
+};
+
+/* ── Material ── */
+
+export interface DocumentRow {
+  id: string;
+  kind: Document["kind"];
+  name: string;
+  r2_path: string | null;
+  url: string | null;
+  mime: string;
+  size_bytes: number | null;
+  width: number | null;
+  height: number | null;
+  course_id: string | null;
+  assignment_id: string | null;
+  project_id: string | null;
+  event_id: string | null;
+  created_at: string;
+}
+
+export const documentStore: CloudStoreConfig<Document, DocumentRow> = {
+  table: "documents",
+  fromRow: (r) => ({
+    id: r.id,
+    kind: r.kind,
+    name: r.name,
+    r2Path: r.r2_path,
+    url: r.url,
+    mime: r.mime,
+    sizeBytes: r.size_bytes,
+    width: r.width,
+    height: r.height,
+    courseId: r.course_id,
+    assignmentId: r.assignment_id,
+    projectId: r.project_id,
+    eventId: r.event_id,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (d) => {
+    const row: Partial<DocumentRow> = {};
+    if (d.id !== undefined) row.id = d.id;
+    if (d.kind !== undefined) row.kind = d.kind;
+    if (d.name !== undefined) row.name = d.name;
+    if (d.r2Path !== undefined) row.r2_path = d.r2Path;
+    if (d.url !== undefined) row.url = d.url;
+    if (d.mime !== undefined) row.mime = d.mime;
+    if (d.sizeBytes !== undefined) row.size_bytes = d.sizeBytes;
+    if (d.width !== undefined) row.width = d.width;
+    if (d.height !== undefined) row.height = d.height;
+    if (d.courseId !== undefined) row.course_id = d.courseId;
+    if (d.assignmentId !== undefined) row.assignment_id = d.assignmentId;
+    if (d.projectId !== undefined) row.project_id = d.projectId;
+    if (d.eventId !== undefined) row.event_id = d.eventId;
+    return row;
+  }
+};
+
+export interface NoteAttachmentRow {
+  id: string;
+  note_id: string;
+  r2_path: string;
+  mime: string;
+  size_bytes: number | null;
+  width: number | null;
+  height: number | null;
+  created_at: string;
+}
+
+export const noteAttachmentStore: CloudStoreConfig<NoteAttachment, NoteAttachmentRow> = {
+  table: "note_attachments",
+  fromRow: (r) => ({
+    id: r.id,
+    noteId: r.note_id,
+    r2Path: r.r2_path,
+    mime: r.mime,
+    sizeBytes: r.size_bytes,
+    width: r.width,
+    height: r.height,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (a) => {
+    const row: Partial<NoteAttachmentRow> = {};
+    if (a.id !== undefined) row.id = a.id;
+    if (a.noteId !== undefined) row.note_id = a.noteId;
+    if (a.r2Path !== undefined) row.r2_path = a.r2Path;
+    if (a.mime !== undefined) row.mime = a.mime;
+    if (a.sizeBytes !== undefined) row.size_bytes = a.sizeBytes;
+    if (a.width !== undefined) row.width = a.width;
+    if (a.height !== undefined) row.height = a.height;
     return row;
   }
 };

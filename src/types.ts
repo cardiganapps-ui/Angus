@@ -283,6 +283,7 @@ export interface Note {
   eventId: string | null; // a session of the course
   assignmentId: string | null;
   projectId: string | null;
+  coverAttachmentId: string | null; // one of its attachments, shown as a hero
   createdAt: string; // ISO date
   updatedAt: string; // ISO datetime — drives the recency groups
 }
@@ -291,6 +292,40 @@ export interface NoteTag {
   id: string;
   label: string;
   color: string;
+  createdAt: string; // ISO date
+}
+
+/* ── Material ──
+   Files (bytes in R2 under ws/<workspace>/…) and links, each living
+   with a course, a tarea, a piece or a session. Images pasted into a
+   note are NoteAttachments and go with the note. */
+export type DocumentKind = "file" | "link";
+
+export interface Document {
+  id: string;
+  kind: DocumentKind;
+  name: string;
+  r2Path: string | null; // files
+  url: string | null; // links
+  mime: string;
+  sizeBytes: number | null;
+  width: number | null;
+  height: number | null;
+  courseId: string | null;
+  assignmentId: string | null;
+  projectId: string | null;
+  eventId: string | null;
+  createdAt: string; // ISO date
+}
+
+export interface NoteAttachment {
+  id: string;
+  noteId: string;
+  r2Path: string;
+  mime: string;
+  sizeBytes: number | null;
+  width: number | null;
+  height: number | null;
   createdAt: string; // ISO date
 }
 

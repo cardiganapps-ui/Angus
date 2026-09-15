@@ -20,6 +20,15 @@ const PATTERNS = [
   { name: "GitHub token", re: /\bgh[pousr]_[A-Za-z0-9]{20,}/ }
 ];
 
+// R2 keys have no recognizable prefix, so when the build environment
+// holds them (Vercel does) scan for their literal values too.
+for (const name of ["R2_SECRET_ACCESS_KEY", "R2_ACCESS_KEY_ID"]) {
+  const value = process.env[name];
+  if (value && value.length >= 16) {
+    PATTERNS.push({ name, re: new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+  }
+}
+
 function walk(dir) {
   const out = [];
   for (const entry of readdirSync(dir)) {

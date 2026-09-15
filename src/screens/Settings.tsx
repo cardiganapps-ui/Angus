@@ -14,6 +14,7 @@ import {
   THEME_OPTIONS
 } from "../data/constants";
 import { formatMXN } from "../utils/money";
+import { formatFileSize } from "../lib/files";
 import { suggestMediums } from "../utils/settings";
 import { Icon, type IconName } from "../components/Icon";
 import { SegmentedControl } from "../components/SegmentedControl";
@@ -31,7 +32,9 @@ const FREQ_ITEMS = INSTALLMENT_FREQUENCY.map((o) => ({ k: o.value, l: o.label })
 const DEPOSIT_ITEMS = DEPOSIT_PERCENT_OPTIONS.map((p) => ({ k: String(p), l: `${p}%` }));
 
 export function Settings({ navigate }: { navigate: (r: Route) => void }) {
-  const { settings, updateSettings, workspace, renameWorkspace, projects } = useApp();
+  const { settings, updateSettings, workspace, renameWorkspace, projects, documents, noteAttachments } = useApp();
+  const fileCount = documents.filter((d) => d.kind === "file").length + noteAttachments.length;
+  const fileBytes = documents.reduce((n, d) => n + (d.sizeBytes ?? 0), 0) + noteAttachments.reduce((n, a) => n + (a.sizeBytes ?? 0), 0);
   const session = useSession();
   const { showSuccess } = useToast();
   const [field, setField] = useState<FieldSheet>(null);
@@ -217,6 +220,13 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
         />
         <Row icon="repeat" label="Recurrentes" hint="Ingresos y gastos fijos." onClick={() => navigate("recurring")} />
         <Row icon="target" label="Presupuestos" hint="Límites mensuales por categoría." onClick={() => navigate("budgets")} />
+        <Row
+          icon="file"
+          label="Archivos"
+          value={fileCount === 0 ? "Ninguno" : `${fileCount} · ${formatFileSize(fileBytes)}`}
+          hint="Material de tus cursos, entregas e imágenes en notas."
+          static
+        />
       </Section>
 
       <Section title="Acerca de">

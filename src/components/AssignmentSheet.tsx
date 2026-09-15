@@ -14,7 +14,11 @@ import { taskProgress } from "../utils/studies";
 import { useNotes } from "../hooks/useNotes";
 import { NoteEditor } from "./NoteEditor";
 import { Icon } from "./Icon";
-import type { Note } from "../types";
+import { useDocuments } from "../hooks/useDocuments";
+import { DocumentList } from "./DocumentList";
+import { DocumentViewer } from "./DocumentViewer";
+import { UploadSheet } from "./UploadSheet";
+import type { Document, Note } from "../types";
 import { haptic } from "../lib/haptics";
 
 const STATUS_ITEMS = ASSIGNMENT_STATUS.map((s) => ({ k: s.value, l: s.label }));
@@ -53,6 +57,10 @@ export function AssignmentSheet({
   const [submitting, setSubmitting] = useState(false);
   const [noteOpen, setNoteOpen] = useState<Note | null>(null);
   const { notes, createNote } = useNotes();
+  const { documentsFor, remove: removeDocument } = useDocuments();
+  const [docOpen, setDocOpen] = useState<Document | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const entregas = assignment ? documentsFor({ assignmentId: assignment.id }) : [];
   const linkedNotes = assignment ? notes.filter((n) => n.assignmentId === assignment.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : [];
 
   const safeClose = submitting ? null : onClose;
@@ -218,6 +226,18 @@ export function AssignmentSheet({
           </div>
         )}
 
+        {assignment && (
+          <div className="input-group">
+            <div className="section-header" style={{ padding: "0 0 8px" }}>
+              <span className="input-label" style={{ marginBottom: 0 }}>Entrega</span>
+              <button type="button" className="see-all btn-tap" onClick={() => setUploadOpen(true)}>+ Foto o archivo</button>
+            </div>
+            <div className="money-list">
+              <DocumentList documents={entregas} onOpen={(d) => (d.kind === "link" && d.url ? window.open(d.url, "_blank", "noopener") : setDocOpen(d))} emptyBody="La foto de la pieza terminada o el PDF que entregaste." />
+            </div>
+          </div>
+        )}
+
         {status === "done" && (
           <>
             <div className="input-group">
@@ -233,6 +253,8 @@ export function AssignmentSheet({
       </Sheet>
 
       {noteOpen && <NoteEditor key={noteOpen.id} note={noteOpen} onClose={() => setNoteOpen(null)} />}
+      {uploadOpen && assignment && <UploadSheet links={{ assignmentId: assignment.id, courseId: assignment.courseId }} onClose={() => setUploadOpen(false)} />}
+      {docOpen && <DocumentViewer doc={docOpen} onClose={() => setDocOpen(null)} onDelete={removeDocument} />}
       {newProject && (
         <ProjectSheet
           project={null}

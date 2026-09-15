@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { supabase } from "../lib/supabase";
 import type { Note, NoteTag, NoteVersion } from "../types";
+import { deleteFile } from "../lib/files";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
 
@@ -31,7 +32,8 @@ export function useNotes() {
     noteTagLinks,
     addNoteTag,
     addNoteTagLink,
-    removeNoteTagLink
+    removeNoteTagLink,
+    noteAttachments
   } = useApp();
 
   const createNote = useCallback(
@@ -46,6 +48,7 @@ export function useNotes() {
         eventId: input.eventId ?? null,
         assignmentId: input.assignmentId ?? null,
         projectId: input.projectId ?? null,
+        coverAttachmentId: null,
         createdAt: todayISO(),
         updatedAt: now
       };
@@ -136,6 +139,30 @@ export function useNotes() {
     [noteTagLinks, removeNoteTagLink]
   );
 
+  // The rows cascade with the note; the bytes in R2 don't, so purge
+  // them first (best-effort — an orphaned object is recoverable).
+  const purgeAttachments = useCallback(
+    async (ids: string[]) => {
+      const gone = new Set(ids);
+      await Promise.all(noteAttachments.filter((a) => gone.has(a.noteId)).map((a) => deleteFile(a.r2Path).catch(() => false)));
+    },
+    [noteAttachments]
+  );
+  const deleteNote = useCallback(
+    async (id: string) => {
+      await purgeAttachments([id]);
+      await removeNote(id);
+    },
+    [purgeAttachments, removeNote]
+  );
+  const deleteNotes = useCallback(
+    async (ids: string[]) => {
+      await purgeAttachments(ids);
+      await removeNotes(ids);
+    },
+    [purgeAttachments, removeNotes]
+  );
+
   const tagsByNote = useMemo(() => {
     const m = new Map<string, Set<string>>();
     for (const l of noteTagLinks) {
@@ -186,8 +213,8 @@ export function useNotes() {
     restoreNote,
     togglePin,
     linkNote,
-    deleteNote: removeNote,
-    deleteNotes: removeNotes,
+    deleteNote,
+    deleteNotes,
     upsertTag,
     linkTag,
     unlinkTag,

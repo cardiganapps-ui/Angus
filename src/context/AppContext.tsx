@@ -3,7 +3,9 @@ import type {
   Assignment,
   Attendance,
   ClassEnrollment,
+  Document,
   Note,
+  NoteAttachment,
   NoteTag,
   NoteTagLink,
   ClassGroup,
@@ -28,10 +30,12 @@ import {
   classGroupStore,
   contactStore,
   courseStore,
+  documentStore,
   eventSeriesStore,
   eventStore,
   expenseStore,
   installmentStore,
+  noteAttachmentStore,
   noteStore,
   noteTagLinkStore,
   noteTagStore,
@@ -165,6 +169,15 @@ interface AppContextValue {
   noteTagLinks: NoteTagLink[];
   addNoteTagLink: (l: NoteTagLink) => Promise<boolean>;
   removeNoteTagLink: (id: string) => Promise<void>;
+
+  documents: Document[];
+  addDocument: (d: Document) => Promise<boolean>;
+  updateDocument: (id: string, patch: Partial<Document>) => Promise<boolean>;
+  removeDocument: (id: string) => Promise<void>;
+
+  noteAttachments: NoteAttachment[];
+  addNoteAttachment: (a: NoteAttachment) => Promise<boolean>;
+  removeNoteAttachment: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -199,6 +212,8 @@ export function AppProvider({
   const notes = useCloudStore(workspaceId, noteStore);
   const noteTags = useCloudStore(workspaceId, noteTagStore);
   const noteTagLinks = useCloudStore(workspaceId, noteTagLinkStore);
+  const documents = useCloudStore(workspaceId, documentStore);
+  const noteAttachments = useCloudStore(workspaceId, noteAttachmentStore);
 
   const loading =
     projects.loading ||
@@ -217,7 +232,9 @@ export function AppProvider({
     assignments.loading ||
     notes.loading ||
     noteTags.loading ||
-    noteTagLinks.loading;
+    noteTagLinks.loading ||
+    documents.loading ||
+    noteAttachments.loading;
 
   // Materialize due recurring rules into real rows. Runs once the data
   // is in, and again whenever a rule or its rows change; the unique
@@ -330,7 +347,9 @@ export function AppProvider({
         assignments.error ??
         notes.error ??
         noteTags.error ??
-        noteTagLinks.error,
+        noteTagLinks.error ??
+        documents.error ??
+        noteAttachments.error,
       clearError: () => {
         actions.clearError();
         projects.clearError();
@@ -350,6 +369,8 @@ export function AppProvider({
         notes.clearError();
         noteTags.clearError();
         noteTagLinks.clearError();
+        documents.clearError();
+        noteAttachments.clearError();
       },
       refreshAll: async () => {
         failedMaterialization.current = null;
@@ -371,7 +392,9 @@ export function AppProvider({
           assignments.reload(),
           notes.reload(),
           noteTags.reload(),
-          noteTagLinks.reload()
+          noteTagLinks.reload(),
+          documents.reload(),
+          noteAttachments.reload()
         ]);
       },
       projects: projects.items,
@@ -505,14 +528,18 @@ export function AppProvider({
       notes: notes.items,
       addNote: notes.add,
       updateNote: notes.update,
+      // Tag links and attachments cascade with the note; the bytes in
+      // R2 are purged by useNotes before this runs.
       removeNote: async (id: string) => {
         await notes.remove(id);
         noteTagLinks.dropLocal((l) => l.noteId === id);
+        noteAttachments.dropLocal((a) => a.noteId === id);
       },
       removeNotes: async (ids: string[]) => {
         await notes.removeMany(ids);
         const gone = new Set(ids);
         noteTagLinks.dropLocal((l) => gone.has(l.noteId));
+        noteAttachments.dropLocal((a) => gone.has(a.noteId));
       },
       noteTags: noteTags.items,
       addNoteTag: noteTags.add,
@@ -523,7 +550,14 @@ export function AppProvider({
       },
       noteTagLinks: noteTagLinks.items,
       addNoteTagLink: noteTagLinks.add,
-      removeNoteTagLink: noteTagLinks.remove
+      removeNoteTagLink: noteTagLinks.remove,
+      documents: documents.items,
+      addDocument: documents.add,
+      updateDocument: documents.update,
+      removeDocument: documents.remove,
+      noteAttachments: noteAttachments.items,
+      addNoteAttachment: noteAttachments.add,
+      removeNoteAttachment: noteAttachments.remove
     }),
     [
       workspaceId,
@@ -546,7 +580,9 @@ export function AppProvider({
       assignments,
       notes,
       noteTags,
-      noteTagLinks
+      noteTagLinks,
+      documents,
+      noteAttachments
     ]
   );
 

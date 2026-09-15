@@ -18,6 +18,12 @@ import { AssignmentSheet } from "./AssignmentSheet";
 import { AssignmentRow } from "./AssignmentRow";
 import { NoteEditor } from "./NoteEditor";
 import { useNotes } from "../hooks/useNotes";
+import { useDocuments } from "../hooks/useDocuments";
+import { DocumentList } from "./DocumentList";
+import { DocumentViewer } from "./DocumentViewer";
+import { UploadSheet } from "./UploadSheet";
+import { LinkSheet } from "./LinkSheet";
+import type { Document } from "../types";
 import { NOTE_TEMPLATES, applyTemplate } from "../data/noteTemplates";
 import { notePreview, relativeTime } from "../utils/noteText";
 import { haptic } from "../lib/haptics";
@@ -45,6 +51,11 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
   const [tarea, setTarea] = useState<Assignment | null | "new">(null);
   const [noteOpen, setNoteOpen] = useState<Note | null>(null);
   const { notes, createNote } = useNotes();
+  const { documentsFor, remove: removeDocument } = useDocuments();
+  const [docOpen, setDocOpen] = useState<Document | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const material = documentsFor({ courseId });
   const closeRef = useRef<(() => void) | null>(null);
   const today = todayISO();
 
@@ -339,6 +350,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
         )}
 
         {tab === "notes" && (
+          <>
           <div className="money-list" style={{ marginTop: 14 }}>
             {courseNotes.length === 0 ? (
               <div className="money-list-empty">Sin apuntes todavía. Escribe una nota aquí, o toca el lápiz de una sesión para empezar con la plantilla de clase.</div>
@@ -364,6 +376,17 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
               ))
             )}
           </div>
+          <div className="section-header" style={{ padding: "18px 0 8px" }}>
+            <span className="section-title">Material</span>
+            <span className="quick-actions" style={{ padding: 0, border: "none", gap: 4 }}>
+              <button type="button" className="see-all btn-tap" onClick={() => setLinkOpen(true)}>+ Enlace</button>
+              <button type="button" className="see-all btn-tap" onClick={() => setUploadOpen(true)}>+ Archivo</button>
+            </span>
+          </div>
+          <div className="money-list">
+            <DocumentList documents={material} onOpen={(d) => (d.kind === "link" && d.url ? window.open(d.url, "_blank", "noopener") : setDocOpen(d))} emptyBody="PDFs, fotos de la clase, lecturas o enlaces que te compartan. Se quedan con el curso." />
+          </div>
+          </>
         )}
 
         {tab === "expenses" && (
@@ -434,6 +457,9 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
         />
       )}
       {noteOpen && <NoteEditor key={noteOpen.id} note={noteOpen} onClose={() => setNoteOpen(null)} />}
+      {uploadOpen && <UploadSheet links={{ courseId }} onClose={() => setUploadOpen(false)} />}
+      {linkOpen && <LinkSheet links={{ courseId }} onClose={() => setLinkOpen(false)} />}
+      {docOpen && <DocumentViewer doc={docOpen} onClose={() => setDocOpen(null)} onDelete={removeDocument} />}
       {tarea && (
         <AssignmentSheet
           assignment={tarea === "new" ? null : tarea}
