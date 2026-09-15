@@ -18,6 +18,10 @@ const TABS: { key: Route; label: string; icon: IconName }[] = [
   { key: "schedule", label: "Agenda",    icon: "calendar" },
 ];
 
+/* Tab order, exported so App.tsx derives the screen slide direction
+   from the same source the pill draws from. */
+export const TAB_ORDER: Route[] = TABS.map((t) => t.key);
+
 export function BottomTabs({ route, navigate }: { route: Route; navigate: (r: Route) => void }) {
   const activeIndex = TABS.findIndex((tab) => tab.key === route);
   const showIndicator = activeIndex >= 0;

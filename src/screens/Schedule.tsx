@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import type { ScheduleEvent } from "../types";
 import { EVENT_KIND, EVENT_KIND_BADGE, labelFor } from "../data/constants";
@@ -72,13 +72,14 @@ function EventList({
 }) {
   return (
     <div className="card">
-      {events.map((event) => {
+      {events.map((event, i) => {
         const kind = EVENT_KIND.find((k) => k.value === event.kind)!;
         return (
           <button
             key={event.id}
             type="button"
-            className={`row-item ${muted ? "row-item--muted" : ""}`}
+            className={`row-item list-entry-stagger ${muted ? "row-item--muted" : ""}`}
+            style={{ "--stagger-i": Math.min(i, 12) } as CSSProperties}
             onClick={() => onSelect(event)}
           >
             <span className="event-dot" style={{ background: kind.color }} />

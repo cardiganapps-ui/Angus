@@ -14,11 +14,11 @@ function readLocal<T>(key: string): T[] {
   }
 }
 
-// Data entered before sign-in lived in localStorage. Move it to the cloud
-// once (skipping the demo seed rows), then drop the local copy so the two
-// stores can never diverge. Contacts go first because projects/events
-// reference them.
-export async function importLocalData(): Promise<boolean> {
+// Data entered before sign-in lived in localStorage. Move it into the
+// active workspace once (skipping the demo seed rows), then drop the local
+// copy so the two stores can never diverge. Contacts go first because
+// projects/events reference them.
+export async function importLocalData(workspaceId: string): Promise<boolean> {
   const seedIds = new Set([...seedContacts, ...seedProjects, ...seedEvents].map((s) => s.id));
   const notSeed = <T extends { id: string }>(rows: T[]) => rows.filter((r) => !seedIds.has(r.id));
 
@@ -30,10 +30,11 @@ export async function importLocalData(): Promise<boolean> {
     return false;
   }
 
+  const withWs = (rows: Record<string, unknown>[]) => rows.map((r) => ({ ...r, workspace_id: workspaceId }));
   const steps: [string, Record<string, unknown>[]][] = [
-    [contactStore.table, contacts.map(contactStore.toRow)],
-    [projectStore.table, projects.map(projectStore.toRow)],
-    [eventStore.table, events.map(eventStore.toRow)]
+    [contactStore.table, withWs(contacts.map(contactStore.toRow))],
+    [projectStore.table, withWs(projects.map(projectStore.toRow))],
+    [eventStore.table, withWs(events.map(eventStore.toRow))]
   ];
   for (const [table, rows] of steps) {
     if (rows.length === 0) continue;

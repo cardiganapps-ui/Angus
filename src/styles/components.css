@@ -1596,3 +1596,195 @@ button.row-item {
 /* Brand-only topbar (no hamburger / avatar cluster) still needs the
    44px hit-target height Cardigan's icon buttons give it for free. */
 .topbar { min-height: 56px; }
+
+/* ── SEGMENTED CONTROL ──
+   Port of Cardigan's single pill-tab style, used by <SegmentedControl />
+   (auth Entrar/Crear cuenta, project status). */
+.segmented {
+  display: flex; background: var(--teal-pale);
+  border-radius: var(--radius-pill);
+  padding: 3px; gap: 2px;
+  position: relative;
+}
+.segmented-slider {
+  position: absolute; top: 3px; bottom: 3px;
+  border-radius: var(--radius-pill);
+  /* White floating thumb on the pale-teal track. The crisp 1px ring +
+     soft drop reads as an elevated pill (the iOS "floating thumb" cue)
+     even though thumb and track are both near-white — separation comes
+     from the ring/shadow, not fill contrast. Ring uses color-mix off
+     --charcoal so it flips correctly in dark mode. */
+  background: var(--white);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--charcoal) 7%, transparent), var(--shadow-sm);
+  /* Position computed from --active-i (0-based) and --tab-count set
+     by the React component on the parent. All buttons in this
+     control share `flex: 1 1 0` so they're equal width — we can
+     derive the slider's slot purely arithmetically without
+     touching the DOM.
+       slot-w = (100% - 2*padding - (N-1)*gap) / N
+       slider-left = padding + active-i * (slot-w + gap)
+       slider-width = slot-w */
+  --pad: 3px;
+  --gap: 2px;
+  --slot-w: calc((100% - 2 * var(--pad) - (var(--tab-count) - 1) * var(--gap)) / var(--tab-count));
+  left: calc(var(--pad) + var(--active-i, 0) * (var(--slot-w) + var(--gap)));
+  width: var(--slot-w);
+  transition: left var(--dur-slow) var(--ease-spring), width var(--dur-slow) var(--ease-spring);
+  pointer-events: none; z-index: 0;
+}
+/* When the slider lands on the leftmost or rightmost tab, the bouncy
+   overshoot would poke past the container. Swap the transition to a
+   flat ease-out (no overshoot) and run a scaleX "squish-against-the-
+   wall" keyframe anchored to the hit side, so the pill still feels
+   momentumful — it just compresses instead of overflowing. */
+.segmented-slider--edge-left,
+.segmented-slider--edge-right {
+  transition: left var(--dur-slow) var(--ease-out), width var(--dur-slow) var(--ease-out);
+}
+.segmented-slider--edge-left {
+  transform-origin: left center;
+  animation: segmentedSquishLeft var(--dur-slower) var(--ease-spring-soft) both;
+}
+.segmented-slider--edge-right {
+  transform-origin: right center;
+  animation: segmentedSquishRight var(--dur-slower) var(--ease-spring-soft) both;
+}
+@keyframes segmentedSquishLeft {
+  0%   { transform: scaleX(1); }
+  48%  { transform: scaleX(1); }
+  68%  { transform: scaleX(0.86); }
+  84%  { transform: scaleX(1.04); }
+  100% { transform: scaleX(1); }
+}
+@keyframes segmentedSquishRight {
+  0%   { transform: scaleX(1); }
+  48%  { transform: scaleX(1); }
+  68%  { transform: scaleX(0.86); }
+  84%  { transform: scaleX(1.04); }
+  100% { transform: scaleX(1); }
+}
+.segmented-btn {
+  flex: 1 1 0; padding: 7px 8px;
+  font-size: var(--text-sm); font-weight: 600;
+  border-radius: var(--radius-pill); border: none; cursor: pointer;
+  font-family: var(--font); color: var(--charcoal-md); background: transparent;
+  transition: color var(--dur-slow); -webkit-tap-highlight-color: transparent;
+  min-height: 34px; white-space: nowrap;
+  /* min-width:0 + overflow:hidden + ellipsis lets a 4+ tab control
+     shrink gracefully on iPhone SE (360px) instead of overflowing
+     the sheet width. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative; z-index: 1;
+}
+.segmented-btn.active {
+  color: var(--teal-dark);
+  background: transparent; box-shadow: none;
+}
+.segmented-btn:active { opacity: 0.7; }
+/* Size variant — "md" uses display font + heavier weight, for primary tabs */
+.segmented--md .segmented-btn {
+  font-family: var(--font-d); font-weight: 700; font-size: var(--text-md);
+  padding: 10px 8px;
+}
+/* Inside a sheet body a segmented control is a form control: the
+   "sm" type size is what lets four Spanish labels ("En proceso",
+   "Terminado") fit a 360px phone without ellipsis, but the pill
+   grows to 46px so it sits at input height in the form rhythm. */
+.sheet-body .segmented--sm .segmented-btn { min-height: 40px; font-weight: 700; }
+
+/* ── CHIPS ──
+   Cardigan's filter-chip vocabulary, used here as single-choice enum
+   pickers inside sheets (<ChipSelect />): white pill at rest, teal fill
+   when active, spring scale on press. */
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: var(--radius-pill);
+  font-size: clamp(10px, 2.9vw, 12px); font-weight: 600;
+  border: 1px solid var(--border); background: var(--white); color: var(--charcoal-lt);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: all var(--dur-slow), transform var(--dur-slow) var(--ease-spring); font-family: var(--font);
+}
+.chip.active { background: var(--teal); border-color: var(--teal); color: white; }
+.chip:active { transform: scale(0.93); }
+.chip:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--teal); }
+/* Inside a sheet the chips are a form control, not a dense filter
+   strip: body-size type and a 36px hit height. */
+.chip-row .chip { font-size: var(--text-sm); min-height: 36px; padding: 6px 12px; }
+/* Event-kind dot inside a chip. On the teal active fill the dot gets
+   a currentColor (white) ring so a teal/blue/green dot never
+   disappears into the background. */
+.chip .event-dot { transition: box-shadow var(--dur-fast) ease; }
+.chip.active .event-dot { box-shadow: 0 0 0 1.5px currentColor; }
+
+/* ── PICKER FIELD ──
+   <PickerField />: an .input-shaped button that opens a PickerSheet.
+   Same padding / border / radius / font floor as .input so it sits in
+   the form rhythm; the chevron reads "opens something", the empty
+   state uses placeholder color. */
+.picker-field {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; min-height: 48px; padding: 11px 13px;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  font-size: max(16px, calc(16px * var(--text-scale-user, 1)));
+  font-family: var(--font); color: var(--charcoal); text-align: left;
+  background: var(--white); cursor: pointer; touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.picker-field--empty { color: var(--charcoal-xl); }
+.picker-field-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-field-chevron { display: inline-flex; color: var(--charcoal-xl); flex-shrink: 0; }
+.picker-field:active { background: var(--teal-mist); border-color: var(--charcoal-xl); }
+@media (hover: hover) {
+  .picker-field:hover { border-color: var(--charcoal-xl); }
+}
+.picker-field:focus-visible { outline: none; border-color: var(--teal); box-shadow: var(--focus-ring); }
+/* PickerSheet rows: .row-item as a full-width button (UA reset), a
+   teal check on the selected row, "Ninguno" in placeholder color. */
+.picker-list { margin-bottom: 8px; }
+.picker-row {
+  width: 100%; background: none; border-left: none; border-right: none; border-top: none;
+  font-family: inherit; text-align: left; min-height: 52px; padding: 12px 16px;
+}
+.picker-row--active .row-title { color: var(--teal-dark); font-weight: 700; }
+.picker-row-none { color: var(--charcoal-xl); font-weight: 500; }
+.picker-check { display: inline-flex; color: var(--teal); flex-shrink: 0; }
+.picker-empty { padding: 20px 16px; font-size: 13px; color: var(--charcoal-xl); text-align: center; }
+
+/* ── SHEET ACTIONS ──
+   <SheetActions />: both footer states (Guardar/Eliminar and the
+   delete confirm) share one grid cell so the footer's height is the
+   max of the two and the panel never jumps. The inactive twin is
+   visibility: hidden; the active one replays sheetActionsIn on swap. */
+.sheet-actions { display: grid; }
+.sheet-actions > * { grid-area: 1 / 1; }
+.sheet-actions-state {
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;
+  animation: sheetActionsIn var(--dur-base) var(--ease-out) both;
+}
+.sheet-actions-ghost { visibility: hidden; pointer-events: none; }
+.sheet-actions-ghost .sheet-actions-state { animation: none; }
+.sheet-actions-question { margin-top: 0; text-align: center; font-weight: 600; color: var(--charcoal-md); }
+@keyframes sheetActionsIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── PULL TO REFRESH ── (ptr-spin / ptr-breathe live in base.css) */
+@keyframes ptr-check-in {
+  0% { transform: scale(0) rotate(-90deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes ptr-check-draw {
+  0% { stroke-dashoffset: 20; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes ptr-text-in {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}

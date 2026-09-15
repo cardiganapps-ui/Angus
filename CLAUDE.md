@@ -2,6 +2,8 @@
 
 Guidance for Claude Code when working in this repository. Angus is a sibling product to Cardigan (`cardiganapps-ui/cardigan`) and inherits its engineering standards and design system **verbatim** — when this file is silent, Cardigan's `CLAUDE.md` is the tie-breaker.
 
+**Before building anything, read `docs/playbook.md`** — the component catalog (what to reuse) and the step-by-step recipes (new entity, new field, new tab, migration template, motion cookbook, verification loop). This file is the *rules*; the playbook is the *how*. If you find yourself writing a picker, a sheet footer, a skeleton, or a list row from scratch, stop — it exists.
+
 # ⚠️ PRIME DIRECTIVE — HER DATA IS IRREPLACEABLE
 
 Angus is one artist's business memory: every commission, contact, sale, class, and expo she has ever tracked. There is no "re-sync from the source of truth" — the app **is** the source of truth. Losing or corrupting a row is the worst thing this codebase can do.
@@ -20,16 +22,20 @@ If you are about to touch `hooks/useCloudStore.ts`, `context/AppContext.tsx`, `d
 
 Mobile-first PWA — a life & business planner for a working artist. **Spanish UI.** TypeScript (`strict: true`, `allowJs: false`), React 19 + Vite 6, custom CSS design tokens (no UI library), Supabase (Postgres + Auth + RLS), Vercel hosting.
 
-Users: the artist plus one helper/admin, both signing in to the same account for v1. Multi-member workspaces are a later step — don't pre-build them.
+Users: each person has their own account and their own **workspace**; data belongs to a workspace, not a user. The artist owns hers; the admin account (`ADMIN_EMAIL` in `src/config/admin.ts`, mirrored by `public.is_admin()`) is implicitly a member of every workspace with full read/write and switches between them from the account sheet (topbar avatar). Roles `owner | admin | member` live in `workspace_members` for future collaborators.
 
 ## Commands
 
 ```bash
 npm run dev        # Vite dev server
-npm run build      # tsc -b && vite build (typecheck is part of the build)
-npm run preview    # serve the production build
+npm run typecheck  # tsc -b
 npm run lint       # eslint
+npm test           # vitest (src/**/__tests__)
+npm run build      # tsc -b && vite build
+npm run e2e -- <url>   # browser smoke test (needs E2E_EMAIL / E2E_PASS; see docs/playbook.md §7)
 ```
+
+CI (`.github/workflows/ci.yml`) runs typecheck → lint → test → build on every push and PR.
 
 Env: copy `.env.example` → `.env.local` with `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Both are browser-safe.
 
@@ -50,12 +56,13 @@ If a change makes the app feel less like this, it's a regression even if the fea
 
 ## Architecture
 
-- `src/main.tsx` → `App.tsx`. `App` owns auth gating (`hooks/useAuth.ts` → `screens/AuthScreen.tsx`) and, once signed in, wraps everything in `context/AppContext.tsx`.
-- **Data flow — one context.** `AppContext` composes three `useCloudStore` instances (projects, contacts, events) and exposes typed `items` + `add/update/remove` per entity. Screens consume via `useApp()`. Row ↔ entity mapping (snake_case ↔ camelCase) lives only in `data/rows.ts`.
-- `hooks/useCloudStore.ts` — generic optimistic CRUD over one Supabase table (see Prime Directive #1).
+- `src/main.tsx` → `App.tsx`. `App` owns auth gating (`hooks/useAuth.ts` → `screens/AuthScreen.tsx`), loads the account's workspaces (`hooks/useWorkspaces.ts`, active one remembered per account), and mounts `context/AppContext.tsx` **keyed on the active workspace id** so a switch remounts the stores. `SignedIn` wraps the screen in `PullToRefresh` → slide-animated wrapper (direction from `BottomTabs.TAB_ORDER`) → `SkeletonCrossfade`.
+- **Data flow — one context.** `AppContext` composes three `useCloudStore(workspaceId, …)` instances (projects, contacts, events) and exposes typed `items` + `add/update/remove` per entity, plus `loading`, `error`, `refreshAll`. Screens consume via `useApp()`. Row ↔ entity mapping (snake_case ↔ camelCase) lives only in `data/rows.ts`.
+- `hooks/useCloudStore.ts` — generic optimistic CRUD over one Supabase table, filtered by `workspace_id` and stamping it on inserts (see Prime Directive #1).
+- `components/AccountSheet.tsx` — account identity, workspace switcher, sign out. `config/admin.ts` — `ADMIN_EMAIL`.
 - `lib/supabase.ts` — the single client instance. `lib/importLocal.ts` — one-shot migration of pre-login localStorage data.
 - **Routing** is hash-based (`hooks/useNavigation.ts`): `home | projects | contacts | schedule`. Sheets are component state, not routes.
-- `screens/` — one file per tab (`Home`, `Projects`, `Contacts`, `Schedule`) plus `AuthScreen`. `components/` — sheets (`ProjectSheet`, `ContactSheet`, `EventSheet` over the shared `Sheet`), chrome (`BottomTabs`), primitives (`Icon`, `EmptyState`).
+- `screens/` — one file per tab (`Home`, `Projects`, `Contacts`, `Schedule`) plus `AuthScreen`. `components/` — sheets (`ProjectSheet`, `ContactSheet`, `EventSheet` over the shared `Sheet` + `SheetActions`), pickers (`SegmentedControl`, `ChipSelect`, `PickerField`/`PickerSheet` — **never a native `<select>`**), chrome (`BottomTabs`, `PullToRefresh`, `Toast`), primitives (`Icon`, `EmptyState`, `AnimatedNumber`, `LoadingSkeleton`). Full catalog with props in `docs/playbook.md` §1.
 - `data/constants.ts` — enums with Spanish labels + semantic colors. **Every enum here is mirrored by a check constraint in `supabase/migrations/`** — change both, in the same commit.
 - `types.ts` — the domain model. Dates are ISO `YYYY-MM-DD` strings; times are `HH:MM`. Format for display only via `utils/dates.ts`.
 - `styles/` — split by concern (`fonts`, `base`, `components`, `responsive`, `dark`), aggregated by `index.css`. Keep files narrow.
@@ -70,9 +77,10 @@ Roadmap (in order): sales + payment plans → expenses + investments → expo bu
 
 ## Database & security
 
-- `supabase/migrations/NNN_*.sql` are the canonical schema; apply them in order. Every table: `id uuid`, `user_id uuid default auth.uid()`, `created_at`, `updated_at` (trigger `set_updated_at`), RLS policy `auth.uid() = user_id` for all four verbs.
+- `supabase/migrations/NNN_*.sql` are the canonical schema; apply them in order and commit the file in the same commit as the apply. Every data table: `id uuid`, `workspace_id uuid` (not null, FK → `workspaces`), `user_id uuid default auth.uid()` (creator), `created_at`, `updated_at` (trigger `set_updated_at`), and one RLS policy for all verbs: `using (is_workspace_member(workspace_id)) with check (is_workspace_member(workspace_id))`. Template in `docs/playbook.md` §5.
+- `workspaces` / `workspace_members` (migration 002): `is_workspace_member()` and `is_workspace_admin()` are `security definer` so data policies can consult membership without recursion; `is_admin()` short-circuits both. `handle_new_user` (trigger on `auth.users`) creates each new account's workspace.
 - Client-generated ids (`utils/id.ts` → `crypto.randomUUID()`) are inserted as-is so optimistic rows and server rows share an id.
-- Auth: email + password and magic link (Supabase Auth). No social providers in v1.
+- Auth: email + password and magic link (Supabase Auth). No social providers in v1. Confirmation email goes through Supabase's built-in mailer (rate-limited to a few per hour) — move to Resend SMTP before inviting anyone beyond the two of you.
 
 ## Conventions
 

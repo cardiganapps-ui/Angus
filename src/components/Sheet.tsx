@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type MutableRefObject, type ReactNode } from "react";
 import { Icon } from "./Icon";
 import { SheetOverlay } from "./SheetOverlay";
 import { useEscape } from "../hooks/useEscape";
@@ -23,7 +23,11 @@ import { useSheetExit } from "../hooks/useSheetExit";
    bounce; owns its own dismiss animation so it takes the RAW onClose).
 
    `onClose === null` means "can't close right now" (submitting): the
-   scrim, ESC, the X button and drag-dismiss all go inert. */
+   scrim, ESC, the X button and drag-dismiss all go inert.
+
+   `closeRef` (optional) receives the animated close so a child can
+   dismiss the sheet programmatically with the same exit animation
+   the X button uses — e.g. PickerSheet closing itself on selection. */
 
 const noop = () => {};
 
@@ -31,16 +35,23 @@ export function Sheet({
   title,
   onClose,
   children,
-  footer
+  footer,
+  closeRef
 }: {
   title: string;
   onClose: (() => void) | null;
   children: ReactNode;
   footer?: ReactNode;
+  closeRef?: MutableRefObject<(() => void) | null>;
 }) {
   const closable = !!onClose;
   const { exiting, animatedClose } = useSheetExit(true, onClose);
   useEscape(closable ? animatedClose : null);
+  useEffect(() => {
+    if (!closeRef) return;
+    closeRef.current = closable ? () => animatedClose() : null;
+    return () => { closeRef.current = null; };
+  }, [closeRef, closable, animatedClose]);
   const panelRef = useFocusTrap(true);
   const { scrollRef, setPanelEl, panelHandlers } = useSheetDrag(onClose ?? noop, { isOpen: true });
   const setPanel = (el: HTMLElement | null) => {

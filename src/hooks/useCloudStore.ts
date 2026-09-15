@@ -22,11 +22,11 @@ export interface CloudStore<T extends Entity> {
   remove: (id: string) => Promise<void>;
 }
 
-// Optimistic CRUD over one Supabase table. Every mutation applies locally
-// first and restores the prior list if the server rejects it, so the UI
-// never shows a half-applied write.
+// Optimistic CRUD over one Supabase table, scoped to a workspace. Every
+// mutation applies locally first and restores the prior list if the server
+// rejects it, so the UI never shows a half-applied write.
 export function useCloudStore<T extends Entity, Row extends { id: string }>(
-  userId: string | null,
+  workspaceId: string | null,
   config: CloudStoreConfig<T, Row>
 ): CloudStore<T> {
   const [items, setItems] = useState<T[]>([]);
@@ -36,7 +36,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   itemsRef.current = items;
 
   const reload = useCallback(async () => {
-    if (!userId) {
+    if (!workspaceId) {
       setItems([]);
       setLoading(false);
       return;
@@ -44,11 +44,12 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
     const { data, error } = await supabase
       .from(config.table)
       .select("*")
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false });
     if (error) setError(error.message);
     else setItems((data as Row[]).map(config.fromRow));
     setLoading(false);
-  }, [userId, config]);
+  }, [workspaceId, config]);
 
   useEffect(() => {
     setLoading(true);
@@ -57,17 +58,18 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
 
   const add = useCallback(
     async (item: T) => {
+      if (!workspaceId) return;
       const prev = itemsRef.current;
       setItems([item, ...prev]);
       const { error } = await supabase
         .from(config.table)
-        .insert(config.toRow(item) as Record<string, unknown>);
+        .insert({ ...config.toRow(item), workspace_id: workspaceId } as Record<string, unknown>);
       if (error) {
         setItems(prev);
         setError(error.message);
       }
     },
-    [config]
+    [workspaceId, config]
   );
 
   const update = useCallback(
@@ -99,5 +101,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
     [config]
   );
 
-  return { items, loading, error, clearError: () => setError(null), reload, add, update, remove };
+  const clearError = useCallback(() => setError(null), []);
+
+  return { items, loading, error, clearError, reload, add, update, remove };
 }

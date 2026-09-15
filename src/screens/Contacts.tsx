@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import type { Contact, ContactRelationship } from "../types";
 import { CONTACT_RELATIONSHIP, LEAD_STAGE, labelFor } from "../data/constants";
@@ -41,11 +41,12 @@ export function Contacts() {
           </div>
         ) : (
           <div className="card">
-            {sorted.map((contact) => (
+            {sorted.map((contact, i) => (
               <button
                 key={contact.id}
                 type="button"
-                className="row-item"
+                className="row-item list-entry-stagger"
+                style={{ "--stagger-i": Math.min(i, 12) } as CSSProperties}
                 onClick={() => setEditing(contact)}
               >
                 <div className="row-content">

@@ -4,6 +4,8 @@ import { useToast } from "../context/ToastContext";
 import type { Contact, ContactRelationship, LeadStage } from "../types";
 import { CONTACT_RELATIONSHIP, LEAD_STAGE } from "../data/constants";
 import { Sheet } from "./Sheet";
+import { SheetActions } from "./SheetActions";
+import { ChipSelect } from "./ChipSelect";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
@@ -25,7 +27,6 @@ export function ContactSheet({
   const [followUpDate, setFollowUpDate] = useState(contact?.followUpDate ?? "");
   const [notes, setNotes] = useState(contact?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const safeClose = submitting ? null : onClose;
   const canSave = name.trim().length > 0;
@@ -66,82 +67,51 @@ export function ContactSheet({
       title={contact ? "Editar contacto" : "Nuevo contacto"}
       onClose={safeClose}
       footer={
-        confirmDelete ? (
-          <>
-            <div className="input-help" style={{ textAlign: "center", marginTop: 0 }}>¿Eliminar este contacto?</div>
-            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={submitting}>
-              Sí, eliminar
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>
-              Cancelar
-            </button>
-          </>
-        ) : (
-          <>
-            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave || submitting}>
-              {submitting ? "Guardando…" : "Guardar"}
-            </button>
-            {contact && (
-              <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)} disabled={submitting}>
-                Eliminar
-              </button>
-            )}
-          </>
-        )
+        <SheetActions
+          canSave={canSave}
+          submitting={submitting}
+          onSave={handleSave}
+          onDelete={contact ? handleDelete : undefined}
+          confirmText="¿Eliminar este contacto?"
+        />
       }
     >
       <div className="input-group">
-        <label className="input-label">Nombre</label>
-        <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        <label className="input-label" htmlFor="contact-name">Nombre</label>
+        <input id="contact-name" className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus={contact === null} />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Tipo</label>
-        <select
-          className="input"
-          value={relationship}
-          onChange={(e) => setRelationship(e.target.value as ContactRelationship)}
-        >
-          {CONTACT_RELATIONSHIP.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        <span className="input-label">Tipo</span>
+        <ChipSelect options={CONTACT_RELATIONSHIP} value={relationship} onChange={setRelationship} ariaLabel="Tipo de contacto" />
       </div>
 
       {isLead && (
         <>
           <div className="input-group">
-            <label className="input-label">Etapa</label>
-            <select className="input" value={leadStage} onChange={(e) => setLeadStage(e.target.value as LeadStage)}>
-              {LEAD_STAGE.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            <span className="input-label">Etapa</span>
+            <ChipSelect options={LEAD_STAGE} value={leadStage} onChange={setLeadStage} ariaLabel="Etapa del prospecto" />
           </div>
           <div className="input-group">
-            <label className="input-label">Próximo seguimiento</label>
-            <input className="input" type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} />
+            <label className="input-label" htmlFor="contact-followup">Próximo seguimiento</label>
+            <input id="contact-followup" className="input" type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} />
           </div>
         </>
       )}
 
       <div className="input-group">
-        <label className="input-label">Correo</label>
-        <input className="input" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <label className="input-label" htmlFor="contact-email">Correo</label>
+        <input id="contact-email" className="input" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Teléfono</label>
-        <input className="input" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <label className="input-label" htmlFor="contact-phone">Teléfono</label>
+        <input id="contact-phone" className="input" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Notas</label>
-        <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <label className="input-label" htmlFor="contact-notes">Notas</label>
+        <textarea id="contact-notes" className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Sheet>
   );

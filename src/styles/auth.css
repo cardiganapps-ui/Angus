@@ -34,31 +34,8 @@
   box-shadow: var(--shadow-sm);
 }
 
-.auth-tabs {
-  display: flex;
-  background: var(--cream);
-  border-radius: var(--radius-pill);
-  padding: 3px;
-  margin-bottom: var(--space-6);
-}
-
-.auth-tab {
-  flex: 1;
-  height: 36px;
-  border-radius: var(--radius-pill);
-  font-family: var(--font-d);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--charcoal-md);
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
-}
-
-.auth-tab.active {
-  background: var(--white);
-  color: var(--charcoal);
-  box-shadow: var(--shadow-sm);
-}
+/* The Entrar / Crear cuenta switch is a <SegmentedControl size="md">
+   (components.css .segmented) — no auth-specific tab styles. */
 
 .auth-notice {
   margin: 0 0 var(--space-4);

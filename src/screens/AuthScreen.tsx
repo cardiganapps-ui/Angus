@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from "react";
 import type { AuthState } from "../hooks/useAuth";
+import { SegmentedControl } from "../components/SegmentedControl";
 
 type Mode = "signin" | "signup" | "magic";
+
+const AUTH_TABS = [
+  { k: "signin", l: "Entrar" },
+  { k: "signup", l: "Crear cuenta" }
+];
 
 export function AuthScreen({ auth }: { auth: AuthState }) {
   const [mode, setMode] = useState<Mode>("signin");
@@ -41,24 +47,18 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
       </div>
 
       <div className="card auth-card">
-        <div className="auth-tabs" role="tablist">
-          <button
-            role="tab"
-            aria-selected={mode !== "signup"}
-            className={`auth-tab ${mode !== "signup" ? "active" : ""}`}
-            onClick={() => setMode("signin")}
-          >
-            Entrar
-          </button>
-          <button
-            role="tab"
-            aria-selected={mode === "signup"}
-            className={`auth-tab ${mode === "signup" ? "active" : ""}`}
-            onClick={() => setMode("signup")}
-          >
-            Crear cuenta
-          </button>
-        </div>
+        <SegmentedControl
+          items={AUTH_TABS}
+          value={mode === "signup" ? "signup" : "signin"}
+          onChange={(k) => {
+            setMode(k as Mode);
+            setError(null);
+            setNotice(null);
+          }}
+          size="md"
+          ariaLabel="Entrar o crear cuenta"
+          style={{ marginBottom: "var(--space-6)" }}
+        />
 
         <form onSubmit={onSubmit} noValidate>
           <div className="input-group">

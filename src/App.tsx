@@ -1,12 +1,16 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { AppProvider } from "./context/AppContext";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AppProvider, useApp } from "./context/AppContext";
 import { ToastProvider } from "./context/ToastContext";
 import { useAuth } from "./hooks/useAuth";
 import { useNavigation, type Route } from "./hooks/useNavigation";
 import { useTheme } from "./hooks/useTheme";
-import { BottomTabs } from "./components/BottomTabs";
+import { useWorkspaces } from "./hooks/useWorkspaces";
+import { AccountSheet } from "./components/AccountSheet";
+import { EmptyState } from "./components/EmptyState";
+import { BottomTabs, TAB_ORDER } from "./components/BottomTabs";
 import { DataErrorToast } from "./components/DataErrorToast";
-import { LoadingSkeleton } from "./components/LoadingSkeleton";
+import { LoadingSkeleton, SkeletonCrossfade } from "./components/LoadingSkeleton";
+import { PullToRefresh } from "./components/PullToRefresh";
 import { AuthScreen } from "./screens/AuthScreen";
 import { Home } from "./screens/Home";
 import { Projects } from "./screens/Projects";
@@ -26,6 +30,52 @@ function Screen({ route }: { route: Route }) {
   }
 }
 
+/* ── Screen slide direction ──
+   Mirrors Cardigan's useNavigation `direction`: moving to a tab with
+   a HIGHER index slides the new screen in from the right
+   (screenSlideLeft — content travels leftward), a lower index slides
+   in from the left. Derived during render from the previous route so
+   the very first mount (no previous route) never animates; the
+   wrapper is keyed on `route` in `SignedIn` so every later change
+   replays the keyframe from scratch. */
+type Direction = "left" | "right" | null;
+function useScreenDirection(route: Route): Direction {
+  const [direction, setDirection] = useState<Direction>(null);
+  const [prevRoute, setPrevRoute] = useState(route);
+  if (route !== prevRoute) {
+    setPrevRoute(route);
+    setDirection(TAB_ORDER.indexOf(route) > TAB_ORDER.indexOf(prevRoute) ? "left" : "right");
+  }
+  return direction;
+}
+
+/* ── SignedIn ──
+   The data-backed body: pull-to-refresh wrapper → slide-animated
+   wrapper (keyed on route) → skeleton crossfade → the screen. Only
+   this subtree moves on tab change; the chrome (top bar, FAB inside
+   each screen is position: fixed, BottomTabs) stays put. */
+function SignedIn({ route }: { route: Route }) {
+  const { loading, refreshAll } = useApp();
+  const direction = useScreenDirection(route);
+
+  return (
+    <PullToRefresh onRefresh={refreshAll}>
+      <div
+        key={route}
+        style={{
+          flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
+          animation: direction === "left" ? "screenSlideLeft 0.5s var(--ease-spring)"
+            : direction === "right" ? "screenSlideRight 0.5s var(--ease-spring)"
+            : undefined,
+        }}>
+        <SkeletonCrossfade showContent={!loading} route={route}>
+          <Screen route={route} />
+        </SkeletonCrossfade>
+      </div>
+    </PullToRefresh>
+  );
+}
+
 /* ── Shell ──
    Mirrors Cardigan's App.tsx chrome:
      .shell                       fixed-height flex column, overflow: clip
@@ -38,10 +88,11 @@ function Screen({ route }: { route: Route }) {
                                   the body:has(.sheet-overlay) rule while
                                   a sheet is open, together with the FAB)
    `tabs` is false on the auth screen so the pill doesn't render there. */
-function Shell({ route, navigate, tabs, children }: {
+function Shell({ route, navigate, tabs, topbarRight, children }: {
   route: Route;
   navigate: (r: Route) => void;
   tabs: boolean;
+  topbarRight?: ReactNode;
   children: ReactNode;
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
@@ -99,6 +150,7 @@ function Shell({ route, navigate, tabs, children }: {
             <div className="status-bar" />
             <div className="topbar">
               <div className="topbar-brand">Angus</div>
+              <div className="topbar-right">{topbarRight}</div>
             </div>
           </div>
           {children}
@@ -112,28 +164,83 @@ function Shell({ route, navigate, tabs, children }: {
 export default function App() {
   const { route, navigate } = useNavigation();
   const auth = useAuth();
+  const ws = useWorkspaces(auth.user?.id ?? null);
+  const [accountOpen, setAccountOpen] = useState(false);
   useTheme();
 
-  // Auth gate: skeleton while the session resolves (first paint looks
-  // like the destination), AuthScreen when signed out, the data
-  // provider + screens once we have a user id.
+  const user = auth.user;
+  const signedIn = !auth.loading && !!user;
+  const viewingShared = !!user && !!ws.active && ws.active.ownerId !== user.id;
+
+  // Auth gate: skeleton while the session + workspace list resolve (first
+  // paint looks like the destination), AuthScreen when signed out, then
+  // the data provider keyed on the active workspace so switching remounts
+  // the stores cleanly.
   let body: ReactNode;
-  if (auth.loading) {
-    body = <LoadingSkeleton />;
-  } else if (!auth.user) {
+  if (auth.loading || (user && !ws.ready)) {
+    body = <LoadingSkeleton route={route} />;
+  } else if (!user) {
     body = <AuthScreen auth={auth} />;
+  } else if (!ws.active) {
+    body = (
+      <div className="page">
+        <div className="card" style={{ marginTop: 24 }}>
+          <EmptyState
+            icon="home"
+            title="No encontramos tu espacio"
+            body={ws.error ? "No se pudo cargar. Revisa tu conexión." : "Tu cuenta aún no tiene un espacio de trabajo."}
+          />
+          <div style={{ padding: "0 16px 16px" }}>
+            <button type="button" className="btn btn-secondary" style={{ width: "100%" }} onClick={() => void ws.reload()}>
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   } else {
     body = (
-      <AppProvider userId={auth.user.id}>
+      <AppProvider key={ws.active.id} workspaceId={ws.active.id}>
         <DataErrorToast />
-        <Screen route={route} />
+        <SignedIn route={route} />
       </AppProvider>
     );
   }
 
+  const topbarRight = signedIn ? (
+    <>
+      {viewingShared && <span className="badge badge-teal">Compartido</span>}
+      <button
+        type="button"
+        className="topbar-avatar btn-tap"
+        aria-label="Tu cuenta"
+        onClick={() => setAccountOpen(true)}
+      >
+        {(user?.email ?? "?").slice(0, 1).toUpperCase()}
+      </button>
+    </>
+  ) : null;
+
   return (
-    <Shell route={route} navigate={navigate} tabs={!auth.loading && !!auth.user}>
+    <Shell route={route} navigate={navigate} tabs={signedIn} topbarRight={topbarRight}>
       {body}
+      {accountOpen && user && (
+        <AccountSheet
+          email={user.email ?? ""}
+          userId={user.id}
+          workspaces={ws.workspaces}
+          activeId={ws.active?.id ?? null}
+          onSelectWorkspace={(id) => {
+            ws.setActive(id);
+            setAccountOpen(false);
+          }}
+          onSignOut={async () => {
+            await auth.signOut();
+            setAccountOpen(false);
+          }}
+          onClose={() => setAccountOpen(false)}
+        />
+      )}
     </Shell>
   );
 }

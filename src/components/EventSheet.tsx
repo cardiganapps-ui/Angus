@@ -4,6 +4,9 @@ import { useToast } from "../context/ToastContext";
 import type { EventKind, ScheduleEvent } from "../types";
 import { EVENT_KIND } from "../data/constants";
 import { Sheet } from "./Sheet";
+import { SheetActions } from "./SheetActions";
+import { ChipSelect } from "./ChipSelect";
+import { PickerField } from "./PickerField";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
@@ -27,10 +30,15 @@ export function EventSheet({
   const [contactId, setContactId] = useState(event?.contactId ?? "");
   const [notes, setNotes] = useState(event?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const safeClose = submitting ? null : onClose;
   const canSave = title.trim().length > 0 && date.length > 0;
+  const projectOptions = [...projects]
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .map((p) => ({ value: p.id, label: p.title }));
+  const contactOptions = [...contacts]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => ({ value: c.id, label: c.name }));
 
   function handleSave() {
     if (!canSave) return;
@@ -69,94 +77,59 @@ export function EventSheet({
       title={event ? "Editar evento" : "Nuevo evento"}
       onClose={safeClose}
       footer={
-        confirmDelete ? (
-          <>
-            <div className="input-help" style={{ textAlign: "center", marginTop: 0 }}>¿Eliminar este evento?</div>
-            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={submitting}>
-              Sí, eliminar
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>
-              Cancelar
-            </button>
-          </>
-        ) : (
-          <>
-            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave || submitting}>
-              {submitting ? "Guardando…" : "Guardar"}
-            </button>
-            {event && (
-              <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)} disabled={submitting}>
-                Eliminar
-              </button>
-            )}
-          </>
-        )
+        <SheetActions
+          canSave={canSave}
+          submitting={submitting}
+          onSave={handleSave}
+          onDelete={event ? handleDelete : undefined}
+          confirmText="¿Eliminar este evento?"
+        />
       }
     >
       <div className="input-group">
-        <label className="input-label">Título</label>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+        <label className="input-label" htmlFor="event-title">Título</label>
+        <input id="event-title" className="input" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus={event === null} />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Tipo</label>
-        <select className="input" value={kind} onChange={(e) => setKind(e.target.value as EventKind)}>
-          {EVENT_KIND.map((k) => (
-            <option key={k.value} value={k.value}>
-              {k.label}
-            </option>
-          ))}
-        </select>
+        <span className="input-label">Tipo</span>
+        <ChipSelect options={EVENT_KIND} value={kind} onChange={setKind} ariaLabel="Tipo de evento" />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Fecha</label>
-        <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <label className="input-label" htmlFor="event-date">Fecha</label>
+        <input id="event-date" className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
 
       <div className="form-row">
         <div className="input-group">
-          <label className="input-label">Hora inicio</label>
-          <input className="input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          <label className="input-label" htmlFor="event-start">Hora inicio</label>
+          <input id="event-start" className="input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
         </div>
         <div className="input-group">
-          <label className="input-label">Hora fin</label>
-          <input className="input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          <label className="input-label" htmlFor="event-end">Hora fin</label>
+          <input id="event-end" className="input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
         </div>
       </div>
 
       <div className="input-group">
-        <label className="input-label">Ubicación</label>
-        <input className="input" value={location} onChange={(e) => setLocation(e.target.value)} />
+        <label className="input-label" htmlFor="event-location">Ubicación</label>
+        <input id="event-location" className="input" value={location} onChange={(e) => setLocation(e.target.value)} />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Proyecto relacionado</label>
-        <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-          <option value="">Ninguno</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.title}
-            </option>
-          ))}
-        </select>
+        <span className="input-label">Proyecto relacionado</span>
+        <PickerField title="Proyecto relacionado" options={projectOptions} value={projectId} onChange={setProjectId} />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Contacto relacionado</label>
-        <select className="input" value={contactId} onChange={(e) => setContactId(e.target.value)}>
-          <option value="">Ninguno</option>
-          {contacts.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <span className="input-label">Contacto relacionado</span>
+        <PickerField title="Contacto relacionado" options={contactOptions} value={contactId} onChange={setContactId} />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Notas</label>
-        <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <label className="input-label" htmlFor="event-notes">Notas</label>
+        <textarea id="event-notes" className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Sheet>
   );

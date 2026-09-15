@@ -4,9 +4,14 @@ import { useToast } from "../context/ToastContext";
 import type { Project, ProjectStatus } from "../types";
 import { PROJECT_STATUS } from "../data/constants";
 import { Sheet } from "./Sheet";
+import { SheetActions } from "./SheetActions";
+import { SegmentedControl } from "./SegmentedControl";
+import { PickerField } from "./PickerField";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
+
+const STATUS_ITEMS = PROJECT_STATUS.map((s) => ({ k: s.value, l: s.label }));
 
 export function ProjectSheet({
   project,
@@ -26,10 +31,12 @@ export function ProjectSheet({
   const [contactId, setContactId] = useState(project?.contactId ?? "");
   const [notes, setNotes] = useState(project?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const safeClose = submitting ? null : onClose;
   const canSave = title.trim().length > 0;
+  const contactOptions = [...contacts]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => ({ value: c.id, label: c.name }));
 
   function handleSave() {
     if (!canSave) return;
@@ -67,85 +74,76 @@ export function ProjectSheet({
       title={project ? "Editar proyecto" : "Nuevo proyecto"}
       onClose={safeClose}
       footer={
-        confirmDelete ? (
-          <>
-            <div className="input-help" style={{ textAlign: "center", marginTop: 0 }}>¿Eliminar este proyecto?</div>
-            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={submitting}>
-              Sí, eliminar
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>
-              Cancelar
-            </button>
-          </>
-        ) : (
-          <>
-            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave || submitting}>
-              {submitting ? "Guardando…" : "Guardar"}
-            </button>
-            {project && (
-              <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)} disabled={submitting}>
-                Eliminar
-              </button>
-            )}
-          </>
-        )
+        <SheetActions
+          canSave={canSave}
+          submitting={submitting}
+          onSave={handleSave}
+          onDelete={project ? handleDelete : undefined}
+          confirmText="¿Eliminar este proyecto?"
+        />
       }
     >
       <div className="input-group">
-        <label className="input-label">Título</label>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Retrato, serie, encargo..." autoFocus />
+        <label className="input-label" htmlFor="project-title">Título</label>
+        <input
+          id="project-title"
+          className="input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Retrato, serie, encargo..."
+          autoFocus={project === null}
+        />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Técnica / medio</label>
-        <input className="input" value={medium} onChange={(e) => setMedium(e.target.value)} placeholder="Óleo, acrílico, grabado..." />
+        <label className="input-label" htmlFor="project-medium">Técnica / medio</label>
+        <input id="project-medium" className="input" value={medium} onChange={(e) => setMedium(e.target.value)} placeholder="Óleo, acrílico, grabado..." />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Estado</label>
-        <select className="input" value={status} onChange={(e) => setStatus(e.target.value as ProjectStatus)}>
-          {PROJECT_STATUS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        <span className="input-label">Estado</span>
+        <SegmentedControl
+          items={STATUS_ITEMS}
+          value={status}
+          onChange={(k) => setStatus(k as ProjectStatus)}
+          size="sm"
+          role="radiogroup"
+          ariaLabel="Estado"
+        />
       </div>
 
       <div className="form-row">
         <div className="input-group">
-          <label className="input-label">Inicio</label>
-          <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <label className="input-label" htmlFor="project-start">Inicio</label>
+          <input id="project-start" className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
         <div className="input-group">
-          <label className="input-label">Entrega</label>
-          <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <label className="input-label" htmlFor="project-due">Entrega</label>
+          <input id="project-due" className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </div>
       </div>
 
       <div className="input-group">
-        <label className="input-label">Precio (MXN)</label>
+        <label className="input-label" htmlFor="project-price">Precio (MXN)</label>
         <div className="money-input-wrap">
           <span className="money-input-symbol">$</span>
-          <input className="input money-input" type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
+          <input id="project-price" className="input money-input" type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
         </div>
       </div>
 
       <div className="input-group">
-        <label className="input-label">Cliente / galería</label>
-        <select className="input" value={contactId} onChange={(e) => setContactId(e.target.value)}>
-          <option value="">Ninguno</option>
-          {contacts.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <span className="input-label">Cliente / galería</span>
+        <PickerField
+          title="Cliente / galería"
+          options={contactOptions}
+          value={contactId}
+          onChange={setContactId}
+        />
       </div>
 
       <div className="input-group">
-        <label className="input-label">Notas</label>
-        <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <label className="input-label" htmlFor="project-notes">Notas</label>
+        <textarea id="project-notes" className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Sheet>
   );

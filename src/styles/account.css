@@ -1,0 +1,59 @@
+/* Account sheet + topbar avatar. Same vocabulary as everything else:
+   row-item list, section-title, cream/teal tokens. */
+button.topbar-avatar {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  color: var(--teal-dark);
+  font-family: var(--font-d);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+.topbar-avatar::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+button.topbar-avatar:focus { outline: none; }
+button.topbar-avatar:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 var(--space-6);
+}
+
+.account-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  color: var(--teal-dark);
+  font-family: var(--font-d);
+  font-weight: 800;
+  font-size: var(--text-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.account-check {
+  color: var(--teal);
+  display: flex;
+  align-items: center;
+}
+
+.row-item--selected {
+  background: var(--teal-mist);
+}

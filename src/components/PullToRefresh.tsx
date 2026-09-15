@@ -1,0 +1,176 @@
+import { useRef, useState, useCallback } from "react";
+import type { ReactNode } from "react";
+
+/* ── PullToRefresh ──
+   Port of Cardigan's PullToRefresh. Angus has no logo mark, so the
+   pull indicator is a stroked ring that fills with pull progress and
+   breathes while refreshing; the success check + "Actualizado" copy
+   are identical. Keyframes (ptr-breathe / ptr-check-in /
+   ptr-check-draw / ptr-text-in) live in base.css + components.css. */
+
+function RingIcon({ size, color, progress }: { size: number; color: string; progress: number }) {
+  const r = 10;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx={12} cy={12} r={r} stroke={color} strokeWidth={2.2} opacity={0.22} />
+      <circle
+        cx={12} cy={12} r={r} stroke={color} strokeWidth={2.2} strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0.08, progress))}
+        transform="rotate(-90 12 12)"
+      />
+    </svg>
+  );
+}
+
+export function PullToRefresh({ onRefresh, children }: { onRefresh: () => void | Promise<void>; children?: ReactNode }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const touchRef = useRef<{ y: number; active: boolean } | null>(null);
+  const [pullY, setPullY] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [releasing, setReleasing] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const THRESHOLD = 64;
+  const MAX_PULL = 130;
+
+  // .page is the screen scroll container; .scroll-bounce is the
+  // equivalent on any other full-viewport surface. Either one is
+  // treated as the scroll owner. If neither exists we fall back to
+  // "yes, we're at top" so the wrapper still triggers — useful for
+  // short content with no explicit scroll layer.
+  const isAtTop = () => {
+    const scroller =
+      wrapRef.current?.querySelector(".page") ||
+      wrapRef.current?.querySelector(".scroll-bounce");
+    return !scroller || scroller.scrollTop <= 0;
+  };
+
+  // Skip the gesture entirely when a sheet is open. Portaled overlays
+  // bubble touch events through React's virtual tree into this
+  // wrapper, so without this guard scrolling inside a sheet would fire
+  // PullToRefresh.
+  const overlayOpen = () => !!document.querySelector(".sheet-overlay");
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (refreshing || releasing) return;
+    if (overlayOpen()) return;
+    if (!isAtTop()) return;
+    touchRef.current = { y: e.touches[0].clientY, active: false };
+  }, [refreshing, releasing]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchRef.current || refreshing || releasing) return;
+    if (overlayOpen()) { touchRef.current = null; return; }
+    const dy = e.touches[0].clientY - touchRef.current.y;
+    if (!touchRef.current.active) {
+      if (dy > 10 && isAtTop()) touchRef.current.active = true;
+      else if (dy < -5) { touchRef.current = null; return; }
+      else return;
+    }
+    if (touchRef.current.active && dy > 0) {
+      const ratio = 1 - Math.min(dy / 600, 0.7);
+      setPullY(Math.min(MAX_PULL, dy * ratio * 0.5));
+    }
+  }, [refreshing, releasing]);
+
+  const onTouchEnd = useCallback(async () => {
+    if (!touchRef.current?.active) { touchRef.current = null; return; }
+    touchRef.current = null;
+    if (pullY >= THRESHOLD) {
+      setRefreshing(true);
+      setPullY(THRESHOLD);
+      try { await onRefresh(); } finally {
+        setDone(true);
+        setRefreshing(false);
+        setTimeout(() => {
+          setReleasing(true);
+          setPullY(0);
+          setTimeout(() => {
+            setReleasing(false);
+            setDone(false);
+          }, 500);
+        }, 600);
+      }
+    } else {
+      setReleasing(true);
+      setPullY(0);
+      setTimeout(() => setReleasing(false), 400);
+    }
+  }, [pullY, onRefresh]);
+
+  const progress = Math.min(1, pullY / THRESHOLD);
+  const show = pullY > 0 || refreshing || releasing || done;
+
+  return (
+    <div ref={wrapRef} style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", position: "relative" }}
+      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      {show && (
+        <div className="ptr-container" style={{
+          display: "flex", justifyContent: "center", alignItems: "center",
+          flexDirection: "column", gap: 6,
+          height: refreshing || done ? THRESHOLD : pullY,
+          minHeight: refreshing || done ? THRESHOLD : 0,
+          transition: (refreshing || releasing || done) ? "height 0.8s var(--ease-spring), min-height 0.8s var(--ease-spring)" : "none",
+          flexShrink: 0, overflow: "hidden",
+          // The floating top chrome overlays the first --chrome-top-overlap
+          // px of this wrapper on phones; shift the spinner strip below the
+          // glass (transform: no layout impact — the strip still opens the
+          // same gap above .page, whose own padding-top hides the seam).
+          transform: "translateY(var(--chrome-top-overlap, 0px))",
+        }}>
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            opacity: done ? 1 : refreshing ? 1 : Math.min(1, progress * 1.5),
+            transform: done
+              ? "scale(1)"
+              : refreshing
+                ? "scale(1)"
+                : `scale(${0.3 + progress * 0.7}) rotate(${progress * 180}deg)`,
+            transition: (releasing || done)
+              ? "opacity 0.6s ease, transform 0.8s var(--ease-spring)"
+              : "none",
+          }}>
+            {done ? (
+              /* Success checkmark */
+              <svg width={24} height={24} viewBox="0 0 24 24" fill="none" style={{
+                animation: "ptr-check-in 0.5s var(--ease-spring)",
+              }}>
+                <circle cx={12} cy={12} r={11} stroke="var(--green)" strokeWidth={2} fill="var(--green-bg)" />
+                <path d="M7 12.5L10.5 16L17 9" stroke="var(--green)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
+                  style={{ strokeDasharray: 20, strokeDashoffset: 0, animation: "ptr-check-draw 0.4s ease 0.1s both" }} />
+              </svg>
+            ) : (
+              /* Ring spinner */
+              <div style={{
+                width: 28, height: 28,
+                animation: refreshing ? "ptr-breathe 1.8s var(--ease-in-out) infinite" : "none",
+              }}>
+                <RingIcon size={28} color="var(--teal)" progress={refreshing ? 1 : progress} />
+              </div>
+            )}
+          </div>
+          {done && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, color: "var(--green)",
+              fontFamily: "var(--font-d)", letterSpacing: "0.02em",
+              animation: "ptr-text-in 0.4s ease 0.15s both",
+            }}>
+              Actualizado
+            </span>
+          )}
+          {refreshing && (
+            <span style={{
+              fontSize: 10, fontWeight: 600, color: "var(--charcoal-xl)",
+              fontFamily: "var(--font)",
+              animation: "ptr-text-in 0.4s ease both",
+            }}>
+              Actualizando...
+            </span>
+          )}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}

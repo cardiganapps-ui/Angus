@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import type { Project, ProjectStatus } from "../types";
 import { PROJECT_STATUS, labelFor } from "../data/constants";
@@ -39,13 +39,14 @@ export function Projects() {
           </div>
         ) : (
           <div className="card">
-            {sorted.map((project) => {
+            {sorted.map((project, i) => {
               const contact = contacts.find((c) => c.id === project.contactId);
               return (
                 <button
                   key={project.id}
                   type="button"
-                  className="row-item"
+                  className="row-item list-entry-stagger"
+                  style={{ "--stagger-i": Math.min(i, 12) } as CSSProperties}
                   onClick={() => setEditing(project)}
                 >
                   <div className="row-content">

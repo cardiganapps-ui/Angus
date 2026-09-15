@@ -12,9 +12,11 @@ React 19 + Vite + TypeScript, no UI library, Cardigan's CSS design system (token
 npm install
 cp .env.example .env.local   # fill in the Supabase URL + publishable key
 npm run dev                  # local dev server
-npm run build                # typecheck + production build
-npm run lint                 # eslint
+npm run typecheck && npm run lint && npm test && npm run build
+npm run e2e -- <url>         # browser smoke test (E2E_EMAIL / E2E_PASS in .env.local)
 ```
+
+Rules live in `CLAUDE.md`; recipes and the component catalog in `docs/playbook.md`.
 
 ## Roadmap
 

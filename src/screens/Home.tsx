@@ -1,7 +1,11 @@
+import type { CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import { EVENT_KIND, EVENT_KIND_BADGE, labelFor } from "../data/constants";
 import { formatWithWeekday, todayISO } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
+import { AnimatedNumber } from "../components/AnimatedNumber";
+
+const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) } as CSSProperties);
 
 export function Home() {
   const { events, projects, contacts } = useApp();
@@ -25,13 +29,13 @@ export function Home() {
       </div>
 
       <div className="kpi-grid">
-        <div className="kpi-card">
+        <div className="kpi-card list-entry-stagger" style={stagger(0)}>
           <div className="kpi-label">Proyectos activos</div>
-          <div className="kpi-value">{activeProjects}</div>
+          <div className="kpi-value"><AnimatedNumber value={activeProjects} /></div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card list-entry-stagger" style={stagger(1)}>
           <div className="kpi-label">Seguimientos</div>
-          <div className="kpi-value">{dueFollowUps}</div>
+          <div className="kpi-value"><AnimatedNumber value={dueFollowUps} /></div>
         </div>
       </div>
 
@@ -49,10 +53,10 @@ export function Home() {
           </div>
         ) : (
           <div className="card">
-            {upcoming.map((event) => {
+            {upcoming.map((event, i) => {
               const kind = EVENT_KIND.find((k) => k.value === event.kind)!;
               return (
-                <div className="row-item" key={event.id}>
+                <div className="row-item list-entry-stagger" key={event.id} style={stagger(i)}>
                   <span className="event-dot" style={{ background: kind.color }} />
                   <div className="row-content">
                     <div className="row-title">{event.title}</div>
