@@ -1,5 +1,6 @@
 import type {
   Contact,
+  EventSeries,
   Expense,
   Installment,
   Payment,
@@ -43,6 +44,26 @@ export interface EventRow {
   start_time: string | null;
   end_time: string | null;
   location: string;
+  project_id: string | null;
+  contact_id: string | null;
+  series_id: string | null;
+  cancelled: boolean;
+  detached: boolean;
+  notes: string;
+  created_at: string;
+}
+
+export interface EventSeriesRow {
+  id: string;
+  title: string;
+  kind: EventSeries["kind"];
+  cadence: EventSeries["cadence"];
+  weekdays: number[];
+  start_time: string | null;
+  end_time: string | null;
+  location: string;
+  start_date: string;
+  end_date: string | null;
   project_id: string | null;
   contact_id: string | null;
   notes: string;
@@ -119,6 +140,9 @@ export const eventStore: CloudStoreConfig<ScheduleEvent, EventRow> = {
     location: r.location,
     projectId: r.project_id,
     contactId: r.contact_id,
+    seriesId: r.series_id,
+    cancelled: r.cancelled,
+    detached: r.detached,
     notes: r.notes,
     createdAt: r.created_at.slice(0, 10)
   }),
@@ -133,7 +157,47 @@ export const eventStore: CloudStoreConfig<ScheduleEvent, EventRow> = {
     if (e.location !== undefined) row.location = e.location;
     if (e.projectId !== undefined) row.project_id = e.projectId;
     if (e.contactId !== undefined) row.contact_id = e.contactId;
+    if (e.seriesId !== undefined) row.series_id = e.seriesId;
+    if (e.cancelled !== undefined) row.cancelled = e.cancelled;
+    if (e.detached !== undefined) row.detached = e.detached;
     if (e.notes !== undefined) row.notes = e.notes;
+    return row;
+  }
+};
+
+export const eventSeriesStore: CloudStoreConfig<EventSeries, EventSeriesRow> = {
+  table: "event_series",
+  fromRow: (r) => ({
+    id: r.id,
+    title: r.title,
+    kind: r.kind,
+    cadence: r.cadence,
+    weekdays: [...(r.weekdays ?? [])].map(Number),
+    startTime: hhmm(r.start_time),
+    endTime: hhmm(r.end_time),
+    location: r.location,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    projectId: r.project_id,
+    contactId: r.contact_id,
+    notes: r.notes,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (x) => {
+    const row: Partial<EventSeriesRow> = {};
+    if (x.id !== undefined) row.id = x.id;
+    if (x.title !== undefined) row.title = x.title;
+    if (x.kind !== undefined) row.kind = x.kind;
+    if (x.cadence !== undefined) row.cadence = x.cadence;
+    if (x.weekdays !== undefined) row.weekdays = x.weekdays;
+    if (x.startTime !== undefined) row.start_time = x.startTime;
+    if (x.endTime !== undefined) row.end_time = x.endTime;
+    if (x.location !== undefined) row.location = x.location;
+    if (x.startDate !== undefined) row.start_date = x.startDate;
+    if (x.endDate !== undefined) row.end_date = x.endDate;
+    if (x.projectId !== undefined) row.project_id = x.projectId;
+    if (x.contactId !== undefined) row.contact_id = x.contactId;
+    if (x.notes !== undefined) row.notes = x.notes;
     return row;
   }
 };

@@ -57,7 +57,7 @@ function project(id: string, over: Partial<Project> = {}): Project {
 }
 const event = (id: string, kind: ScheduleEvent["kind"], date: string): ScheduleEvent => ({
   id, title: `Evento ${id}`, kind, date, startTime: null, endTime: null,
-  location: "", projectId: null, contactId: null, notes: "", createdAt: date
+  location: "", projectId: null, contactId: null, seriesId: null, cancelled: false, detached: false, notes: "", createdAt: date
 });
 
 describe("attentionItems", () => {

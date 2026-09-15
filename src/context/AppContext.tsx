@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type {
   Contact,
+  EventSeries,
   Expense,
   Installment,
   Payment,
@@ -14,6 +15,7 @@ import type {
 import { useCloudStore } from "../hooks/useCloudStore";
 import {
   contactStore,
+  eventSeriesStore,
   eventStore,
   expenseStore,
   installmentStore,
@@ -24,6 +26,7 @@ import {
 } from "../data/rows";
 import { importLocalData } from "../lib/importLocal";
 import { pendingMaterializations } from "../utils/materialize";
+import { pendingOccurrences } from "../utils/series";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
 
@@ -62,8 +65,16 @@ interface AppContextValue {
 
   events: ScheduleEvent[];
   addEvent: (e: ScheduleEvent) => Promise<boolean>;
+  addEvents: (rows: ScheduleEvent[]) => Promise<boolean>;
   updateEvent: (id: string, patch: Partial<ScheduleEvent>) => Promise<void>;
   removeEvent: (id: string) => Promise<void>;
+  removeEvents: (ids: string[]) => Promise<void>;
+
+  series: EventSeries[];
+  addSeries: (s: EventSeries) => Promise<boolean>;
+  updateSeries: (id: string, patch: Partial<EventSeries>) => Promise<void>;
+  /** Deletes the series AND every occurrence (Postgres cascades; mirrored locally). */
+  removeSeries: (id: string) => Promise<void>;
 
   sales: Sale[];
   addSale: (s: Sale) => Promise<boolean>;
@@ -120,6 +131,7 @@ export function AppProvider({
   const installments = useCloudStore(workspaceId, installmentStore);
   const expenses = useCloudStore(workspaceId, expenseStore);
   const rules = useCloudStore(workspaceId, recurringRuleStore);
+  const series = useCloudStore(workspaceId, eventSeriesStore);
 
   const loading =
     projects.loading ||
@@ -129,7 +141,8 @@ export function AppProvider({
     payments.loading ||
     installments.loading ||
     expenses.loading ||
-    rules.loading;
+    rules.loading ||
+    series.loading;
 
   // Materialize due recurring rules into real rows. Runs once the data
   // is in, and again whenever a rule or its rows change; the unique
@@ -159,6 +172,24 @@ export function AppProvider({
       materializing.current = false;
     });
   }, [loading, rulesInflight, ruleItems, saleItems, expenseItems, addSales, addExpenses]);
+
+  // Same idea for recurring sessions: keep ~12 weeks of occurrences on
+  // the calendar. Waits for a just-created series to land (FK).
+  const generating = useRef(false);
+  const seriesItems = series.items;
+  const seriesInflight = series.inflight;
+  const eventItems = events.items;
+  const addEvents = events.addMany;
+  useEffect(() => {
+    if (loading || generating.current || seriesInflight > 0) return;
+    const pending = pendingOccurrences(seriesItems, eventItems, todayISO());
+    if (pending.length === 0) return;
+    generating.current = true;
+    const created = todayISO();
+    void addEvents(pending.map((e) => ({ ...e, id: makeId(), createdAt: created }))).finally(() => {
+      generating.current = false;
+    });
+  }, [loading, seriesInflight, seriesItems, eventItems, addEvents]);
   const importedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -192,7 +223,8 @@ export function AppProvider({
         payments.error ??
         installments.error ??
         expenses.error ??
-        rules.error,
+        rules.error ??
+        series.error,
       clearError: () => {
         actions.clearError();
         projects.clearError();
@@ -203,6 +235,7 @@ export function AppProvider({
         installments.clearError();
         expenses.clearError();
         rules.clearError();
+        series.clearError();
       },
       refreshAll: async () => {
         await Promise.all([
@@ -213,7 +246,8 @@ export function AppProvider({
           payments.reload(),
           installments.reload(),
           expenses.reload(),
-          rules.reload()
+          rules.reload(),
+          series.reload()
         ]);
       },
       projects: projects.items,
@@ -226,8 +260,18 @@ export function AppProvider({
       removeContact: contacts.remove,
       events: events.items,
       addEvent: events.add,
+      addEvents: events.addMany,
       updateEvent: events.update,
       removeEvent: events.remove,
+      removeEvents: events.removeMany,
+      series: series.items,
+      addSeries: series.add,
+      updateSeries: series.update,
+      // Postgres cascades a series' occurrences; mirror it locally.
+      removeSeries: async (id: string) => {
+        await series.remove(id);
+        events.dropLocal((e) => e.seriesId === id);
+      },
       sales: sales.items,
       addSale: sales.add,
       addSales: sales.addMany,
@@ -272,7 +316,8 @@ export function AppProvider({
       payments,
       installments,
       expenses,
-      rules
+      rules,
+      series
     ]
   );
 

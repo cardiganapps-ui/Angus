@@ -70,6 +70,9 @@ export const seedEvents: ScheduleEvent[] = [
     location: "Taller Xochimilco",
     projectId: null,
     contactId: null,
+    seriesId: null,
+    cancelled: false,
+    detached: false,
     notes: "",
     createdAt: todayISO()
   },
@@ -83,6 +86,9 @@ export const seedEvents: ScheduleEvent[] = [
     location: "",
     projectId: "p1",
     contactId: "c2",
+    seriesId: null,
+    cancelled: false,
+    detached: false,
     notes: "",
     createdAt: todayISO()
   },
@@ -96,6 +102,9 @@ export const seedEvents: ScheduleEvent[] = [
     location: "Galería Cardinal",
     projectId: null,
     contactId: "c1",
+    seriesId: null,
+    cancelled: false,
+    detached: false,
     notes: "",
     createdAt: todayISO()
   }

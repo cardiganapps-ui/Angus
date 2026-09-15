@@ -1,0 +1,57 @@
+/* ── Agenda: month grid + day list ──
+   A compact month: weekday header, 6 rows of 44px cells, one dot per
+   event kind (max 3) under the number, today ringed in the accent,
+   the selected day filled. Below it, the selected day's events. */
+
+.cal { padding: 8px 12px 12px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 4px 6px; }
+.cal-title { flex: 1; text-align: center; font-family: var(--font-d); font-weight: 800; font-size: var(--text-lg); color: var(--charcoal); letter-spacing: -0.2px; background: none; border: none; min-height: 44px; border-radius: var(--radius-pill); cursor: pointer; }
+.cal-title:active { background: var(--accent-mist); }
+.cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-weekday { text-align: center; font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--charcoal-xl); padding: 4px 0 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+button.cal-day {
+  appearance: none; background: none; border: none; padding: 0; margin: 0;
+  min-height: 46px; height: 46px; border-radius: var(--radius);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-family: var(--font); font-size: var(--text-sm); font-weight: 600; color: var(--charcoal);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring);
+}
+button.cal-day:active { transform: scale(0.92); background: var(--accent-mist); }
+button.cal-day--outside { color: var(--charcoal-xl); }
+button.cal-day--past { color: var(--charcoal-lt); }
+button.cal-day--today .cal-day-num { box-shadow: 0 0 0 1.5px var(--accent); color: var(--accent-dark); }
+button.cal-day--selected { background: var(--accent-pale); }
+button.cal-day--selected .cal-day-num { background: var(--accent-dark); color: var(--white); box-shadow: none; }
+.cal-day-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.cal-dots { display: flex; gap: 3px; height: 5px; }
+.cal-dot { width: 5px; height: 5px; border-radius: 50%; }
+.cal-dot--more { width: 5px; height: 5px; border-radius: 1px; background: var(--charcoal-xl); }
+
+/* Day header in the agenda list */
+.agenda-day { display: flex; align-items: center; gap: 10px; padding: 14px 16px 6px; }
+.agenda-day-num { font-family: var(--font-d); font-weight: 800; font-size: var(--text-2xl); color: var(--charcoal); line-height: 1; min-width: 34px; font-variant-numeric: tabular-nums; }
+.agenda-day--today .agenda-day-num { color: var(--accent-dark); }
+.agenda-day-text { display: flex; flex-direction: column; }
+.agenda-day-name { font-size: var(--text-sm); font-weight: 700; color: var(--charcoal); }
+.agenda-day-sub { font-size: var(--text-xs); color: var(--charcoal-md); }
+.agenda-day-badge { margin-left: auto; }
+
+.row-series { display: inline-flex; align-items: center; gap: 4px; color: var(--charcoal-lt); }
+
+/* Weekday chips inside the event sheet */
+.weekday-row { display: flex; gap: 6px; }
+button.weekday-chip {
+  appearance: none; flex: 1; min-width: 0; height: 40px; min-height: 40px; padding: 0;
+  border-radius: var(--radius-pill); border: 1px solid var(--border);
+  background: var(--white); color: var(--charcoal-md);
+  font-family: var(--font); font-size: var(--text-sm); font-weight: 700; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring);
+}
+button.weekday-chip:active { transform: scale(0.93); }
+button.weekday-chip[aria-pressed="true"] { background: var(--accent-dark); border-color: var(--accent-dark); color: var(--white); }
+
+/* Edit-scope choice (Solo este / Este y siguientes / Toda la serie) */
+.scope-panel { margin-top: 4px; }
+.scope-panel .segmented { margin-top: 8px; }
