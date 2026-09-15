@@ -4,19 +4,20 @@ Mobile-first planner PWA for an artist: projects, contacts/leads, and a unified 
 
 ## Stack
 
-React 19 + Vite + TypeScript, no UI library, custom CSS design tokens, `vite-plugin-pwa`. Data is local-only for now (localStorage) — Supabase sync for cross-device access is planned next.
+React 19 + Vite + TypeScript, no UI library, Cardigan's CSS design system (tokens, Liquid Glass chrome, sheets), `vite-plugin-pwa`. Supabase for auth + data (RLS per user), Vercel for hosting. See `CLAUDE.md` for the rules.
 
 ## Commands
 
 ```bash
 npm install
-npm run dev       # local dev server
-npm run build     # production build
-npm run lint       # eslint
+cp .env.example .env.local   # fill in the Supabase URL + publishable key
+npm run dev                  # local dev server
+npm run build                # typecheck + production build
+npm run lint                 # eslint
 ```
 
 ## Roadmap
 
-- v1 (this): Projects, Contacts/Leads, Schedule — local-only, installable on phone
-- v2: Supabase backend (auth + sync across devices)
-- v3: Sales, payment plans, expenses, investments, expo budgeting
+- v1 (this): Projects, Contacts/Leads, Schedule — synced, installable on phone
+- v2: Sales + payment plans, expenses + investments, expo budgeting
+- v3: recurring classes, documents/photos

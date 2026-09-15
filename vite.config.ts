@@ -12,8 +12,8 @@ export default defineConfig({
         name: "Angus",
         short_name: "Angus",
         description: "Planificador de proyectos, ventas y agenda para artistas",
-        theme_color: "#f7f3ee",
-        background_color: "#f7f3ee",
+        theme_color: "#FFFFFF",
+        background_color: "#FFFFFF",
         display: "standalone",
         start_url: "/",
         icons: [

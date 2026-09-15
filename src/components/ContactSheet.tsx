@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
+import { useToast } from "../context/ToastContext";
 import type { Contact, ContactRelationship, LeadStage } from "../types";
 import { CONTACT_RELATIONSHIP, LEAD_STAGE } from "../data/constants";
 import { Sheet } from "./Sheet";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
-import { Icon } from "./Icon";
+import { haptic } from "../lib/haptics";
 
 export function ContactSheet({
   contact,
@@ -15,6 +16,7 @@ export function ContactSheet({
   onClose: () => void;
 }) {
   const { addContact, updateContact, removeContact } = useApp();
+  const { showSuccess } = useToast();
   const [name, setName] = useState(contact?.name ?? "");
   const [relationship, setRelationship] = useState<ContactRelationship>(contact?.relationship ?? "lead");
   const [email, setEmail] = useState(contact?.email ?? "");
@@ -23,6 +25,7 @@ export function ContactSheet({
   const [followUpDate, setFollowUpDate] = useState(contact?.followUpDate ?? "");
   const [notes, setNotes] = useState(contact?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const safeClose = submitting ? null : onClose;
   const canSave = name.trim().length > 0;
@@ -45,12 +48,16 @@ export function ContactSheet({
     } else {
       addContact({ id: makeId(), createdAt: todayISO(), ...patch });
     }
+    haptic.success();
+    showSuccess(contact ? "Contacto actualizado" : "Contacto creado");
     onClose();
   }
 
   function handleDelete() {
     if (!contact) return;
     removeContact(contact.id);
+    haptic.warn();
+    showSuccess("Contacto eliminado");
     onClose();
   }
 
@@ -59,16 +66,28 @@ export function ContactSheet({
       title={contact ? "Editar contacto" : "Nuevo contacto"}
       onClose={safeClose}
       footer={
-        <>
-          {contact && (
-            <button className="btn btn-ghost" onClick={handleDelete} aria-label="Eliminar">
-              <Icon name="trash" size={18} />
+        confirmDelete ? (
+          <>
+            <div className="input-help" style={{ textAlign: "center", marginTop: 0 }}>¿Eliminar este contacto?</div>
+            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={submitting}>
+              Sí, eliminar
             </button>
-          )}
-          <button className="btn btn-primary btn-block" onClick={handleSave} disabled={!canSave || submitting}>
-            Guardar
-          </button>
-        </>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave || submitting}>
+              {submitting ? "Guardando…" : "Guardar"}
+            </button>
+            {contact && (
+              <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)} disabled={submitting}>
+                Eliminar
+              </button>
+            )}
+          </>
+        )
       }
     >
       <div className="input-group">
@@ -112,17 +131,17 @@ export function ContactSheet({
 
       <div className="input-group">
         <label className="input-label">Correo</label>
-        <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input className="input" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
 
       <div className="input-group">
         <label className="input-label">Teléfono</label>
-        <input className="input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <input className="input" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
       </div>
 
       <div className="input-group">
         <label className="input-label">Notas</label>
-        <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Sheet>
   );

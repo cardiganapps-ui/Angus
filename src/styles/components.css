@@ -1,351 +1,1598 @@
-/* Top bar */
-.topbar {
-  padding: calc(var(--sat) + 14px) 16px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--linen);
-  border-bottom: 1px solid var(--border-lt);
-}
-
-.topbar-title {
-  font-family: var(--font-d);
-  font-weight: 700;
-  font-size: var(--text-xl);
-  letter-spacing: -0.2px;
-}
-
-/* Bottom tab nav */
-.bottom-tabs {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: calc(var(--bottom-tabs-h) + var(--sab));
-  padding-bottom: var(--sab);
-  display: flex;
-  background: var(--white);
-  border-top: 1px solid var(--border-lt);
-  box-shadow: var(--shadow-sm);
-  z-index: 20;
-}
-
-.tab-btn {
+/* PAGE ──
+   `overflow-y: scroll` (not auto) guarantees the container is always a
+   scroll area on iOS Safari. Padding-bottom clears the fixed tab bar
+   so the last row isn't hidden. */
+.page {
   flex: 1;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  /* `auto` (the default) preserves iOS's elastic rubber-band when
+     the user scrolls past the top or bottom of a screen — Cardigan
+     felt rudimentary without it. The earlier `contain` was added
+     to prevent scroll chaining, but the parent `.shell` already
+     uses `overflow: clip`, so there's no parent for a chained scroll
+     to bubble into. Sheets and any other nested scroll surface get
+     bounce too via the same default. */
+  overscroll-behavior-y: auto;
+  /* Reserve bottom space so the last row clears the FLOATING pill.
+     Geometry: the pill is `position: fixed; bottom: calc(sab + 8px)`
+     with height --bottom-tabs-h, so its TOP edge sits at
+     `sab + 8 + --bottom-tabs-h` above the viewport bottom. The old
+     reservation (`sab + --bottom-tabs-h + 16`) forgot the pill's 8px
+     float offset, leaving only ~8px above the pill — so the last
+     section (e.g. Home's "Notas recientes") jammed under the bar, its
+     drop-shadow bled over it, and the page (already at max scroll) just
+     rubber-banded. Reserve the pill's real top edge (8px offset) PLUS a
+     24px breathing gap. */
+  padding-bottom: calc(var(--sab) + var(--bottom-tabs-h) + 32px);
+  /* Reserve the floating top chrome's height so content starts below
+     the glass but scrolls UNDER it (mirror of the bottom reservation
+     above). 0 on 768+ where the chrome is in normal flow — and the
+     desktop `.page { padding: … }` shorthand in responsive.css resets
+     it anyway. scroll-padding keeps anchor/focus scrolls clear of the
+     chrome. */
+  padding-top: var(--chrome-top-overlap, 0px);
+  scroll-padding-top: calc(var(--chrome-top-overlap, 0px) + 8px);
+
+  /* Content flows from the TOP, top-down, like every normal screen.
+     `justify-content: flex-start` (the default) stacks children from
+     the top; short pages simply leave empty space below the last row
+     (above the pill) instead of floating their content to the middle
+     or bottom of the viewport.
+
+     History note — do NOT reintroduce `space-between` /
+     `margin-top: auto` here. A chain of earlier commits added them to
+     "absorb dead viewport below the last row," but that dead viewport
+     was a SYMPTOM of `.shell` sizing itself with `100dvh` (which iOS
+     underreports — see base.css `.shell`). With the shell now sized
+     correctly, distributing sections pushed real content into the
+     bottom half and left a large gap at the top (Agenda / Finanzas /
+     Pacientes / Notas). Top-anchored flow is the fix.
+     `.page > * { flex-shrink: 0 }` keeps real children at their
+     natural height so long-page content can't be compressed. */
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  color: var(--charcoal-lt);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  transition: color var(--dur-fast) var(--ease-out);
+  justify-content: flex-start;
+
+  /* Anchors the absolutely-positioned `::after` rubber-band sentinel
+     below. The descendant chain inside `.page` already establishes its
+     own positioning context wherever it needs absolute children, so
+     promoting `.page` itself to a positioned element is safe. */
+  position: relative;
+}
+.page > * { flex-shrink: 0; }
+.page::-webkit-scrollbar { display: none; }
+/* iOS rubber-band guarantee. The naive in-flow `1px` spacer below
+   only generates overflow on pages whose natural content already
+   meets or exceeds the viewport — short pages (empty states, single
+   cards, the "no patients" greeting) stay exactly clientHeight tall
+   and iOS skips the bounce entirely because there's nothing to
+   rubber-band against. An absolutely-positioned sentinel anchored
+   `1px` past the bottom of the visible viewport contributes to
+   `scrollHeight` regardless of in-flow content size, so every screen
+   bounces the same way. The element is invisible (1×1, hidden) and
+   non-interactive, and its position is in the scroll container's
+   content coordinate space so it never visually "appears" on screen
+   — the user just feels the elastic give. */
+.page::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  visibility: hidden;
+}
+/* 1px spacer pseudo — nudges the scrollable content just past the
+   container edge so iOS has something to rubber-band against on
+   surfaces that happen to fit the viewport exactly. Plain in-flow
+   block, never interferes with layout or touch handling. Used for
+   the non-`.page` scroll surfaces below; `.page` uses the absolute
+   sentinel above instead so even short content bounces. */
+.drawer-nav::after,
+.cmdp-list::after,
+.sheet-panel::after,
+.sheet-scroll::after,
+.lp-root::after,
+.split-view-list::after,
+.split-view-detail::after,
+.patients-list-pane::after,
+.patients-detail-pane::after,
+.notes-list-col::after,
+.note-editor-desktop::after,
+.expediente-scroll::after {
+  content: ""; display: block; height: 1px; pointer-events: none;
 }
 
-.tab-btn.active {
-  color: var(--clay-dark);
+/* ── TAP-ONLY SURFACES ──
+   List rows, tabs, chips, calendar events, and KPI tiles are meant to be
+   tapped, not long-pressed for text selection. Disabling selection here
+   also prevents the iOS text-selection UI from firing on hold-to-swipe
+   and on the week-event long-press-to-reschedule gesture. Inputs,
+   textareas, note content, and .note-card-pressing are unaffected. */
+.row-item, .bal-row, .week-event, .chip, .drawer-item, .bottom-tab,
+.kpi-card, .stat-tile, .cal-day, .month-cell, .fab, .fab-action,
+.drawer-user, .hamburger, .icon-btn, .avatar-sm,
+.topbar-brand, .topbar-new-btn, .topbar-new-item, .topbar-search-btn,
+.segmented-btn, .seg-btn, .view-btn, .fin-tab, .auth-tab,
+.session-status, .session-row, .see-all, .sheet-close, .sheet-handle,
+.cmdp-item, .context-menu-item {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
-.tab-btn:active {
-  transform: scale(0.94);
-  transition: transform var(--dur-fast) var(--ease-spring);
-}
-
-/* Cards & rows */
-.card {
-  background: var(--white);
-  border: 1px solid var(--border-lt);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-
-.row-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 16px;
-  min-height: 62px;
-  border-bottom: 1px solid var(--border-lt);
-}
-
-.row-item:last-child {
-  border-bottom: none;
-}
-
-.row-item:active {
-  background: var(--linen-dark);
-}
-
-/* Eyebrow / section titles */
-.eyebrow {
-  font-size: var(--text-eyebrow);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-weight: 700;
-  color: var(--charcoal-xl);
-}
-
-.section-title {
-  font-family: var(--font-d);
-  font-weight: 700;
-  font-size: var(--text-lg);
-  margin: 20px 0 10px;
-}
-
-/* Badges */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border-radius: var(--radius-pill);
-  font-size: var(--text-xs);
-  font-weight: 700;
-}
-
-.badge-clay { background: var(--clay-pale); color: var(--clay-dark); }
-.badge-sage { background: var(--sage-bg); color: var(--sage); }
-.badge-plum { background: var(--plum-bg); color: var(--plum); }
-.badge-blue { background: var(--blue-bg); color: var(--blue); }
-.badge-amber { background: var(--amber-bg); color: var(--amber); }
-.badge-red { background: var(--red-bg); color: var(--red); }
-.badge-neutral { background: var(--linen-dark); color: var(--charcoal-md); }
-
-/* Buttons */
-.btn {
-  border-radius: var(--radius-pill);
-  padding: 12px 20px;
-  font-weight: 700;
-  font-size: var(--text-md);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: transform var(--dur-fast) var(--ease-spring);
-}
-
-.btn:active {
-  transform: scale(0.95);
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-primary {
-  background: var(--clay);
-  color: var(--white);
-}
-
-.btn-secondary {
-  background: var(--linen-dark);
-  color: var(--charcoal);
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--charcoal);
-}
-
-.btn-danger {
-  background: var(--red);
-  color: var(--white);
-}
-
-.btn-block {
-  width: 100%;
-}
-
-.btn-tap:active {
-  transform: scale(0.94);
-  transition: transform var(--dur-fast) var(--ease-spring);
-}
-
-/* FAB */
-.fab {
-  position: fixed;
-  right: calc(16px + var(--sar));
-  bottom: calc(var(--bottom-tabs-h) + var(--sab) + 16px);
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--clay);
-  color: var(--white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow);
-  z-index: 15;
-}
-
-.fab:active {
-  transform: scale(0.92);
-  transition: transform var(--dur-fast) var(--ease-spring);
-}
-
-/* Inputs */
-.input-group {
-  margin-bottom: 14px;
-}
-
-.input-label {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--charcoal-md);
-  margin-bottom: 6px;
-}
-
-.input,
-textarea.input,
-select.input {
-  width: 100%;
-  padding: 12px 14px;
+/* ── LOADING SKELETON ──
+   Used in App.jsx's LoadingSkeleton on first load. Shapes mimic the
+   Home layout (KPI tiles + row list) so the transition to real data
+   feels continuous. */
+.sk-bar, .sk-circle {
+  background: linear-gradient(90deg, var(--cream-deeper) 0%, var(--cream) 50%, var(--cream-deeper) 100%);
+  background-size: 200% 100%;
+  animation: skShimmer 1.4s infinite ease-in-out;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--white);
-  font-size: var(--text-lg);
+  display: block;
+}
+.sk-bar-xs { height: 9px; border-radius: 4px; }
+.sk-bar-sm { height: 11px; }
+.sk-bar-md { height: 14px; }
+.sk-bar-lg { height: 20px; }
+.sk-circle {
+  width: 36px; height: 36px; border-radius: 50%;
+  flex-shrink: 0;
+}
+@keyframes skShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-.input:focus,
-textarea.input:focus,
-select.input:focus {
-  outline: 2px solid var(--clay);
-  outline-offset: 1px;
-}
 
-textarea.input {
-  resize: vertical;
-  min-height: 80px;
+/* ── Liquid Glass utilities ──
+   Reusable material classes for NEW chrome surfaces. The established
+   surfaces (.bottom-tabs, .topbar, .toast-panel, …) consume the same
+   --glass-* tokens in their own rules — same material, zero JSX churn.
+   Grades (see the token block in base.css for the vocabulary):
+     .glass-chrome — floating lens (tab pill grade), with the
+                     edge-lensing pseudo-layers built in
+     .glass-bar    — bar strip (topbar grade)
+     .glass-panel  — floating panel (toast/palette grade)
+     .glass-tinted — accent lens (FAB grade)
+   NEVER stack one glass surface over another — WebKit composites
+   stacked backdrop-filters out of z-order (see the :has() rule that
+   hides .bottom-tabs under sheets). A child of a glass surface must
+   set its own backdrop-filter to none. */
+.glass-chrome, .glass-bar, .glass-panel, .glass-tinted { position: relative; }
+.glass-chrome {
+  background: var(--glass-bg-chrome);
+  -webkit-backdrop-filter: var(--glass-filter-chrome);
+  backdrop-filter: var(--glass-filter-chrome);
+  border: 1px solid var(--glass-edge-chrome);
+  box-shadow: var(--glass-shadow-chrome);
 }
-
-.input-help {
-  font-size: var(--text-sm);
-  color: var(--charcoal-xl);
-  margin-top: 4px;
+/* Edge-lensing highlights — top rim-light + bloom (::before) and the
+   bottom catch-light (::after) that make the pane read as THICK glass.
+   Mirrors the hand-tuned .bottom-tabs layers; kept static by design
+   (an animated layer would recomposite the blur every frame). */
+.glass-chrome::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit; pointer-events: none; z-index: 0;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(255, 255, 255, 0.05) 9%,
+      transparent 26%),
+    radial-gradient(135% 78% at 50% -12%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 52%);
 }
-
-/* Sheet */
-.sheet-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(28, 26, 23, 0.4);
-  z-index: 30;
-  display: flex;
-  align-items: flex-end;
-  animation: fade-in var(--dur-base) var(--ease-out);
+.glass-chrome::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit; pointer-events: none; z-index: 0;
+  background:
+    linear-gradient(0deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0.03) 7%,
+      transparent 20%);
+  mix-blend-mode: screen;
 }
-
-.sheet-panel {
-  width: 100%;
-  max-height: 88dvh;
-  background: var(--linen);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  animation: slide-up var(--dur-slow) var(--ease-spring);
+.glass-bar {
+  background: var(--glass-bg-bar);
+  -webkit-backdrop-filter: var(--glass-filter-bar);
+  backdrop-filter: var(--glass-filter-bar);
 }
-
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: var(--radius-pill);
-  background: var(--border);
-  margin: 10px auto 0;
+.glass-panel {
+  background: var(--glass-bg-panel);
+  -webkit-backdrop-filter: var(--glass-filter-panel);
+  backdrop-filter: var(--glass-filter-panel);
+  border: 1px solid var(--glass-edge-panel);
+  box-shadow: var(--glass-shadow-panel);
 }
-
-.sheet-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px 8px;
+.glass-tinted {
+  background: var(--glass-tint-accent);
+  -webkit-backdrop-filter: var(--glass-filter-chrome);
+  backdrop-filter: var(--glass-filter-chrome);
 }
-
-.sheet-title {
-  font-family: var(--font-d);
-  font-weight: 700;
-  font-size: var(--text-xl);
-}
-
-.sheet-body {
-  padding: 0 20px 24px;
-  overflow-y: auto;
-  padding-bottom: max(24px, var(--sab));
-}
-
-.sheet-footer {
-  padding: 14px 20px calc(14px + var(--sab));
-  border-top: 1px solid var(--border-lt);
-  display: flex;
-  gap: 10px;
-}
-
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sheet-overlay,
-  .sheet-panel {
-    animation: none;
+/* CENTRAL no-backdrop-filter fallback: swap the material tokens to
+   solid so EVERY consumer (utilities above + the per-surface rules in
+   base.css / this file) degrades in one place. Surfaces that predate
+   the token system keep their own legacy @supports blocks where their
+   fallback differs (e.g. banner brand tints). */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  /* :root:root (0,2,0) deliberately out-specifies dark.css's
+     html[data-theme="dark"] (0,1,1) token overrides — without the
+     bump, legacy dark mode would keep the TRANSLUCENT dark values with
+     no blur behind them (washed-out chrome). var(--white) resolves
+     per-theme, so this one block yields solid white in light and solid
+     #1A1A1A in dark. */
+  :root:root {
+    --glass-bg-chrome: var(--white);
+    --glass-bg-bar:    var(--white);
+    --glass-bg-panel:  var(--white);
+    --glass-edge-panel: var(--border-lt);
+    --glass-tint-accent: var(--teal);
+    --glass-filter-chrome: none;
+    --glass-filter-bar:    none;
+    --glass-filter-panel:  none;
   }
 }
 
-/* Empty state */
+
+/* ── Bottom tab bar — Liquid Glass pill ──
+   Floating, translucent, blurred. Modeled on iOS 26 system bars and
+   WhatsApp's redesigned chat tab strip: a single rounded capsule that
+   sits a few pixels above the bottom edge, with content scrolling
+   visibly through its frosted glass behind it.
+
+   Implementation notes:
+   - position:fixed + lateral margins so the pill never touches the
+     screen edges (premium ≠ edge-to-edge here, it's the gap that
+     reads as floating).
+   - backdrop-filter does the heavy lifting. Without it the bar would
+     look like a flat panel with low alpha; WITH it, every pixel
+     beneath gains the characteristic glass desaturation + blur.
+   - --bottom-tabs-h kept at 40 — that's the bar's INNER content
+     height. Outer height (incl. padding + sab clearance) is
+     computed when other surfaces (FAB, scroll containers) reserve
+     bottom space. */
+/* Bottom tabs height — the full height of the floating glass pill.
+   66px gives the bar real, native-iOS presence (Apple's tab bars sit
+   ~49pt + safe area; a floating capsule reads taller). Earlier
+   iterations (40 → 52 → 56) all still read as slim. This token
+   cascades: the FAB offset and every scroll container's padding-bottom
+   are computed from it, so bumping here keeps the whole bottom zone in
+   proportion automatically. */
+:root { --bottom-tabs-h: 66px; }
+/* Native iOS 26+ Liquid Glass bar (plugins/native-chrome): the DOM
+   pill unmounts and the native bar takes its zone — 56pt + 8pt float
+   offset = 64pt, ÷ the webview's 0.80 zoom = 80 CSS px reserved so
+   .page / FAB clear it. Class managed by src/lib/nativeChrome.ts. */
+html.native-chrome { --bottom-tabs-h: 80px; }
+.bottom-tabs {
+  position: fixed;
+  /* Floating pill — detached from the screen edges so it reads as a
+     premium iOS Liquid-Glass element. Uses tokens so the dark-mode
+     flip works automatically. The "dead band" the user has been
+     pointing at is no longer about the pill's position — it's the
+     .page free space ABOVE the last visible content. Fixed via
+     margin-top: auto on .page > :last-child (see .page rules above)
+     which anchors the last section to the bottom of .page content
+     area, just above the pill. */
+  left: max(14px, var(--sal));
+  right: max(14px, var(--sar));
+  bottom: calc(var(--sab) + 8px);
+  height: var(--bottom-tabs-h);
+  display: flex; align-items: stretch;
+  z-index: 40;
+
+  /* Pill shape — fully rounded capsule. 7px inner padding sets the
+     gap between the outer glass edge and the active-tab indicator.
+     overflow:hidden clips the sliding indicator's spring overshoot to
+     the rounded edge so it can bounce on every transition without
+     poking past the capsule. (Doesn't affect the drop shadow — box-
+     shadow paints outside the border box — and the active-icon hop
+     stays well within the inner height.) */
+  border-radius: 999px;
+  padding: 7px;
+  overflow: hidden;
+
+  /* ── Liquid Glass (iOS 26) ──
+     Translucent + heavily blurred so the page content desaturates and
+     softens behind the bar instead of hitting a flat white panel. The
+     earlier "solid white" workaround was only there to hide a ghost of
+     the page padding caused by the `100dvh` shell bug — that bug is
+     fixed now (see base.css `.shell`), so the real glass is back.
+     `color-mix` renders as ~30% white in light mode and auto-flips in
+     dark mode via dark.css, which redefines --white. The alpha is kept
+     low + the blur moderate so the page content reads clearly THROUGH
+     the bar (WhatsApp-style frosted glass) instead of washing out to a
+     flat white pill — the previous 55% white + brightness(1.06) lifted
+     it almost to solid white over a white page. saturate keeps the
+     colours behind it vivid; the moderate blur keeps shapes recognisable
+     while the tab labels stay legible.
+     Showing OVER sheet CTAs is prevented by the
+     `:has(.sheet-overlay)` display:none rule below — restoring
+     translucency does not reintroduce that bug. */
+  background: var(--glass-bg-chrome);
+  /* contrast(1.05) in the chrome filter deepens the content showing
+     through so the glass reads as a real refractive lens (Apple's
+     Liquid Glass subtly boosts contrast of what's behind it) rather
+     than a flat frosted wash; the heavy blur + saturation keep the
+     tab labels legible. */
+  -webkit-backdrop-filter: var(--glass-filter-chrome);
+  backdrop-filter: var(--glass-filter-chrome);
+
+  /* Chrome-grade material — border + 6-layer specular stack come from
+     the shared tokens (dark mode re-tunes the TOKENS in dark.css; see
+     base.css for the layer-by-layer anatomy). */
+  border: 1px solid var(--glass-edge-chrome);
+  box-shadow: var(--glass-shadow-chrome);
+}
+/* Edge-lensing highlight: a bright rim-light hugging the top edge that
+   fades fast, plus a soft top-center bloom — mimicking how light gathers
+   and refracts at the upper lip of a real glass pane. Static by design
+   (an always-on shimmer would repaint over the backdrop-filter every
+   frame); the authentic motion-reactive glint is gyroscope-driven, a
+   separate opt-in. Clipped to the pill by overflow:hidden, painted UNDER
+   the tabs + indicator (z-index 0) so it never washes labels. */
+.bottom-tabs::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  /* Kept LIGHT-handed: with the clearer 14% chrome bg these painted
+     highlights are the main residual "milk" — any stronger and the
+     pill reads opaque-white again over light pages. */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(255, 255, 255, 0.05) 9%,
+      transparent 26%),
+    radial-gradient(135% 78% at 50% -12%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 52%);
+}
+/* Bottom-edge refraction lens: a soft catch-light hugging the LOWER lip
+   that mirrors the top glint, so light appears to enter the top of the
+   pane and exit the bottom — the read that sells real glass THICKNESS
+   (a flat panel only highlights one edge). Paired with the inset bottom
+   shadow in the box-shadow stack above, it makes the pill feel like a
+   solid lens you could pinch, not a printed-on sticker. Static for the
+   same reason ::before is (no per-frame backdrop recomposite); the
+   living specular lives on the active indicator instead. */
+.bottom-tabs::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(0deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0.03) 7%,
+      transparent 20%);
+  mix-blend-mode: screen;
+}
+/* Safari < 17 + Firefox fall back gracefully — the central token swap
+   in the Liquid Glass utilities block above turns --glass-bg-chrome
+   solid when the browser can't render the blur. */
+
+/* ── TRUE refraction (Chromium only) ──
+   src/lib/glassRefraction.ts puts .glass-refract on <html> when the
+   engine can render SVG displacement filters inside backdrop-filter
+   (Chromium family; WebKit ignores url() there). The runtime-built
+   #lg-lens-* filters bend the backdrop at the lens edge — REAL
+   refraction — so the painted edge-lens layers and inset speculars
+   come off: physics replaces the fake. Non-Chromium engines never get
+   the class and keep the hand-tuned CSS glass. If an old Chromium
+   drops the url() declaration at parse time, the cascade falls back
+   to the -webkit- prefixed token filter above — plain blur, no hole. */
+html.glass-refract .bottom-tabs {
+  -webkit-backdrop-filter: var(--glass-filter-chrome);
+  backdrop-filter: url(#lg-lens-pill);
+  box-shadow:
+    0 12px 34px -10px rgba(0, 0, 0, 0.22),
+    0 5px 14px -6px rgba(0, 0, 0, 0.10);
+}
+html.glass-refract .bottom-tabs::before,
+html.glass-refract .bottom-tabs::after {
+  display: none;
+}
+html.glass-refract .fab {
+  -webkit-backdrop-filter: var(--glass-filter-chrome);
+  backdrop-filter: url(#lg-lens-fab);
+}
+html[data-theme="dark"].glass-refract .bottom-tabs {
+  box-shadow:
+    0 12px 34px -10px rgba(0, 0, 0, 0.62),
+    0 5px 14px -6px rgba(0, 0, 0, 0.45);
+}
+
+/* CRITICAL: hide the floating tabs while any BOTTOM-SHEET is open.
+   The pill is z-index 40 and sheets are z-index 350, so normally
+   sheets render above; but with backdrop-filter on both surfaces,
+   WebKit composites them out of z-index order under certain
+   conditions, leaving the pill visible OVER sheet CTAs (Activar on
+   calendar, theme picker rows, Registrar pago). The pill's footprint
+   corresponds to the sheet's bottom rows, so users perceive the pill
+   as "blocking" mandatory sheet actions.
+
+   Scoped tightly: ONLY .sheet-overlay (bottom sheets). The Drawer's
+   .drawer-overlay is mounted permanently with opacity:0 when closed,
+   so matching it here would hide the tabs on every screen forever —
+   exactly the bug shipped in the prior attempt. The Drawer slides
+   in from the LEFT and doesn't overlap the bottom tabs visually
+   anyway, so no fix needed there. ConfirmDialog is centered and
+   doesn't sit on top of the tabs either.
+
+   Using :has() rather than a JS-managed class on <body> — the prior
+   JS approach stuck the class on after sheet close (race between
+   MutationObserver and React unmount), leaving the tabs hidden on
+   home. :has() is purely declarative against the live DOM; no race. */
+body:has(.sheet-overlay:not(.sheet-overlay--exit)) .bottom-tabs,
+body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
+  display: none;
+}
+
+/* ── Sliding active-tab indicator ──
+   One absolutely-positioned capsule that slides between tab slots via
+   the --active-i CSS variable set on the parent nav. */
+.bottom-tab-indicator {
+  position: absolute;
+  top: 7px;          /* matches .bottom-tabs padding */
+  bottom: 7px;
+  left: 7px;
+  width: calc((100% - 14px) / var(--tab-count, 4));
+  /* Position via translateX — NOT `left`/`width`. Animating `left`
+     relayouts the element every frame AND forces the pill's
+     backdrop-filter to recomposite the blurred region each tick, which
+     is exactly what made the slide feel juddery. translateX of the
+     indicator's OWN width (= one tab slot) snaps it to the active slot
+     and runs entirely on the compositor — buttery on every device. The
+     parent's `overflow: hidden` clips the spring overshoot to the pill's
+     rounded edge, so the capsule can bounce on EVERY transition (no
+     special-casing the first/last tab) without ever poking out. */
+  transform: translateX(calc(var(--active-i, 0) * 100%));
+  will-change: transform;
+  border-radius: 999px;
+  /* Token-driven so dark mode renders the indicator at the same
+     visual weight (dark.css redefines --teal-pale to a darker tint).
+     A faint top-down gloss + inset hairline + soft teal glow make the
+     capsule itself read as a smaller pane of tinted glass sitting on
+     the bar — the "liquid glass within glass" iOS 26 look. */
+  /* TRANSLUCENT teal, not var(--teal-pale): the pale token is an
+     OPAQUE hex (#EAF4F7) in light mode, and an opaque capsule covering
+     a fifth of the bar was the single biggest "the pill looks solid"
+     contributor. color-mix over --teal stays see-through and still
+     flips with the dark-mode teal. */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.03) 48%,
+      transparent 78%),
+    color-mix(in srgb, var(--teal) 14%, transparent);
+  /* Lens read: a crisp bright top rim + tinted edge ring, a soft inner
+     glow (the "magnified" centre of the glass), and an outer teal cast
+     so the capsule looks like a thicker pane of tinted glass floating on
+     the bar — the "glass within glass" iOS 26 look. */
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--teal) 26%, transparent),
+    inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 10px -8px color-mix(in srgb, var(--teal) 30%, transparent),
+    0 2px 8px -2px color-mix(in srgb, var(--teal) 38%, transparent);
+  /* Springy slide. --ease-spring's overshoot gives the capsule weight
+     so it "settles" into place rather than gliding mechanically; the
+     overshoot is clipped by the pill, so it reads as a confident bounce
+     against the edge on the outer tabs too. */
+  transition:
+    transform var(--dur-slow) var(--ease-spring),
+    background var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+  pointer-events: none;
+  z-index: 0;
+  /* Clip the travelling specular sweep (::after) to the lens's rounded
+     edge so it can't poke past the capsule. */
+  overflow: hidden;
+}
+/* Living specular — a narrow diagonal glint that drifts slowly across
+   the active lens, the way light plays over real glass. This is the
+   "liquid" the bar was missing: every other highlight is static. It's
+   SAFE to animate because the indicator carries NO backdrop-filter
+   (it's a plain tinted layer over the bar), so the sweep repaints only
+   this small element, never the bar's blurred backdrop — exactly the
+   per-frame recomposite the ::before comment warns against. Long 5.5s
+   cycle keeps it ambient, not flashy. */
+.bottom-tab-indicator::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  bottom: -40%;
+  left: -60%;
+  width: 45%;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%);
+  transform: skewX(-18deg);
+  filter: blur(3px);
+  animation: bottomTabLensSheen 5.5s var(--ease-in-out) infinite;
+}
+@keyframes bottomTabLensSheen {
+  0%   { transform: translateX(0)     skewX(-18deg); opacity: 0; }
+  12%  { opacity: 0.9; }
+  40%  { opacity: 0.9; }
+  55%  { transform: translateX(380%)  skewX(-18deg); opacity: 0; }
+  100% { transform: translateX(380%)  skewX(-18deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-tab-indicator { transition: none; }
+  .bottom-tab-indicator::after { animation: none; display: none; }
+}
+/* The safezone div is no longer needed — the pill is detached from
+   the bottom edge by design, so there's nothing to "fill". Keep the
+   class but make it a no-op so we don't break existing JSX. */
+.bottom-tabs-safezone { display: none; }
+
+.bottom-tab {
+  flex: 1; display: flex; flex-direction: column;
+  /* 5px icon→label gap suits the taller 66px pill. */
+  align-items: center; justify-content: center; gap: 5px;
+  background: none; border: none; cursor: pointer; padding: 0;
+  color: var(--charcoal-md); font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 999px;
+  position: relative;
+  /* z-index above the sliding indicator so labels + icons stay legible
+     when the capsule passes underneath. */
+  z-index: 1;
+  /* Color transition coupled to the indicator slide — same --dur-slow
+     budget so the text color reaches teal-dark just as the capsule
+     finishes its spring arrival. --ease-out (vs ease) so the color
+     change settles rather than continues moving at the end. */
+  transition: color var(--dur-slow) var(--ease-out);
+  min-height: 0;
+}
+.bottom-tab-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 26px; border-radius: var(--radius-pill);
+  transition: color var(--dur-slow) var(--ease-out),
+              background var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+  /* Promote to a transform layer so the active-hop animation below
+     stays on the compositor and doesn't trigger layout/paint each
+     frame. */
+  will-change: transform;
+}
+/* Glassy press bloom on a NOT-yet-active tab: touching it lights a
+   frosted glass chip behind the icon for the press duration, so every
+   tab feels like the same liquid-glass material the active lens is made
+   of (without an indicator sliding there yet). The active tab already
+   has the indicator lens behind it, so skip it to avoid double-tinting. */
+.bottom-tab:not(.bottom-tab--active):active .bottom-tab-icon {
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  box-shadow:
+    inset 0 1px 0.5px 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 0 1px color-mix(in srgb, var(--teal) 16%, transparent);
+}
+.bottom-tab-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.01em;
+  line-height: 1;
+  /* Active label scales up a hair, springing in alongside the icon hop. */
+  transition: transform var(--dur-slow) var(--ease-spring);
+}
+.bottom-tab:active { transform: scale(0.92); transition: transform var(--dur-fast) var(--ease-spring-soft); }
+/* Active tab text + icon: the colored sweep that pairs with the
+   sliding indicator behind. Background is OWNED by the sliding
+   .bottom-tab-indicator now — don't paint a background here or the
+   active state would composite over the indicator. */
+.bottom-tab--active { color: var(--teal-dark); }
+.bottom-tab--active .bottom-tab-label {
+  transform: scale(1.04);
+}
+.bottom-tab--active .bottom-tab-icon {
+  color: var(--teal-dark);
+  /* One-shot bouncy hop on activation: the icon springs UP and scales
+     out, dips slightly, then settles — a little more lively and
+     "physical" than a flat scale pop. Reads as a tactile confirmation
+     of "you're here now," the rhythm Apple uses on the Music/Photos
+     tab bars. The animation only runs when .bottom-tab--active is
+     freshly applied (CSS animations rerun when the trigger class is
+     added), so it doesn't loop on re-renders that didn't change the
+     active tab. */
+  animation: bottomTabIconHop 560ms var(--ease-spring) both;
+}
+@keyframes bottomTabIconHop {
+  0%   { transform: translateY(0)    scale(1); }
+  32%  { transform: translateY(-4px) scale(1.22); }
+  62%  { transform: translateY(1px)  scale(0.95); }
+  82%  { transform: translateY(0)    scale(1.04); }
+  100% { transform: translateY(0)    scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-tab--active .bottom-tab-icon { animation: none; }
+  .bottom-tab--active .bottom-tab-label { transform: none; }
+  .bottom-tab-label { transition: none; }
+  /* Reduced motion: drop the press scale, keep the color transition. */
+  .bottom-tab, .bottom-tab:active { transform: none; }
+}
+
+/* ── Toast — Liquid Glass with a type-tinted edge stripe ──
+   Replaces the old solid-color chrome (white-on-red / white-on-green
+   pills) with a translucent panel that reads as part of the same
+   visual family as the tab bar + topbar. Type is communicated by:
+     • a 4px stripe on the leading edge (red/green/amber/charcoal)
+     • the icon chip's accent color
+     • the screen-reader role+liveness (assertive vs polite)
+   Text is charcoal — colored text on glass would compete with the
+   stripe and lose legibility on busy page content. */
+.toast-panel {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px 12px 18px;
+  border-radius: var(--radius);
+  font-family: var(--font); font-size: var(--text-md); font-weight: 600;
+  color: var(--charcoal);
+
+  background: var(--glass-bg-panel);
+  -webkit-backdrop-filter: var(--glass-filter-panel);
+  backdrop-filter: var(--glass-filter-panel);
+  border: 1px solid var(--glass-edge-panel);
+  box-shadow: var(--glass-shadow-panel);
+
+  /* Type stripe — a 4px tinted band on the leading edge, just inside
+     the panel's rounded corner. The pseudo-element sits behind the
+     content so flex alignment doesn't have to account for it. */
+  overflow: hidden;
+}
+.toast-panel::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--charcoal);
+  border-radius: 4px 0 0 4px;
+}
+.toast-panel--success::before { background: var(--green); }
+.toast-panel--error::before   { background: var(--red);   }
+.toast-panel--warning::before { background: var(--amber); }
+
+/* Solid fallback comes from the central --glass-* token swap in the
+   Liquid Glass utilities block. Stripe still conveys type. */
+.toast-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--charcoal);
+  color: var(--white);
+  /* Icon arrives a beat after the panel — the panel's toastIn keyframe
+     runs from 0 → ~80% of its duration without the chip, then the chip
+     pops in with its own spring. Reads as "the panel arrived; then the
+     glyph stamped itself onto it" — same rhythm Apple uses for the
+     Activity Ring ticks and successful payment glyphs. Suppressed by
+     prefers-reduced-motion globally via responsive.css. */
+  animation: toastIconPop 460ms 220ms var(--ease-spring) both;
+}
+@keyframes toastIconPop {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.toast-panel--success .toast-icon { background: var(--green); }
+.toast-panel--error   .toast-icon { background: var(--red); }
+.toast-panel--warning .toast-icon { background: var(--amber); }
+.toast-message {
+  flex: 1; cursor: pointer; line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+}
+.toast-action {
+  flex-shrink: 0; min-height: 0;
+  background: rgba(46, 46, 46, 0.08);
+  color: var(--charcoal);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-family: var(--font);
+  font-size: var(--text-sm); font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+}
+.toast-action:active { background: rgba(46, 46, 46, 0.14); transform: scale(0.94); }
+.toast-close {
+  flex-shrink: 0; min-height: 0; padding: 4px;
+  background: transparent; border: none;
+  color: var(--charcoal-md);
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.toast-close:active { color: var(--charcoal); }
+
+/* FAB — tinted Liquid Glass lens. Translucent teal with the chrome-
+   grade backdrop blur, so page content refracts through the disc while
+   the brand teal stays the read (iOS 26 keeps prominent actions as
+   TINTED glass, not clear). Floats 24px above the bottom tab bar so
+   it's clearly a floating action, not another tab. */
+.fab {
+  /* Floats above the bottom tab pill. Reserve enough room for the
+     pill height + a 20px visual gap so the FAB never overlaps the
+     tab labels. */
+  position: fixed;
+  bottom: calc(var(--sab) + var(--bottom-tabs-h) + 30px);
+  right: 20px;
+  width: 54px; height: 54px;
+  /* Tinted glass base + the tight top spec highlight (8% → fades by
+     30%) that suggests sphere curvature without bleaching the brand
+     color. The tint token stays ≥72% teal because of the white glyph
+     (see --glass-tint-accent in base.css). */
+  background:
+    radial-gradient(ellipse 70% 35% at 50% 12%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 70%),
+    var(--glass-tint-accent);
+  -webkit-backdrop-filter: var(--glass-filter-chrome);
+  backdrop-filter: var(--glass-filter-chrome);
+  border-radius: 50%;
+  border: none;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  padding: 0;
+  /* Layered shadow: teal-tinted ambient glow (lifts the disc off the
+     page with brand color) + soft neutral shadow for depth + crisp
+     specular top rim (the glass lip) + inset bottom edge that gives
+     the lens thickness. */
+  box-shadow:
+    0 10px 28px -8px rgba(91, 155, 175, 0.55),
+    0 4px 12px rgba(46, 46, 46, 0.14),
+    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 6px rgba(48, 108, 124, 0.35);
+  cursor: pointer; z-index: var(--z-fab);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-slower) var(--ease-spring), box-shadow var(--dur-slow) ease;
+}
+.fab:active {
+  transform: scale(0.88);
+  box-shadow:
+    0 8px 20px -6px rgba(48, 108, 124, 0.55),
+    0 2px 6px rgba(46, 46, 46, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.fab.fab-open { transform: rotate(45deg); }
+.fab.fab-open:active { transform: rotate(45deg) scale(0.88); }
+
+.fab-overlay {
+  position: fixed; inset: 0;
+  background: var(--scrim-bg);
+  z-index: var(--z-fab-overlay);
+  -webkit-backdrop-filter: var(--blur-fab);
+  backdrop-filter: var(--blur-fab);
+  animation: fadeIn var(--dur-slow) ease;
+}
+
+.fab-menu {
+  position: fixed;
+  bottom: calc(var(--sab) + var(--bottom-tabs-h) + 88px);
+  right: 20px;
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: flex-end;
+  z-index: var(--z-fab-menu);
+}
+
+.fab-action {
+  display: flex; align-items: center; gap: 0;
+  background: var(--white); border: none; cursor: pointer;
+  padding: 0; -webkit-tap-highlight-color: transparent;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+  animation: fabActionIn var(--dur-slower) var(--ease-spring) both;
+}
+.fab-action:active { background: var(--cream); transform: scale(0.97); }
+@keyframes fabActionIn {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.85); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.fab-action-label {
+  padding: 10px 6px 10px 16px;
+  font-size: 13px; font-weight: 600; color: var(--charcoal-md);
+  white-space: nowrap; font-family: var(--font);
+  letter-spacing: 0.02em;
+}
+
+.fab-action-icon {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--teal-dark);
+  margin-right: 5px;
+}
+
+/* CARDS & SECTIONS */
+.section { padding: 16px 16px 0; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.section-title { font-family: var(--font-d); font-size: 15px; font-weight: 800; color: var(--charcoal); }
+/* Title + muted date stacked on the left of a section header (Hoy / Mañana
+   on the iPad home). Lets the title stay a single bold line with the date
+   as a small eyebrow beneath — never a wrapped two-line title. */
+.section-headline { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.section-sub { font-family: var(--font); font-size: var(--text-xs); font-weight: 600; color: var(--charcoal-xl); letter-spacing: 0.01em; }
+.see-all { font-size: 13px; font-weight: 600; color: var(--teal-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+
+.card { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--border-lt); overflow: hidden; }
+
+/* KPI ROW — plain white tiles with a subtle border, matching .lp-preview-kpi */
+.kpi-scroll {
+  display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 4px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none; scroll-snap-type: x mandatory;
+}
+.kpi-scroll::-webkit-scrollbar { display: none; }
+.kpi-card {
+  background: var(--white); border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  border: 1px solid var(--border-lt); position: relative; overflow: hidden;
+  /* Button reset — so <button class="kpi-card"> inherits page typography
+     and alignment instead of the UA defaults. */
+  font-family: inherit; color: inherit; text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  /* Layered soft shadow gives the cards presence and signals they're
+     interactive rather than flat static tiles. */
+  box-shadow: 0 1px 2px rgba(46,46,46,0.04), 0 4px 14px rgba(46,46,46,0.06);
+  /* Press feedback split into two arcs:
+       - Press-down: fast (var(--dur-fast)) so the finger feels heard
+         immediately, with --ease-spring-soft so the snap doesn't
+         look mechanical.
+       - Release: longer, springier — the card overshoots back to
+         resting size with a small wobble (--ease-spring), which is
+         the moment that reads as "premium tactile".
+     Hover/color transitions stay on the slower base curve so they
+     don't flicker between rapid press-release cycles. */
+  transition:
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
+  will-change: transform;
+}
+button.kpi-card { cursor: pointer; }
+@media (hover: hover) {
+  button.kpi-card:hover {
+    /* Lift on hover — more visible shadow + slight border warm */
+    box-shadow: 0 2px 4px rgba(46,46,46,0.05), 0 10px 24px rgba(46,46,46,0.09);
+    border-color: var(--teal-light);
+  }
+}
+button.kpi-card:active {
+  /* Slightly deeper press (0.94 vs the previous 0.96) and a faster
+     curve on the way down so the press feels immediate. The release
+     re-uses the resting-state spring transition above for the
+     wobble-back. */
+  transform: scale(0.94);
+  background: var(--teal-mist);
+  border-color: var(--teal-light);
+  /* Shadow collapses tight under the card to read as "pressed into
+     the surface" — depth comes from the contrast with the resting
+     state shadow above, not from the absolute values. */
+  box-shadow: 0 1px 2px rgba(46,46,46,0.06), 0 1px 3px rgba(46,46,46,0.04);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring-soft);
+}
+.kpi-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--charcoal-xl); margin-bottom: 6px; }
+/* Tabular numerals — every dashboard number aligns column-style so a
+   row with $1,234 next to $9 doesn't visually shimmer. Applied to the
+   key value selectors here + on .bal-amt / .stat-tile-val in
+   screens.css. .tabular-nums is also exposed as a utility class for
+   inline-styled values. The wildcard rule below also catches inline-
+   styled spans that opt in via `style="font-family: var(--font-d)"`
+   — most of Cardigan's per-screen numeric values use that pattern,
+   so they get tabular alignment without per-call-site changes. */
+.kpi-value { font-family: var(--font-d); font-size: 22px; font-weight: 800; color: var(--charcoal); letter-spacing: -0.4px; font-variant-numeric: tabular-nums; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+[style*="--font-d"] { font-variant-numeric: tabular-nums; }
+.kpi-meta { font-size: 11px; color: var(--charcoal-xl); margin-top: 4px; }
+
+/* BADGE */
+.badge { display: inline-flex; align-items: center; font-size: var(--text-xs); font-weight: 700; padding: 2px 8px; border-radius: var(--radius-pill); }
+.badge-green  { background: var(--green-bg);  color: var(--green); }
+.badge-red    { background: var(--red-bg);    color: var(--red); }
+.badge-teal   { background: var(--teal-pale); color: var(--teal-dark); }
+.badge-gray   { background: var(--cream-dark);color: var(--charcoal-lt); }
+.badge-amber  { background: var(--amber-bg);  color: var(--amber); }
+.badge-purple { background: var(--purple-bg); color: var(--purple); }
+.badge-blue   { background: var(--blue-bg);   color: var(--blue); }
+.badge-rose   { background: var(--rose-bg);   color: var(--rose); }
+
+/* ROW ITEMS */
+.row-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px; border-bottom: 1px solid var(--border-lt);
+  cursor: pointer; min-height: 62px;
+  -webkit-tap-highlight-color: transparent; transition: background var(--dur-slow);
+}
+.row-item:last-child { border-bottom: none; }
+.row-item:active { background: var(--teal-mist); }
+@media (hover: hover) {
+  .row-item:hover { background: var(--teal-mist); }
+}
+.row-item:focus-visible {
+  outline: none;
+  background: var(--teal-mist);
+  box-shadow: inset 0 0 0 2px var(--teal);
+}
+.row-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-size: 13px; font-weight: 800; color: var(--white); flex-shrink: 0; }
+.row-icon { width: 40px; height: 40px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.row-content { flex: 1; min-width: 0; }
+.row-title { font-size: 14px; font-weight: 600; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.row-sub { font-size: 12px; color: var(--charcoal-xl); }
+.row-right { text-align: right; flex-shrink: 0; }
+.row-amount { font-family: var(--font-d); font-size: 15px; font-weight: 700; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+.row-date { font-size: 11px; color: var(--charcoal-xl); }
+.row-chevron { color: var(--border); font-size: 14px; flex-shrink: 0; margin-left: 4px; }
+.amount-owe   { color: var(--red); }
+.amount-paid  { color: var(--green); }
+.amount-clear { color: var(--charcoal-xl); }
+
+/* INPUT */
+.input-group { margin-bottom: 14px; }
+.input-label { display: block; font-size: var(--text-sm); font-weight: 600; color: var(--charcoal-md); margin-bottom: 5px; }
+.input {
+  width: 100%; padding: 11px 13px;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  /* 16px is the iOS zoom-on-focus floor — the user font-scale grows
+     inputs but never shrinks them below it. */
+  font-size: max(16px, calc(16px * var(--text-scale-user, 1)));
+  font-family: var(--font); color: var(--charcoal);
+  background: var(--white); outline: none; -webkit-appearance: none;
+  /* iOS Safari adds a 300ms double-tap-to-zoom delay on form
+     elements without this hint, which reads as "my tap didn't
+     register" — especially noticeable on the auth sheet where
+     a sheet-drag listener also sits on the panel. */
+  touch-action: manipulation;
+  /* Kill the gray flash iOS paints on tappable elements; the
+     focus ring already communicates the state. */
+  -webkit-tap-highlight-color: transparent;
+  /* The previous 400ms focus animation was long enough that the
+     border colour change felt detached from the tap — the user
+     read it as "tap didn't take, then later something happened".
+     150ms feels instant while still being visible. */
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+.input:focus { border-color: var(--teal); box-shadow: var(--focus-ring); }
+.input:hover:not(:focus):not(:disabled) { border-color: var(--charcoal-xl); }
+.input::placeholder { color: var(--charcoal-xl); transition: opacity var(--dur-fast) ease; }
+.input:focus::placeholder { opacity: 0.55; }
+.input.input-error { border-color: var(--red); }
+.input.input-error:focus { box-shadow: var(--focus-ring-danger); }
+.input:disabled { background: var(--cream); color: var(--charcoal-xl); cursor: not-allowed; }
+
+/* Inline form-field error message — fades in/out smoothly under the
+   input. The previous pattern was a plain conditional <div> with no
+   transition, so the error text would pop into existence and shift
+   the layout abruptly. With this, callers can render the error span
+   unconditionally (with `aria-hidden` when empty) and rely on the
+   reserved height + opacity tween to handle the visibility flip. */
+.input-error-msg {
+  display: block;
+  font-size: 12px;
+  color: var(--red);
+  line-height: 1.35;
+  margin-top: 6px;
+  /* Reserve roughly one line of space when empty so toggling the
+     error doesn't reflow the form. */
+  min-height: 16px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+.input-error-msg.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.input-help {
+  font-size: 12px;
+  color: var(--charcoal-xl);
+  line-height: 1.4;
+  margin-top: 6px;
+}
+
+/* Password input: wraps the .input in a relative container so the eye
+   toggle button can sit on the right edge without disrupting form
+   row alignment. The input itself reserves trailing padding for the
+   button so the typed value never collides with the icon. */
+.password-input { position: relative; display: block; }
+.password-input .input { padding-right: 42px; }
+.password-input-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--charcoal-xl);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.password-input-toggle:hover { color: var(--charcoal-md); }
+.password-input-toggle:active { background: var(--cream); }
+.password-input-toggle:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.password-input-toggle[aria-pressed="true"] { color: var(--teal-dark); }
+
+/* iOS Safari centers the rendered value inside date and time inputs
+   by default, which reads as inconsistent with every text/number
+   input next to it (Paciente, Monto, Método…). Force the value to
+   the left both on the input and on the WebKit pseudos — the
+   pseudo rule is the one that actually wins on iOS. */
+.input[type="date"],
+.input[type="time"] { text-align: left; }
+.input[type="date"]::-webkit-date-and-time-value,
+.input[type="time"]::-webkit-date-and-time-value { text-align: left; }
+.input[type="date"]::-webkit-datetime-edit,
+.input[type="time"]::-webkit-datetime-edit { text-align: left; }
+
+/* Money input — standard .input with a "$" prefix sitting inside the
+   field. The input itself gets extra left padding so the number doesn't
+   sit under the symbol. */
+.money-input-wrap {
+  position: relative;
+  width: 100%;
+}
+.money-input-symbol {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--charcoal-lt);
+  pointer-events: none;
+  line-height: 1;
+}
+.input.money-input {
+  padding-left: 26px;
+}
+
+/* FORM ERROR MESSAGE — the ::before is an inline SVG triangle so the
+   visual cue shows up without touching any JSX and inherits
+   currentColor from the text for theming consistency. */
+.form-error {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--red); font-weight: 600;
+  background: var(--red-bg); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-bottom: 12px; line-height: 1.4;
+}
+.form-error::before {
+  content: "";
+  display: inline-block;
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>") no-repeat center / contain;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>") no-repeat center / contain;
+}
+
+/* BTN */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 0 20px; height: 48px; font-size: 15px; font-weight: 700;
+  border-radius: var(--radius-pill); border: none; cursor: pointer;
+  font-family: var(--font-d); -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-slow) var(--ease-spring), filter var(--dur-fast) ease, background var(--dur-fast) ease;
+  white-space: nowrap;
+}
+/* Pointer-only cursor feedback. `:hover` on touch devices sticks after
+   the tap which looks "dusty", so scope these behind (hover: hover) so
+   only real mice see them. */
+@media (hover: hover) {
+  .btn:not([disabled]):hover { filter: brightness(1.06); }
+}
+.btn:active { transform: scale(0.95); }
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--teal-pale), 0 0 0 5px var(--teal);
+}
+/* Unified disabled affordance — desaturate + lift cursor, and suppress
+   the spring scale so the button reads as inert rather than "loading".
+   Button-specific rules (e.g. .btn-oauth:disabled) still layer on top. */
+.btn[disabled], .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: saturate(0.6);
+  /* Kill hover lift + focus ring on disabled buttons so a keyboard
+     user tabbing through a form doesn't see a focus glow on a button
+     they can't activate. */
+  box-shadow: none !important;
+  pointer-events: none;
+}
+.btn[disabled]:active, .btn:disabled:active { transform: none; }
+.btn[disabled]:focus-visible, .btn:disabled:focus-visible {
+  outline: none;
+}
+
+/* ── .btn-tap utility ──
+   For inline-styled buttons that don't pick up the .btn family but
+   still need tactile press feedback. Apply to any decorative / icon
+   button (Drawer items, DocumentList action icons, etc.) so taps
+   register visually on touch devices. */
+.btn-tap {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+.btn-tap:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+/* Scrollable body inside sheets — forces an always-on scroll area and
+   leaves overscroll-behavior at its default `auto` so iOS elastic bounce
+   fires at the ends. `overscroll-behavior: contain` kills the bounce on
+   iOS Safari inside nested scroll containers, so we deliberately avoid
+   it here; scroll chaining to the page underneath is already blocked by
+   the body's `overflow: hidden`. */
+.sheet-scroll {
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+}
+
+.btn-primary { background: var(--charcoal); color: var(--white); box-shadow: 0 2px 8px rgba(0,0,0,0.08); width: 100%; transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background-color var(--dur-fast) ease; }
+/* Hover lift only on devices that can actually hover — wrapping in
+   `@media (hover: hover)` prevents iOS from leaving a tap-locked
+   "stuck-hover" highlight after a touch. The :active state below
+   resets the lift on press for both pointer and touch. */
+@media (hover: hover) {
+  .btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+  .btn-ghost:not(:disabled):hover { background: rgba(91,155,175,0.06); }
+}
+.btn-primary:not(:disabled):active { transform: translateY(0); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.btn-primary-teal {
+  background: var(--teal); color: var(--white); width: 100%;
+  box-shadow: 0 4px 14px rgba(91,155,175,0.38);
+  font-size: 16px;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+@media (hover: hover) {
+  .btn-primary-teal:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(91,155,175,0.46); }
+}
+.btn-primary-teal:not(:disabled):active { background: var(--teal-dark); transform: translateY(0); }
+.btn-secondary { background: var(--white); color: var(--charcoal-md); border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); }
+.btn-ghost { background: transparent; color: var(--teal-dark); height: 38px; padding: 0 10px; font-size: var(--text-md); transition: background-color var(--dur-fast) ease; }
+.btn-danger { background: var(--red-bg); color: var(--red); box-shadow: none; width: 100%; }
+.btn-warning { background: var(--amber-bg); color: var(--amber); box-shadow: none; width: 100%; }
+/* Teal CTAs — solid filled + soft-tinted variants. Default height 44 for
+   compact grid placement; override with inline style when needed. */
+.btn-teal { background: var(--teal); color: var(--white); height: 44px; font-size: var(--text-sm); box-shadow: none; }
+.btn-teal-soft { background: var(--teal-pale); color: var(--teal-dark); height: 44px; font-size: var(--text-sm); box-shadow: none; }
+
+
+/* Balance row active state */
+.bal-row { -webkit-tap-highlight-color: transparent; transition: background var(--dur-slow); }
+.bal-row[role="button"]:active { background: var(--teal-mist); }
+@media (hover: hover) {
+  .bal-row[role="button"]:hover { background: var(--teal-mist); }
+}
+.bal-row[role="button"]:focus-visible {
+  outline: none;
+  background: var(--teal-mist);
+  box-shadow: inset 0 0 0 2px var(--teal);
+}
+
+/* ── OAUTH BUTTONS ──
+   Social-login CTAs shown above the email form. The Google variant
+   follows Google's sign-in brand guidelines (white background, dark
+   text, visible border) while Apple uses the required black/white
+   solid styling. Both share a 44px touch target with the brand icon
+   left-aligned in a 16px inline gap. */
+.btn-oauth {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px;
+  height: 46px;
+  font-size: 14px; font-weight: 700;
+  border-radius: var(--radius-pill);
+  font-family: var(--font); letter-spacing: 0.01em;
+  cursor: pointer; border: 1.5px solid var(--border);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-slow) var(--ease-spring), background var(--dur-slow);
+}
+.btn-oauth:active { transform: scale(0.97); }
+.btn-oauth:disabled { opacity: 0.6; cursor: default; }
+.btn-oauth-google { background: var(--white); color: var(--charcoal); }
+.btn-oauth-apple  { background: var(--charcoal); color: var(--white); border-color: var(--charcoal); }
+/* Passkey — the recommended fast path for returning users, so it leads
+   with the brand teal tint (a notch softer than .btn-primary-teal so it
+   doesn't fight the form's main submit). Token-driven → dark mode flips
+   automatically. */
+.btn-oauth-passkey {
+  background: var(--teal-pale);
+  color: var(--teal-dark);
+  border-color: color-mix(in srgb, var(--teal) 28%, transparent);
+}
+
+.auth-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 4px 0 16px;
+  color: var(--charcoal-xl); font-size: 12px; font-weight: 600;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border-lt);
+}
+
+
+/* ── .scroll-bounce ──
+   iOS rubber-band-on-any-content scroll surface, mirroring the
+   .page pattern. Use on full-viewport scroll containers (Patient
+   shell body, claim screens) so even short content gets the
+   elastic give that makes iOS apps feel alive. The absolute ::after
+   sentinel sits 1px past the bottom of the visible area; it never
+   shows up but contributes to scrollHeight, so iOS always has
+   something to bounce against.
+   Apply with: <div className="scroll-bounce">…</div>
+   Pair with `position: relative` on the parent if needed (it's set
+   here so the ::after anchors to this element). */
+.scroll-bounce {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  position: relative;
+}
+.scroll-bounce::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Android native: no rubber-band to preserve (Chromium shows a stretch/
+   glow affordance instead), and that stretch animates SIMULTANEOUSLY
+   with the custom PullToRefresh spinner on .page — a double-indicator
+   that reads broken. `none` kills the OS affordance so the Cardigan
+   pull-to-refresh owns the top-edge gesture, matching iOS. */
+html.cap-android .page,
+html.cap-android .scroll-bounce {
+  overscroll-behavior-y: none;
+}
+
+/* ── .empty-state ──
+   Canonical empty / orphan / "nothing here yet" surface. Centered
+   column with a 44×44 token-cream-dark icon circle, font-d title,
+   and muted body. Used by the Patient orphan view, claim error
+   states, and any future "no data" affordance. Variants tweak the
+   max-width for narrower hero copy. */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 48px 24px;
+  padding: 32px 20px;
   gap: 10px;
 }
-
 .empty-state-icon {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--linen-dark);
-  color: var(--charcoal-xl);
-  display: flex;
+  background: var(--cream-dark);
+  color: var(--charcoal-md);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 6px;
 }
-
 .empty-state-title {
   font-family: var(--font-d);
   font-weight: 800;
   font-size: var(--text-lg);
+  color: var(--charcoal);
+  letter-spacing: -0.2px;
 }
-
 .empty-state-body {
-  font-size: var(--text-sm);
+  font-size: 13px;
   color: var(--charcoal-md);
-  max-width: 280px;
+  line-height: 1.55;
+  max-width: 320px;
 }
 
-/* KPI tile */
-.kpi-card {
-  background: var(--white);
-  border: 1px solid var(--border-lt);
-  border-radius: var(--radius-lg);
-  padding: 14px;
-  font-variant-numeric: tabular-nums;
+/* ── .empty-state--day ──
+   "Día libre" / free-day variant. Positive empty state (the user has
+   no sessions because the day is open, not because of an error), so
+   the surface should feel like a warm, restful moment instead of an
+   absence. The icon sits on a soft warm-teal radial gradient with a
+   subtle inner glow that catches sunlight; the title gets a touch
+   more letter-spacing for a confident, headline-y feel.
+
+   Variant is composable: <div class="empty-state empty-state--day">. */
+.empty-state--day .empty-state-icon {
+  width: 64px; height: 64px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 247, 224, 0.9) 0%, rgba(213, 230, 232, 0.85) 60%, rgba(91, 155, 175, 0.18) 100%);
+  color: var(--teal);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 0 12px rgba(255, 234, 178, 0.4),
+    0 6px 18px -4px rgba(91, 155, 175, 0.22);
+  margin-bottom: 4px;
+  /* Gentle float — 3px lift over 4s ease-in-out. Telegraphs "this is
+     a quiet moment", not a static "nothing here" badge. Suppressed
+     by prefers-reduced-motion via the system-wide rule in
+     responsive.css that zeroes all animation durations. */
+  animation: emptyDayFloat 4s var(--ease-in-out) infinite;
+}
+@keyframes emptyDayFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.empty-state--day .empty-state-title {
+  letter-spacing: -0.1px;
 }
 
-.kpi-value {
+/* ── SHEETS (from Cardigan screens.css) ── */
+/* DETAIL SHEET */
+.sheet-overlay {
+  position: fixed; inset: 0;
+  /* Unified scrim — sheet, drawer, fab, and ConfirmDialog all share
+     --scrim-bg now (rgba(46,46,46,0.42)). Per-layer differentiation
+     comes from the blur token, not the scrim color. */
+  background: var(--scrim-bg);
+  /* iOS-style frosted backdrop: blur + slight saturation boost makes
+     the content behind feel present rather than erased. -webkit- alias
+     for older iOS (safari-backdrop-filter didn't drop the prefix
+     until 17). */
+  -webkit-backdrop-filter: var(--blur-sheet);
+  backdrop-filter: var(--blur-sheet);
+  z-index: var(--z-sheet);
+  display: flex; align-items: flex-end; justify-content: center;
+  overscroll-behavior: contain;
+  animation: fadeIn var(--dur-slow) ease;
+}
+/* iOS Safari has to re-blur the entire backdrop on every paint of
+   the sheet content. When the backdrop is heavy (the marketing
+   LandingPage with IntersectionObservers, gradients, and images)
+   typing in an input causes severe keyboard lag because each
+   keystroke triggers a full re-blur. The --no-blur modifier drops
+   backdrop-filter entirely so the scrim alone provides contrast.
+   Use this on overlays that sit over expensive surfaces (AuthScreen
+   over LandingPage, patient sheets over PatientShell). */
+.sheet-overlay--no-blur {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.sheet-panel {
+  background: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  width: 100%;
+  padding-bottom: var(--sab);
+  /* Use svh (small-viewport-height) — stable across keyboard state.
+     dvh (dynamic) recomputes every time the visual viewport changes,
+     which on iOS Safari fires on every keystroke as the keyboard's
+     autocomplete bar grows/shrinks with predictions. That recompute
+     forces a relayout of the panel + everything inside it (form
+     inputs included), causing severe input lag. svh is computed
+     against the smallest viewport (keyboard up + browser UI showing)
+     and stays fixed, eliminating the per-keystroke reflow. The trade-
+     off is a slightly shorter panel when the keyboard is down, which
+     reads as "lots of breathing room" rather than wasted space. */
+  max-height: 85svh;
+  /* `overflow-y: auto` (not `scroll`) — when the form fits within the
+     panel (typical for short sheets), iOS Safari skips its scroll-
+     into-view computation on input focus. With `scroll` the panel is
+     always scrollable in the browser's eyes and iOS runs the scroll
+     pass even when nothing overflows, contributing to first-keystroke
+     freeze. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Layout/style containment isolates the panel's reflows from the
+     document. When iOS recomputes layout for the AutoFill bar or a
+     focus-induced scroll, the work stops at the panel boundary
+     instead of rippling out. Free perf win on every sheet.
+     `paint` is intentionally excluded — it implicitly behaves as
+     overflow:hidden semantically for descendant positioning, which
+     breaks `position: sticky` on form footers (Siguiente buttons
+     ended up flowing inline with the form instead of pinning to
+     the sheet's visible bottom). Style + layout still give us most
+     of the containment perf without that side-effect. */
+  contain: layout style;
+  /* Physical-settle rise. Three-stage curve replaces a flat slide:
+       0%   100%         start below the viewport
+       58%  -8px         rise past the resting position
+       80%  +3px         settle back below it
+       100% 0            damped rest
+     The visible 8px overshoot + 3px dip is the moment that reads
+     as "this surface has weight" rather than CSS auto-tween. Pair
+     with --ease-out (no curve overshoot) because the bounce is
+     baked into the keyframes — using --ease-spring on top would
+     produce a double-bounce that feels cartoonish.
+     The opacity ramps from 0.94 → 1 so a tiny fade-in covers the
+     visual "snap" of the panel entering the layout when it first
+     mounts; without it, the sheet pops in solid then animates,
+     which on slower devices is perceptible as a one-frame stutter.
+     NO `both` (or `forwards`) fill mode — that locks the animated
+     properties (transform, opacity) at the 100% keyframe values
+     forever after the animation completes, and CSS animation fill
+     values OUTRANK inline styles in the cascade. useSheetDrag
+     writes `el.style.transform = translateY(...)` during the drag
+     gesture, and a lingering fill on transform would silently
+     suppress it — the panel can't move, drag-to-dismiss
+     completely breaks. Without the fill, the animation runs once
+     for 520ms and releases the property back to its computed
+     style (no transform = natural resting position), inline
+     mutations work normally. */
+  animation: sheetRiseIn 520ms var(--ease-out);
+}
+/* Focus trap parks focus on the panel itself (tabindex=-1) so no inner
+   button looks pre-selected when the sheet opens — hide the default
+   outline on that container-level focus. Inner buttons still get the
+   normal :focus-visible treatment for keyboard navigation. */
+.sheet-panel:focus, .sheet-panel:focus-visible { outline: none; }
+@keyframes sheetRiseIn {
+  0%   { transform: translateY(100%); opacity: 0.94; }
+  58%  { transform: translateY(-8px); opacity: 1; }
+  80%  { transform: translateY(3px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+/* Legacy alias — some screens reference `slideUp` directly. Map to
+   the new keyframe so a one-line search-replace later isn't needed. */
+@keyframes slideUp {
+  0%   { transform: translateY(100%); opacity: 0.94; }
+  58%  { transform: translateY(-8px); opacity: 1; }
+  80%  { transform: translateY(3px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Sheet exit animation ──
+   Applied via the .sheet-panel--exit / .sheet-overlay--exit modifier
+   classes by useSheetExit. The hook keeps the sheet mounted for
+   EXIT_MS (260ms — matches the CSS duration here) before calling the
+   parent's onClose, so the panel can play its fall-down animation
+   on the way out.
+
+   Asymmetric to the open animation by design: open uses a 520ms
+   damped settle (sheet has weight, lands carefully); exit is a fast
+   linear-ish fall (sheet drops out of frame). iOS Mail / Messages
+   use this same asymmetry — the entrance is "felt" but the exit
+   should get out of the user's way. */
+@keyframes sheetFallOut {
+  0%   { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0.92; }
+}
+.sheet-panel--exit {
+  animation: sheetFallOut 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes scrimFadeOut {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+.sheet-overlay--exit {
+  /* Scrim fades slightly faster than the panel falls so the user
+     sees the world behind reveal first, then the panel clears the
+     viewport — the inverse of the open sequencing where the scrim
+     completes before the panel settles. */
+  animation: scrimFadeOut 200ms ease both;
+}
+@keyframes sheetScaleIn {
+  0%   { opacity: 0; transform: scale(0.9); }
+  70%  { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes expedientePullUp {
+  0%   { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+/* Drag handle — premium two-tone pill. A flat band (the original
+   --cream-deeper) reads as decorative; the inset highlight + soft
+   underlying shadow gives the handle physical lift, signalling
+   "grab me" through depth rather than just shape. Dimensions kept
+   identical to preserve thumb-reach for the existing drag gesture. */
+.sheet-handle {
+  width: 40px; height: 5px;
+  background: linear-gradient(180deg, rgba(46, 46, 46, 0.16), rgba(46, 46, 46, 0.22));
+  border-radius: 999px;
+  margin: 10px auto 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 1px rgba(46, 46, 46, 0.04);
+}
+.sheet-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 16px; gap: 10px; }
+/* The title takes the available row width and truncates rather than
+   wrapping to a second line — keeps the sheet header height
+   predictable when the title carries a long patient name (e.g.
+   PotentialProfileSheet shows {patient.name} as the title). The
+   font-size also clamps slightly downward on narrow viewports so a
+   modestly-long title fits at full size before truncation kicks in. */
+.sheet-title {
   font-family: var(--font-d);
+  font-size: clamp(15px, 4.4vw, 17px);
   font-weight: 800;
-  font-size: var(--text-2xl);
+  color: var(--charcoal);
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.sheet-close { width: 30px; height: 30px; border-radius: 50%; background: var(--cream-dark); border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; position: relative; }
+.sheet-close::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+
+
+.bal-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-lt); }
+.bal-row:last-child { border-bottom: none; }
+
+/* ── ACCESSIBILITY + TOUCH TARGETS (from Cardigan screens.css) ── */
+/* ── ACCESSIBILITY ── */
+*:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+button:focus-visible, a:focus-visible, select:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+.input:focus-visible { outline: none; border-color: var(--teal); box-shadow: var(--focus-ring); }
+
+/* ── TOUCH TARGETS ── */
+button, a, select { min-height: 44px; }
+.sheet-close, .row-chevron { min-height: unset; }
+
+/* ══════════════════════════════════════════════════════
+   ANGUS ADDITIONS — named classes for patterns Cardigan
+   carries as inline styles (so screens don't re-invent them).
+   ══════════════════════════════════════════════════════ */
+/* Eyebrow — Cardigan's `.kpi-label` recipe as a standalone label. */
+.eyebrow {
+  font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--charcoal-xl);
+}
+/* Page header — mirrors Cardigan Home's inline greeting title
+   (font-d / --text-xl / 800 / -0.3px). */
+.page-header { padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 4px; }
+.page-title {
+  font-family: var(--font-d); font-size: var(--text-xl); font-weight: 800;
+  color: var(--charcoal); letter-spacing: -0.3px; line-height: 1.2;
+}
+/* KPI grid — Cardigan Home's inline 2-up grid (`kpi-grid-desktop`). */
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 16px 4px; }
+/* Rows rendered as <button> (tappable list entries) — strip UA chrome
+   so they inherit the .row-item look 1:1. */
+button.row-item {
+  width: 100%; text-align: left; background: none; border: none;
+  border-bottom: 1px solid var(--border-lt);
+  font-family: inherit; color: inherit; padding: 13px 16px;
+}
+.row-item--muted { opacity: 0.7; }
+/* Event-kind dot — inline color comes from EVENT_KIND[].color. */
+.event-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+/* Sheet body + sticky footer — Cardigan's inline recipe (PaymentModal:
+   `padding: 0 20px` body; sticky footer `12px 0 22px` + border-top). */
+.sheet-body { padding: 0 20px; }
+.sheet-footer {
+  position: sticky; bottom: 0; background: var(--white);
+  padding: 12px 20px 22px; margin-top: 8px;
+  border-top: 1px solid var(--border-lt);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.form-row { display: flex; gap: 10px; }
+.form-row > .input-group { flex: 1; min-width: 0; }
+/* Brand-only topbar (no hamburger / avatar cluster) still needs the
+   44px hit-target height Cardigan's icon buttons give it for free. */
+.topbar { min-height: 56px; }

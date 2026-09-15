@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
+import { useToast } from "../context/ToastContext";
 import type { Project, ProjectStatus } from "../types";
 import { PROJECT_STATUS } from "../data/constants";
 import { Sheet } from "./Sheet";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
-import { Icon } from "./Icon";
+import { haptic } from "../lib/haptics";
 
 export function ProjectSheet({
   project,
@@ -15,6 +16,7 @@ export function ProjectSheet({
   onClose: () => void;
 }) {
   const { addProject, updateProject, removeProject, contacts } = useApp();
+  const { showSuccess } = useToast();
   const [title, setTitle] = useState(project?.title ?? "");
   const [medium, setMedium] = useState(project?.medium ?? "");
   const [status, setStatus] = useState<ProjectStatus>(project?.status ?? "idea");
@@ -24,6 +26,7 @@ export function ProjectSheet({
   const [contactId, setContactId] = useState(project?.contactId ?? "");
   const [notes, setNotes] = useState(project?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const safeClose = submitting ? null : onClose;
   const canSave = title.trim().length > 0;
@@ -46,12 +49,16 @@ export function ProjectSheet({
     } else {
       addProject({ id: makeId(), createdAt: todayISO(), ...patch });
     }
+    haptic.success();
+    showSuccess(project ? "Proyecto actualizado" : "Proyecto creado");
     onClose();
   }
 
   function handleDelete() {
     if (!project) return;
     removeProject(project.id);
+    haptic.warn();
+    showSuccess("Proyecto eliminado");
     onClose();
   }
 
@@ -60,16 +67,28 @@ export function ProjectSheet({
       title={project ? "Editar proyecto" : "Nuevo proyecto"}
       onClose={safeClose}
       footer={
-        <>
-          {project && (
-            <button className="btn btn-ghost" onClick={handleDelete} aria-label="Eliminar">
-              <Icon name="trash" size={18} />
+        confirmDelete ? (
+          <>
+            <div className="input-help" style={{ textAlign: "center", marginTop: 0 }}>¿Eliminar este proyecto?</div>
+            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={submitting}>
+              Sí, eliminar
             </button>
-          )}
-          <button className="btn btn-primary btn-block" onClick={handleSave} disabled={!canSave || submitting}>
-            Guardar
-          </button>
-        </>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave || submitting}>
+              {submitting ? "Guardando…" : "Guardar"}
+            </button>
+            {project && (
+              <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)} disabled={submitting}>
+                Eliminar
+              </button>
+            )}
+          </>
+        )
       }
     >
       <div className="input-group">
@@ -93,12 +112,12 @@ export function ProjectSheet({
         </select>
       </div>
 
-      <div style={{ display: "flex", gap: 10 }}>
-        <div className="input-group" style={{ flex: 1 }}>
+      <div className="form-row">
+        <div className="input-group">
           <label className="input-label">Inicio</label>
           <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
-        <div className="input-group" style={{ flex: 1 }}>
+        <div className="input-group">
           <label className="input-label">Entrega</label>
           <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </div>
@@ -106,7 +125,10 @@ export function ProjectSheet({
 
       <div className="input-group">
         <label className="input-label">Precio (MXN)</label>
-        <input className="input" type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
+        <div className="money-input-wrap">
+          <span className="money-input-symbol">$</span>
+          <input className="input money-input" type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
+        </div>
       </div>
 
       <div className="input-group">
@@ -123,7 +145,7 @@ export function ProjectSheet({
 
       <div className="input-group">
         <label className="input-label">Notas</label>
-        <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Sheet>
   );

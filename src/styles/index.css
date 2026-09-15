@@ -1,3 +1,7 @@
-@import "./tokens.css";
-@import "./base.css";
-@import "./components.css";
+/* Aggregator — same order as Cardigan: base (which @imports fonts),
+   components, responsive, then dark last so its token flips win. */
+@import './base.css';
+@import './components.css';
+@import './auth.css';
+@import './responsive.css';
+@import './dark.css';

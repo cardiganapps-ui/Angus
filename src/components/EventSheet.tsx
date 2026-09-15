@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
+import { useToast } from "../context/ToastContext";
 import type { EventKind, ScheduleEvent } from "../types";
 import { EVENT_KIND } from "../data/constants";
 import { Sheet } from "./Sheet";
 import { makeId } from "../utils/id";
 import { todayISO } from "../utils/dates";
-import { Icon } from "./Icon";
+import { haptic } from "../lib/haptics";
 
 export function EventSheet({
   event,
@@ -15,6 +16,7 @@ export function EventSheet({
   onClose: () => void;
 }) {
   const { addEvent, updateEvent, removeEvent, projects, contacts } = useApp();
+  const { showSuccess } = useToast();
   const [title, setTitle] = useState(event?.title ?? "");
   const [kind, setKind] = useState<EventKind>(event?.kind ?? "class");
   const [date, setDate] = useState(event?.date ?? todayISO());
@@ -25,6 +27,7 @@ export function EventSheet({
   const [contactId, setContactId] = useState(event?.contactId ?? "");
   const [notes, setNotes] = useState(event?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const safeClose = submitting ? null : onClose;
   const canSave = title.trim().length > 0 && date.length > 0;
@@ -48,12 +51,16 @@ export function EventSheet({
     } else {
       addEvent({ id: makeId(), createdAt: todayISO(), ...patch });
     }
+    haptic.success();
+    showSuccess(event ? "Evento actualizado" : "Evento creado");
     onClose();
   }
 
   function handleDelete() {
     if (!event) return;
     removeEvent(event.id);
+    haptic.warn();
+    showSuccess("Evento eliminado");
     onClose();
   }
 
@@ -62,16 +69,28 @@ export function EventSheet({
       title={event ? "Editar evento" : "Nuevo evento"}
       onClose={safeClose}
       footer={
-        <>
-          {event && (
-            <button className="btn btn-ghost" onClick={handleDelete} aria-label="Eliminar">
-              <Icon name="trash" size={18} />
+        confirmDelete ? (
+          <>
+            <div className="input-help" style={{ textAlign: "center", marginTop: 0 }}>¿Eliminar este evento?</div>
+            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={submitting}>
+              Sí, eliminar
             </button>
-          )}
-          <button className="btn btn-primary btn-block" onClick={handleSave} disabled={!canSave || submitting}>
-            Guardar
-          </button>
-        </>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave || submitting}>
+              {submitting ? "Guardando…" : "Guardar"}
+            </button>
+            {event && (
+              <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)} disabled={submitting}>
+                Eliminar
+              </button>
+            )}
+          </>
+        )
       }
     >
       <div className="input-group">
@@ -95,12 +114,12 @@ export function EventSheet({
         <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
 
-      <div style={{ display: "flex", gap: 10 }}>
-        <div className="input-group" style={{ flex: 1 }}>
+      <div className="form-row">
+        <div className="input-group">
           <label className="input-label">Hora inicio</label>
           <input className="input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
         </div>
-        <div className="input-group" style={{ flex: 1 }}>
+        <div className="input-group">
           <label className="input-label">Hora fin</label>
           <input className="input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
         </div>
@@ -137,7 +156,7 @@ export function EventSheet({
 
       <div className="input-group">
         <label className="input-label">Notas</label>
-        <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Sheet>
   );

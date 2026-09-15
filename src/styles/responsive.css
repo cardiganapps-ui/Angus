@@ -1,0 +1,162 @@
+/* Skip-to-main link. Visually off-screen until it receives keyboard
+   focus, at which point it slides in at the top-left corner. */
+.skip-link {
+  position: absolute;
+  top: 0; left: 0;
+  background: var(--teal); color: var(--white);
+  padding: 8px 14px;
+  border-radius: 0 0 var(--radius) 0;
+  font-size: 13px; font-weight: 700;
+  text-decoration: none;
+  z-index: 200;
+  transform: translateY(-100%);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--teal-light);
+  outline-offset: 2px;
+}
+#main-content:focus { outline: none; }
+
+/* ── RESPONSIVE: TABLET / DESKTOP (768px+) ──
+   Cardigan swaps the bottom pill for a persistent sidebar drawer here.
+   Angus has no drawer, so the floating glass pill STAYS the primary nav
+   at every width — we keep the type-scale, density and sheet rules and
+   skip the sidebar/tab-hiding ones. */
+@media (min-width: 768px) {
+  /* iPad/tablet type scale — bumps 12px body to ~12.8px and 14px to ~15px. */
+  :root { --text-scale: 1.07; }
+
+  /* Page: generous horizontal padding; bottom still reserves the pill. */
+  .page {
+    padding: 20px max(24px, var(--sal)) calc(var(--sab) + var(--bottom-tabs-h) + 32px) max(24px, var(--sar));
+  }
+
+  /* Sheets: centered modal instead of bottom sheet. */
+  .sheet-overlay { align-items: center; }
+  .sheet-panel {
+    max-width: clamp(520px, 70vw, 720px);
+    border-radius: var(--radius-lg);
+    animation: sheetScaleIn var(--dur-slow) var(--ease-spring);
+    max-height: 85dvh;
+  }
+  .sheet-handle { display: none; }
+
+  /* Desktop topbar: solid, in normal flow (base.css un-floats the
+     chrome at this tier). */
+  .topbar {
+    background: var(--white); border-bottom: 1px solid var(--border-lt);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    padding: 10px max(24px, var(--sar)) 10px max(24px, var(--sal));
+  }
+  .topbar-brand { position: static; transform: none; color: var(--charcoal); }
+  .topbar-brand:active { background: var(--teal-pale); color: var(--teal-dark); transform: scale(0.9); }
+
+  /* Spacious cards on desktop */
+  .card { border-radius: var(--radius-lg); }
+  .kpi-card { padding: 18px 20px; }
+  .kpi-value { font-size: 24px; }
+  .row-item { padding: 14px 18px; min-height: 66px; }
+  .section-title { font-size: 16px; }
+
+  .row-item { border-left: 3px solid transparent; }
+  .row-item:first-child { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .row-item:last-child { border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+  .row-item:only-child { border-radius: var(--radius-lg); }
+
+  /* Center the floating pill at a comfortable width instead of
+     stretching edge-to-edge across a tablet/desktop viewport. */
+  .bottom-tabs { left: 50%; right: auto; width: 420px; transform: translateX(-50%); }
+}
+
+/* ── DESKTOP POINTER: tighter sizing ──
+   Gated on `pointer: fine` AND ≥1024px so iPad keeps 44px iOS HIG targets. */
+@media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
+  button, a, select { min-height: 36px; }
+  .icon-btn { min-width: 36px; min-height: 36px; }
+  .btn { height: 42px; font-size: 14px; }
+  .fab { width: 48px; height: 48px; }
+  .fab-action { min-height: 38px; }
+}
+
+/* ── CURSOR + TRANSITIONS (pointer devices) ── */
+.row-item, .kpi-card { cursor: pointer; }
+.row-item, .kpi-card, .btn, .fab, .fab-action {
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring),
+    opacity var(--dur-base) var(--ease-out);
+}
+
+/* ── HOVER STATES (pointer devices only) ── */
+@media (hover: hover) {
+  .row-item:hover { background: var(--teal-mist); }
+  .btn:hover { transform: scale(0.98); }
+  .btn-primary:hover { background: #000; box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
+  .fab:hover { transform: scale(1.08); }
+  .fab-action:hover { background: var(--cream); }
+  .icon-btn:hover { opacity: 0.7; }
+  .kpi-card:hover { border-color: var(--teal-light); }
+  .bal-row:hover { background: var(--teal-mist); }
+  .see-all:hover { color: var(--teal); text-decoration: underline; }
+  a:not(.btn):hover { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 2px; }
+}
+
+/* ── FOCUS-VISIBLE (keyboard navigation) ── */
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.btn:focus-visible { outline-offset: 3px; }
+.fab:focus-visible { outline-color: var(--white); outline-offset: 4px; }
+.row-item:focus-visible,
+.bal-row:focus-visible { outline-offset: -2px; }
+.icon-btn:focus-visible { outline-offset: 0; border-radius: 50%; }
+.focus-visible-none:focus-visible { outline: none; }
+
+/* ── REDUCED MOTION ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+/* ── CUSTOM SCROLLBAR (desktop) ── */
+@media (min-width: 768px) {
+  .page::-webkit-scrollbar { width: 6px; }
+  .page::-webkit-scrollbar-track { background: transparent; }
+  .page::-webkit-scrollbar-thumb { background: var(--cream-deeper); border-radius: 3px; }
+  .page::-webkit-scrollbar-thumb:hover { background: var(--border); }
+  .page { scrollbar-width: thin; scrollbar-color: var(--cream-deeper) transparent; }
+}
+
+/* ── iPad LANDSCAPE: respect device safe-area-inset on left/right ── */
+@media (min-width: 820px) {
+  .page {
+    padding-left: max(32px, var(--sal));
+    padding-right: max(32px, var(--sar));
+  }
+}
+
+/* ── RESPONSIVE: LAPTOP (1024px+) ── */
+@media (min-width: 1024px) {
+  :root { --text-scale: 1.1; }
+  .row-item { padding: 16px 20px; min-height: 70px; }
+  .row-title { font-size: var(--text-md); }
+  .kpi-card { padding: 20px 22px; }
+  .kpi-value { font-size: 26px; }
+  .section-title { font-size: var(--text-lg); }
+  .card { box-shadow: var(--shadow-sm); }
+  .page {
+    max-width: none;
+    margin: 0;
+    padding-top: 24px;
+    padding-left:  max(40px, var(--sal),  calc((100% - 760px) / 2));
+    padding-right: max(40px, var(--sar), calc((100% - 760px) / 2));
+  }
+  .sheet-panel { max-width: clamp(620px, 60vw, 880px); }
+}

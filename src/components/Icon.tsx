@@ -6,7 +6,8 @@ export type IconName =
   | "plus"
   | "x"
   | "chevron-right"
-  | "trash";
+  | "trash"
+  | "check";
 
 const PATHS: Record<IconName, string> = {
   home: "M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -19,7 +20,8 @@ const PATHS: Record<IconName, string> = {
   plus: "M12 4v16M4 12h16",
   x: "M5 5l14 14M19 5 5 19",
   "chevron-right": "M9 5l7 7-7 7",
-  trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"
+  trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13",
+  check: "M20 6L9 17l-5-5"
 };
 
 export function Icon({

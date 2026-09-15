@@ -6,11 +6,13 @@ import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
 import { ProjectSheet } from "../components/ProjectSheet";
 
+/* Cardigan semantic badges: teal = active/in-progress, green = done,
+   amber = on hold, purple = idea. */
 const STATUS_BADGE: Record<ProjectStatus, string> = {
-  idea: "badge-plum",
-  in_progress: "badge-clay",
+  idea: "badge-purple",
+  in_progress: "badge-teal",
   on_hold: "badge-amber",
-  completed: "badge-sage"
+  completed: "badge-green"
 };
 
 export function Projects() {
@@ -21,45 +23,50 @@ export function Projects() {
 
   return (
     <div className="page">
-      <div className="topbar-title" style={{ marginBottom: 16 }}>
-        Proyectos
+      <div className="page-header">
+        <div className="eyebrow">{sorted.length} {sorted.length === 1 ? "proyecto" : "proyectos"}</div>
+        <h1 className="page-title">Proyectos</h1>
       </div>
 
-      {sorted.length === 0 ? (
-        <EmptyState
-          icon="palette"
-          title="Sin proyectos todavía"
-          body="Agrega una pieza, encargo o serie en la que estés trabajando."
-        />
-      ) : (
-        <div className="card">
-          {sorted.map((project) => {
-            const contact = contacts.find((c) => c.id === project.contactId);
-            return (
-              <button
-                key={project.id}
-                className="row-item"
-                style={{ width: "100%", textAlign: "left" }}
-                onClick={() => setEditing(project)}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700 }}>{project.title}</div>
-                  <div style={{ fontSize: "var(--text-sm)", color: "var(--charcoal-md)" }}>
-                    {project.medium}
-                    {contact ? ` · ${contact.name}` : ""}
+      <div className="section">
+        {sorted.length === 0 ? (
+          <div className="card">
+            <EmptyState
+              icon="palette"
+              title="Sin proyectos todavía"
+              body="Agrega una pieza, encargo o serie en la que estés trabajando."
+            />
+          </div>
+        ) : (
+          <div className="card">
+            {sorted.map((project) => {
+              const contact = contacts.find((c) => c.id === project.contactId);
+              return (
+                <button
+                  key={project.id}
+                  type="button"
+                  className="row-item"
+                  onClick={() => setEditing(project)}
+                >
+                  <div className="row-content">
+                    <div className="row-title">{project.title}</div>
+                    <div className="row-sub">
+                      {project.medium}
+                      {contact ? ` · ${contact.name}` : ""}
+                    </div>
                   </div>
-                </div>
-                <span className={`badge ${STATUS_BADGE[project.status]}`}>
-                  {labelFor(PROJECT_STATUS, project.status)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+                  <span className={`badge ${STATUS_BADGE[project.status]}`}>
+                    {labelFor(PROJECT_STATUS, project.status)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <button className="fab" onClick={() => setEditing("new")} aria-label="Nuevo proyecto">
-        <Icon name="plus" size={24} />
+        <Icon name="plus" size={24} strokeWidth={2.2} />
       </button>
 
       {editing && <ProjectSheet project={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}

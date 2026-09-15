@@ -26,12 +26,24 @@ export const LEAD_STAGE: { value: LeadStage; label: string }[] = [
 
 export const EVENT_KIND: { value: EventKind; label: string; color: string }[] = [
   { value: "class", label: "Clase", color: "var(--blue)" },
-  { value: "expo", label: "Expo", color: "var(--clay)" },
-  { value: "meeting", label: "Reunión", color: "var(--sage)" },
+  { value: "expo", label: "Expo", color: "var(--teal)" },
+  { value: "meeting", label: "Reunión", color: "var(--green)" },
   { value: "deadline", label: "Entrega", color: "var(--red)" },
-  { value: "personal", label: "Personal", color: "var(--plum)" },
-  { value: "other", label: "Otro", color: "var(--charcoal-lt)" }
+  { value: "personal", label: "Personal", color: "var(--purple)" },
+  { value: "other", label: "Otro", color: "var(--charcoal-xl)" }
 ];
+
+/* Badge class per event kind — Cardigan's semantic colors
+   (blue = class/virtual, teal = active, green = done/meeting,
+   red = deadline, purple = personal, gray = neutral). */
+export const EVENT_KIND_BADGE: Record<EventKind, string> = {
+  class: "badge-blue",
+  expo: "badge-teal",
+  meeting: "badge-green",
+  deadline: "badge-red",
+  personal: "badge-purple",
+  other: "badge-gray"
+};
 
 export function labelFor<T extends { value: string; label: string }>(
   list: T[],
