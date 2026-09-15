@@ -139,105 +139,13 @@
 /* ── Trend chart ──
    Six columns over a zero baseline. The plot's height is a token so the
    axis column, the bars and the labels can't drift apart. */
-.dash-trend { padding: 14px 16px 12px; --dash-chart-h: 104px; }
-/* Nothing to plot yet: the baseline and the month letters stay (they're
-   the promise of the chart) but the empty plot area collapses. */
-.dash-trend--flat { --dash-chart-h: 34px; }
+.dash-trend { padding: 14px 16px 12px; }
 .dash-trend-note {
   font-size: var(--text-xs);
   color: var(--charcoal-md);
   line-height: 1.5;
   margin-top: 10px;
 }
-.dash-chart { display: flex; gap: 8px; }
-
-.dash-chart-axis {
-  position: relative;
-  width: 54px;
-  flex-shrink: 0;
-  height: var(--dash-chart-h);
-  font-size: var(--text-eyebrow);
-  font-weight: 700;
-  color: var(--charcoal-xl);
-  font-variant-numeric: tabular-nums;
-}
-.dash-chart-axis span {
-  position: absolute;
-  right: 0;
-  white-space: nowrap;
-}
-.dash-chart-axis-max  { top: 0; }
-.dash-chart-axis-min  { bottom: 0; }
-.dash-chart-axis-zero { transform: translateY(-50%); }
-
-.dash-chart-plot { flex: 1; min-width: 0; }
-.dash-chart-bars {
-  position: relative;
-  height: var(--dash-chart-h);
-  display: flex;
-  gap: 6px;
-  align-items: stretch;
-}
-.dash-chart-zero {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--border);
-}
-.dash-chart-col { position: relative; flex: 1; min-width: 0; }
-
-/* Non-current months sit back at half strength so the month she's
-   living in reads first. Opacity (not a second color) keeps the dark
-   theme correct for free. */
-.dash-bar {
-  position: absolute;
-  left: 11%;
-  right: 11%;
-  opacity: 0.5;
-  transition: height var(--dur-slow) var(--ease-out);
-}
-.dash-bar--current { opacity: 1; }
-/* Positive = green, negative = red. This pair was teal/red before the
-   repalette, and --accent was the obvious swap — but rose and red are
-   only ~20° apart, and at this bar width the two states became one
-   smear (verified on device at 390px, both themes). Green also matches
-   .dash-pulse-net--pos, the hero figure sitting directly above the
-   chart, so the screen now tells the same story twice instead of in two
-   vocabularies. The accent's job on this screen is the current-month
-   label and the pressed states — not the data. */
-.dash-bar--pos {
-  background: var(--green);
-  border-radius: 4px 4px 0 0;
-}
-.dash-bar--neg {
-  background: var(--red);
-  border-radius: 0 0 4px 4px;
-}
-/* A month that netted exactly zero still gets a mark, so a gap in the
-   chart always means "no data", never "nothing happened". */
-.dash-bar--zero {
-  height: 3px;
-  background: var(--border);
-  border-radius: 2px;
-  opacity: 1;
-}
-
-.dash-chart-labels {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-.dash-chart-label {
-  flex: 1;
-  min-width: 0;
-  text-align: center;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--charcoal-xl);
-}
-.dash-chart-label--current { color: var(--accent-dark); }
-
 /* ── Tu taller ──
    Three figures in one band, each one a way into the tab that owns it. */
 .dash-figures {
@@ -300,7 +208,6 @@
 @media (max-width: 360px) {
   .dash-figure { padding: 12px 9px; }
   .dash-pulse-net { font-size: 29px; }
-  .dash-chart-axis { width: 46px; }
 }
 
 /* ── Progress ring (goal / budget) ── */

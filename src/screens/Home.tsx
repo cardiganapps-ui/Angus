@@ -11,12 +11,12 @@ import {
   netDelta,
   practiceSnapshot,
   trendChart,
-  type AttentionItem,
-  type TrendChart
+  type AttentionItem
 } from "../utils/dashboard";
 import { formatMXNShort, formatMXNShortSigned } from "../utils/money";
 import { firstName } from "../utils/settings";
 import { ProgressRing } from "../components/ProgressRing";
+import { BarChart } from "../components/charts/BarChart";
 import {
   daysUntil,
   formatDateLong,
@@ -337,7 +337,22 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
           <span className="eyebrow">Últimos {TREND_MONTHS} meses</span>
         </div>
         <div className={`card dash-trend${flatTrend ? " dash-trend--flat" : ""}`}>
-          <TrendBars chart={chart} />
+          <BarChart
+            series={[{ key: "net", label: "Balance", color: "var(--green)", negColor: "var(--red)" }]}
+            columns={chart.bars.map((bar) => ({
+              key: bar.month,
+              label: monthInitial(bar.month),
+              title: formatMonthLong(bar.month),
+              values: { net: bar.net },
+              current: bar.current
+            }))}
+            height={flatTrend ? 36 : 124}
+            signed
+            labelCurrent
+            ariaLabel={`Balance por mes: ${chart.bars
+              .map((bar) => `${monthName(bar.month)} ${formatMXNShortSigned(bar.net)}`)
+              .join(", ")}`}
+          />
           {flatTrend && (
             <div className="dash-trend-note">
               Aún no hay entradas ni gastos que graficar. En cuanto registres el primero, verás la
@@ -425,69 +440,6 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
       {sheet?.kind === "project" && (
         <ProjectSheet project={sheet.project} onClose={() => setSheet(null)} />
       )}
-    </div>
-  );
-}
-
-/* ── Trend ──
-   Six bars over a zero baseline, hand-rolled. `chart.zeroLine` says
-   where the baseline sits in the box and each bar's `height` is a
-   fraction of that same box, so a bar above and a bar below the line
-   are drawn at one shared scale. A month that netted exactly zero draws
-   a flat tick rather than nothing, so a gap always means "no data". */
-function TrendBars({ chart }: { chart: TrendChart }) {
-  const { bars, zeroLine } = chart;
-  const baseline = `${(1 - zeroLine) * 100}%`;
-  const spoken = bars
-    .map((bar) => `${monthName(bar.month)} ${formatMXNShortSigned(bar.net)}`)
-    .join(", ");
-
-  return (
-    <div className="dash-chart">
-      <div className="dash-chart-axis" aria-hidden="true">
-        {chart.max > 0 && <span className="dash-chart-axis-max">{formatMXNShort(chart.max)}</span>}
-        {zeroLine > 0 && zeroLine < 1 && (
-          <span className="dash-chart-axis-zero" style={{ top: `${zeroLine * 100}%` }}>
-            $0
-          </span>
-        )}
-        {chart.min < 0 && (
-          <span className="dash-chart-axis-min">{formatMXNShortSigned(chart.min)}</span>
-        )}
-      </div>
-      <div className="dash-chart-plot">
-        <div className="dash-chart-bars" role="img" aria-label={`Balance por mes: ${spoken}`}>
-          <span className="dash-chart-zero" style={{ bottom: baseline }} />
-          {bars.map((bar) => (
-            <div className="dash-chart-col" key={bar.month}>
-              {bar.height === 0 ? (
-                <span className="dash-bar dash-bar--zero" style={{ bottom: baseline }} />
-              ) : (
-                <span
-                  className={`dash-bar ${bar.positive ? "dash-bar--pos" : "dash-bar--neg"}${
-                    bar.current ? " dash-bar--current" : ""
-                  }`}
-                  style={
-                    bar.positive
-                      ? { bottom: baseline, height: `${bar.height * 100}%` }
-                      : { top: `${zeroLine * 100}%`, height: `${bar.height * 100}%` }
-                  }
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="dash-chart-labels" aria-hidden="true">
-          {bars.map((bar) => (
-            <span
-              className={`dash-chart-label${bar.current ? " dash-chart-label--current" : ""}`}
-              key={bar.month}
-            >
-              {monthInitial(bar.month)}
-            </span>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
