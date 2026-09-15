@@ -1,4 +1,12 @@
-import type { Contact, Project, ScheduleEvent } from "../types";
+import type {
+  Contact,
+  Expense,
+  Installment,
+  Payment,
+  Project,
+  Sale,
+  ScheduleEvent
+} from "../types";
 import type { CloudStoreConfig } from "../hooks/useCloudStore";
 
 export interface ProjectRow {
@@ -124,6 +132,151 @@ export const eventStore: CloudStoreConfig<ScheduleEvent, EventRow> = {
     if (e.location !== undefined) row.location = e.location;
     if (e.projectId !== undefined) row.project_id = e.projectId;
     if (e.contactId !== undefined) row.contact_id = e.contactId;
+    if (e.notes !== undefined) row.notes = e.notes;
+    return row;
+  }
+};
+
+/* ── Money ──
+   PostgREST returns `numeric` as a string, so every amount goes through
+   Number() on the way in. */
+
+export interface SaleRow {
+  id: string;
+  title: string;
+  amount: number | string;
+  date: string;
+  status: Sale["status"];
+  project_id: string | null;
+  contact_id: string | null;
+  notes: string;
+  created_at: string;
+}
+
+export interface PaymentRow {
+  id: string;
+  sale_id: string;
+  amount: number | string;
+  date: string;
+  method: Payment["method"];
+  notes: string;
+  created_at: string;
+}
+
+export interface InstallmentRow {
+  id: string;
+  sale_id: string;
+  amount: number | string;
+  due_date: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface ExpenseRow {
+  id: string;
+  title: string;
+  amount: number | string;
+  date: string;
+  category: Expense["category"];
+  project_id: string | null;
+  event_id: string | null;
+  notes: string;
+  created_at: string;
+}
+
+export const saleStore: CloudStoreConfig<Sale, SaleRow> = {
+  table: "sales",
+  fromRow: (r) => ({
+    id: r.id,
+    title: r.title,
+    amount: Number(r.amount),
+    date: r.date,
+    status: r.status,
+    projectId: r.project_id,
+    contactId: r.contact_id,
+    notes: r.notes,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (s) => {
+    const row: Partial<SaleRow> = {};
+    if (s.id !== undefined) row.id = s.id;
+    if (s.title !== undefined) row.title = s.title;
+    if (s.amount !== undefined) row.amount = s.amount;
+    if (s.date !== undefined) row.date = s.date;
+    if (s.status !== undefined) row.status = s.status;
+    if (s.projectId !== undefined) row.project_id = s.projectId;
+    if (s.contactId !== undefined) row.contact_id = s.contactId;
+    if (s.notes !== undefined) row.notes = s.notes;
+    return row;
+  }
+};
+
+export const paymentStore: CloudStoreConfig<Payment, PaymentRow> = {
+  table: "payments",
+  fromRow: (r) => ({
+    id: r.id,
+    saleId: r.sale_id,
+    amount: Number(r.amount),
+    date: r.date,
+    method: r.method,
+    notes: r.notes,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (p) => {
+    const row: Partial<PaymentRow> = {};
+    if (p.id !== undefined) row.id = p.id;
+    if (p.saleId !== undefined) row.sale_id = p.saleId;
+    if (p.amount !== undefined) row.amount = p.amount;
+    if (p.date !== undefined) row.date = p.date;
+    if (p.method !== undefined) row.method = p.method;
+    if (p.notes !== undefined) row.notes = p.notes;
+    return row;
+  }
+};
+
+export const installmentStore: CloudStoreConfig<Installment, InstallmentRow> = {
+  table: "installments",
+  fromRow: (r) => ({
+    id: r.id,
+    saleId: r.sale_id,
+    amount: Number(r.amount),
+    dueDate: r.due_date,
+    notes: r.notes,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (i) => {
+    const row: Partial<InstallmentRow> = {};
+    if (i.id !== undefined) row.id = i.id;
+    if (i.saleId !== undefined) row.sale_id = i.saleId;
+    if (i.amount !== undefined) row.amount = i.amount;
+    if (i.dueDate !== undefined) row.due_date = i.dueDate;
+    if (i.notes !== undefined) row.notes = i.notes;
+    return row;
+  }
+};
+
+export const expenseStore: CloudStoreConfig<Expense, ExpenseRow> = {
+  table: "expenses",
+  fromRow: (r) => ({
+    id: r.id,
+    title: r.title,
+    amount: Number(r.amount),
+    date: r.date,
+    category: r.category,
+    projectId: r.project_id,
+    eventId: r.event_id,
+    notes: r.notes,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (e) => {
+    const row: Partial<ExpenseRow> = {};
+    if (e.id !== undefined) row.id = e.id;
+    if (e.title !== undefined) row.title = e.title;
+    if (e.amount !== undefined) row.amount = e.amount;
+    if (e.date !== undefined) row.date = e.date;
+    if (e.category !== undefined) row.category = e.category;
+    if (e.projectId !== undefined) row.project_id = e.projectId;
+    if (e.eventId !== undefined) row.event_id = e.eventId;
     if (e.notes !== undefined) row.notes = e.notes;
     return row;
   }

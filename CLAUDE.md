@@ -2,7 +2,15 @@
 
 Guidance for Claude Code when working in this repository. Angus is a sibling product to Cardigan (`cardiganapps-ui/cardigan`) and inherits its engineering standards and design system **verbatim** — when this file is silent, Cardigan's `CLAUDE.md` is the tie-breaker.
 
-**Before building anything, read `docs/playbook.md`** — the component catalog (what to reuse) and the step-by-step recipes (new entity, new field, new tab, migration template, motion cookbook, verification loop). This file is the *rules*; the playbook is the *how*. If you find yourself writing a picker, a sheet footer, a skeleton, or a list row from scratch, stop — it exists.
+## Autonomy
+
+The owner has granted standing, blanket authorization for everything this project needs: running SQL and migrations against the live Supabase project, creating and deleting accounts, changing Vercel config, deploying, installing dependencies, and any other operation required to move the roadmap forward. **Do not stop to ask for permission.** Use the tokens in `.env.local` freely.
+
+Two things this does NOT mean:
+1. **Still report what you did.** Acting without asking is authorized; acting silently is not. Destructive or hard-to-reverse actions (deleting a user, dropping data, rotating a credential) get done *and then stated plainly* in the reply, with what was removed.
+2. **Permission ≠ product direction.** Keep asking when the *design* is genuinely ambiguous (what a feature should mean, how money should be modeled) — that's information only the owner has, not a permission gate. Never ask twice about the same thing; check this file and `docs/playbook.md` first.
+
+Before building anything, read `docs/playbook.md` — the component catalog (what to reuse) and the step-by-step recipes (new entity, new field, new tab, migration template, motion cookbook, verification loop). This file is the *rules*; the playbook is the *how*. If you find yourself writing a picker, a sheet footer, a skeleton, or a list row from scratch, stop — it exists.
 
 # ⚠️ PRIME DIRECTIVE — HER DATA IS IRREPLACEABLE
 

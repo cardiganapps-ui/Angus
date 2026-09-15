@@ -1,4 +1,12 @@
-import type { ContactRelationship, EventKind, LeadStage, ProjectStatus } from "../types";
+import type {
+  ContactRelationship,
+  EventKind,
+  ExpenseCategory,
+  LeadStage,
+  PaymentMethod,
+  ProjectStatus,
+  SaleStatus
+} from "../types";
 
 export const PROJECT_STATUS: { value: ProjectStatus; label: string }[] = [
   { value: "idea", label: "Idea" },
@@ -44,6 +52,42 @@ export const EVENT_KIND_BADGE: Record<EventKind, string> = {
   personal: "badge-purple",
   other: "badge-gray"
 };
+
+/* ── Money ──
+   SALE_STATUS mirrors the sales.status check constraint; changing it
+   means a migration AND a decision in utils/accounting.ts about whether
+   the new status counts toward revenue (see saleCountsTowardRevenue). */
+export const SALE_STATUS: { value: SaleStatus; label: string }[] = [
+  { value: "quoted", label: "Cotizada" },
+  { value: "confirmed", label: "Confirmada" },
+  { value: "delivered", label: "Entregada" },
+  { value: "cancelled", label: "Cancelada" }
+];
+
+export const SALE_STATUS_BADGE: Record<SaleStatus, string> = {
+  quoted: "badge-gray",
+  confirmed: "badge-teal",
+  delivered: "badge-green",
+  cancelled: "badge-red"
+};
+
+export const PAYMENT_METHOD: { value: PaymentMethod; label: string }[] = [
+  { value: "cash", label: "Efectivo" },
+  { value: "transfer", label: "Transferencia" },
+  { value: "card", label: "Tarjeta" },
+  { value: "other", label: "Otro" }
+];
+
+export const EXPENSE_CATEGORY: { value: ExpenseCategory; label: string }[] = [
+  { value: "materials", label: "Materiales" },
+  { value: "studio", label: "Taller" },
+  { value: "equipment", label: "Equipo" },
+  { value: "transport", label: "Transporte" },
+  { value: "courses", label: "Cursos" },
+  { value: "expo", label: "Expo" },
+  { value: "fees", label: "Comisiones" },
+  { value: "other", label: "Otro" }
+];
 
 export function labelFor<T extends { value: string; label: string }>(
   list: T[],

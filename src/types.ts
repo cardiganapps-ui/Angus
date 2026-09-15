@@ -35,6 +35,69 @@ export interface Contact {
   createdAt: string; // ISO
 }
 
+/* ── Money ──
+   Amounts are pesos as `number`. All arithmetic goes through
+   utils/money.ts (cent-integer math) — never sum these directly. */
+
+export type SaleStatus = "quoted" | "confirmed" | "delivered" | "cancelled";
+
+export interface Sale {
+  id: string;
+  title: string;
+  amount: number; // total agreed price
+  date: string; // ISO date the sale was agreed
+  status: SaleStatus;
+  projectId: string | null;
+  contactId: string | null; // the buyer
+  notes: string;
+  createdAt: string; // ISO
+}
+
+export type PaymentMethod = "cash" | "transfer" | "card" | "other";
+
+/** Money actually received against a sale. The source of truth for "paid". */
+export interface Payment {
+  id: string;
+  saleId: string;
+  amount: number;
+  date: string; // ISO
+  method: PaymentMethod;
+  notes: string;
+  createdAt: string; // ISO
+}
+
+/** One scheduled step of a payment plan — an expectation, not money received. */
+export interface Installment {
+  id: string;
+  saleId: string;
+  amount: number;
+  dueDate: string; // ISO
+  notes: string;
+  createdAt: string; // ISO
+}
+
+export type ExpenseCategory =
+  | "materials"
+  | "studio"
+  | "equipment"
+  | "transport"
+  | "courses"
+  | "expo"
+  | "fees"
+  | "other";
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  date: string; // ISO
+  category: ExpenseCategory;
+  projectId: string | null;
+  eventId: string | null; // ties spend to an expo / class
+  notes: string;
+  createdAt: string; // ISO
+}
+
 export type EventKind =
   | "class"
   | "expo"
