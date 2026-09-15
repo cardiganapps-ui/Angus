@@ -171,7 +171,7 @@ export function SaleSheet({
           className="input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Retrato por encargo, pieza en expo..."
+          placeholder="Retrato por encargo, pieza en expo…"
           autoFocus={sale === null}
         />
       </div>

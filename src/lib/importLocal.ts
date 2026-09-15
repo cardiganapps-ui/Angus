@@ -31,16 +31,20 @@ export async function importLocalData(workspaceId: string): Promise<boolean> {
   }
 
   const withWs = (rows: Record<string, unknown>[]) => rows.map((r) => ({ ...r, workspace_id: workspaceId }));
-  const steps: [string, Record<string, unknown>[]][] = [
-    [contactStore.table, withWs(contacts.map(contactStore.toRow))],
-    [projectStore.table, withWs(projects.map(projectStore.toRow))],
-    [eventStore.table, withWs(events.map(eventStore.toRow))]
+  // Each step is idempotent (ids are the client's, duplicates are
+  // skipped) and clears its own key, so a failure midway resumes
+  // where it stopped instead of re-inserting what already landed.
+  const steps: [string, string, Record<string, unknown>[]][] = [
+    [contactStore.table, KEYS.contacts, withWs(contacts.map(contactStore.toRow))],
+    [projectStore.table, KEYS.projects, withWs(projects.map(projectStore.toRow))],
+    [eventStore.table, KEYS.events, withWs(events.map(eventStore.toRow))]
   ];
-  for (const [table, rows] of steps) {
-    if (rows.length === 0) continue;
-    const { error } = await supabase.from(table).insert(rows);
-    if (error) throw new Error(error.message);
+  for (const [table, key, rows] of steps) {
+    if (rows.length > 0) {
+      const { error } = await supabase.from(table).upsert(rows, { onConflict: "id", ignoreDuplicates: true });
+      if (error) throw new Error(error.message);
+    }
+    localStorage.removeItem(key);
   }
-  Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
   return true;
 }

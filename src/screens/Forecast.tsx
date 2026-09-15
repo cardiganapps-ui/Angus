@@ -155,7 +155,7 @@ export function Forecast({ navigate }: { navigate: (r: Route) => void }) {
 
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Mes por mes</span>
+          <span className="section-title">Mes a mes</span>
         </div>
         <div className="card">
           {f.months.map((m) => (

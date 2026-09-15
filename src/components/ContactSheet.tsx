@@ -46,7 +46,8 @@ export function ContactSheet({
       relationship,
       email: email.trim(),
       phone: phone.trim(),
-      leadStage: isLead ? leadStage : null,
+      // A client who came in as a lead keeps "won" so Reportes can count the conversion.
+      leadStage: isLead ? leadStage : contact?.leadStage === "won" ? "won" : null,
       followUpDate: isLead && followUpDate ? followUpDate : null,
       notes: notes.trim()
     };

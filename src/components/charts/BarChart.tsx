@@ -109,7 +109,24 @@ export function BarChart({
   const yFor = (cents: number) =>
     scale.span === 0 ? height : PAD_TOP + ((scale.top - cents) / scale.span) * plotH;
   const yZero = yFor(0);
-  const gridValues = scale.span === 0 ? [] : [scale.top, scale.top / 2].filter((v) => v > 0);
+  // Positive gridlines at the top and its half — but never one that would
+  // print over the $0 label (a net chart whose best month is tiny) or
+  // over its neighbour.
+  const gridValues = useMemo(() => {
+    if (scale.span === 0) return [];
+    const out: number[] = [];
+    let lastY = scale.bottom < 0 ? yZero : Number.POSITIVE_INFINITY;
+    for (const v of [scale.top / 2, scale.top]) {
+      if (v <= 0) continue;
+      const y = yFor(v);
+      if (Math.abs(lastY - y) < 16) continue;
+      out.push(v);
+      lastY = y;
+    }
+    return out.reverse();
+    // yFor is derived from scale/height only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale, height, yZero]);
   const openCol = columns.find((c) => c.key === open) ?? null;
   const hasProjected = columns.some((c) => c.projected);
 

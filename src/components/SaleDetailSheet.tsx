@@ -118,7 +118,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
     if (!sale || !planPreview || working) return;
     setWorking(true);
     // One request for the whole plan: either every cuota lands or none does.
-    await addInstallments(
+    const ok = await addInstallments(
       planPreview.map((row) => ({
         id: makeId(),
         saleId: sale.id,
@@ -128,11 +128,15 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
         createdAt: todayISO()
       }))
     );
+    setWorking(false);
+    if (!ok) {
+      haptic.warn();
+      return;
+    }
     if (sale.paymentTerms !== planTerms) void updateSale(sale.id, { paymentTerms: planTerms });
     haptic.success();
     showSuccess("Plan de pagos creado");
     setPlanForm(false);
-    setWorking(false);
   }
 
   /* One tap for a materialized tuition / retainer: record the remainder

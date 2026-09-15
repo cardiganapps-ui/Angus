@@ -47,7 +47,7 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
     <div className="page auth-page scroll-bounce">
       <div className="auth-hero">
         <div className="auth-brand">Angus</div>
-        <div className="auth-tagline">Tus proyectos, contactos y agenda en un solo lugar.</div>
+        <div className="auth-tagline">Tu obra, contactos y agenda en un solo lugar.</div>
       </div>
 
       <div className="card auth-card">

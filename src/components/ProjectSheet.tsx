@@ -171,14 +171,14 @@ export function ProjectSheet({
           className="input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Retrato, serie, encargo..."
+          placeholder="Retrato, serie, encargo…"
           autoFocus={project === null}
         />
       </div>
 
       <div className="input-group">
         <label className="input-label" htmlFor="project-medium">Técnica / medio</label>
-        <input id="project-medium" className="input" value={medium} onChange={(e) => setMedium(e.target.value)} placeholder="Óleo, acrílico, grabado..." list="project-medium-list" />
+        <input id="project-medium" className="input" value={medium} onChange={(e) => setMedium(e.target.value)} placeholder="Óleo, acrílico, grabado…" list="project-medium-list" />
         <datalist id="project-medium-list">
           {[...new Set([...settings.mediums, ...suggestMediums(projects), ...MEDIUM_SUGGESTIONS])].map((m) => (
             <option value={m} key={m} />

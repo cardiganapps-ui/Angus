@@ -611,7 +611,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
      freshly applied (CSS animations rerun when the trigger class is
      added), so it doesn't loop on re-renders that didn't change the
      active tab. */
-  animation: bottomTabIconHop 560ms var(--ease-spring) both;
+  animation: bottomTabIconHop var(--dur-slower) var(--ease-spring) both;
 }
 @keyframes bottomTabIconHop {
   0%   { transform: translateY(0)    scale(1); }
@@ -686,7 +686,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
      glyph stamped itself onto it" — same rhythm Apple uses for the
      Activity Ring ticks and successful payment glyphs. Suppressed by
      prefers-reduced-motion globally via responsive.css. */
-  animation: toastIconPop 460ms 220ms var(--ease-spring) both;
+  animation: toastIconPop var(--dur-slow) var(--dur-base) var(--ease-spring) both;
 }
 @keyframes toastIconPop {
   0%   { transform: scale(0); opacity: 0; }
@@ -702,7 +702,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 }
 .toast-action {
   flex-shrink: 0; min-height: 0;
-  background: rgba(46, 46, 46, 0.08);
+  background: var(--cream-dark);
   color: var(--charcoal);
   border: none;
   border-radius: var(--radius-pill);
@@ -713,7 +713,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
   -webkit-tap-highlight-color: transparent;
   transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
 }
-.toast-action:active { background: rgba(46, 46, 46, 0.14); transform: scale(0.94); }
+.toast-action:active { background: var(--cream-deeper); transform: scale(0.94); }
 .toast-close {
   flex-shrink: 0; min-height: 0; padding: 4px;
   background: transparent; border: none;
@@ -800,7 +800,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
   background: var(--white); border: none; cursor: pointer;
   padding: 0; -webkit-tap-highlight-color: transparent;
   border-radius: var(--radius-pill);
-  box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-sm);
   animation: fabActionIn var(--dur-slower) var(--ease-spring) both;
 }
 .fab-action:active { background: var(--cream); transform: scale(0.97); }
@@ -853,7 +853,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
   -webkit-tap-highlight-color: transparent;
   /* Layered soft shadow gives the cards presence and signals they're
      interactive rather than flat static tiles. */
-  box-shadow: 0 1px 2px rgba(46,46,46,0.04), 0 4px 14px rgba(46,46,46,0.06);
+  box-shadow: var(--shadow-sm);
   /* Press feedback split into two arcs:
        - Press-down: fast (var(--dur-fast)) so the finger feels heard
          immediately, with --ease-spring-soft so the snap doesn't
@@ -874,7 +874,7 @@ button.kpi-card { cursor: pointer; }
 @media (hover: hover) {
   button.kpi-card:hover {
     /* Lift on hover — more visible shadow + slight border warm */
-    box-shadow: 0 2px 4px rgba(46,46,46,0.05), 0 10px 24px rgba(46,46,46,0.09);
+    box-shadow: var(--shadow);
     border-color: var(--accent-light);
   }
 }
@@ -889,7 +889,7 @@ button.kpi-card:active {
   /* Shadow collapses tight under the card to read as "pressed into
      the surface" — depth comes from the contrast with the resting
      state shadow above, not from the absolute values. */
-  box-shadow: 0 1px 2px rgba(46,46,46,0.06), 0 1px 3px rgba(46,46,46,0.04);
+  box-shadow: var(--shadow-sm);
   transition:
     background var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out),
@@ -1179,16 +1179,16 @@ button.kpi-card:active {
   -webkit-overflow-scrolling: touch;
 }
 
-.btn-primary { background: var(--charcoal); color: var(--white); box-shadow: 0 2px 8px rgba(0,0,0,0.08); width: 100%; transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background-color var(--dur-fast) ease; }
+.btn-primary { background: var(--charcoal); color: var(--white); box-shadow: var(--shadow-sm); width: 100%; transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background-color var(--dur-fast) ease; }
 /* Hover lift only on devices that can actually hover — wrapping in
    `@media (hover: hover)` prevents iOS from leaving a tap-locked
    "stuck-hover" highlight after a touch. The :active state below
    resets the lift on press for both pointer and touch. */
 @media (hover: hover) {
-  .btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+  .btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
   .btn-ghost:not(:disabled):hover { background: var(--accent-mist); }
 }
-.btn-primary:not(:disabled):active { transform: translateY(0); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.btn-primary:not(:disabled):active { transform: translateY(0); box-shadow: var(--shadow-sm); }
 /* Disabled primary gets its OWN surface rather than the shared
    opacity dim. --charcoal is a plum, but it's a very dark one: at 55%
    over white the chroma vanishes and the pill lands on ~#8C888F, i.e.
@@ -1200,24 +1200,12 @@ button.kpi-card:active {
   color: var(--charcoal-xl);
   opacity: 1;
 }
-.btn-primary-teal {
-  background: var(--teal); color: var(--white); width: 100%;
-  box-shadow: 0 4px 14px rgba(91,155,175,0.38);
-  font-size: 16px;
-  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background-color var(--dur-fast) ease;
-}
-@media (hover: hover) {
-  .btn-primary-teal:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(91,155,175,0.46); }
-}
-.btn-primary-teal:not(:disabled):active { background: var(--teal-dark); transform: translateY(0); }
 .btn-secondary { background: var(--white); color: var(--charcoal-md); border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); }
-.btn-ghost { background: transparent; color: var(--accent-dark); height: 38px; padding: 0 10px; font-size: var(--text-md); transition: background-color var(--dur-fast) ease; }
+.btn-ghost { background: transparent; color: var(--accent-dark); height: 44px; padding: 0 10px; font-size: var(--text-md); transition: background-color var(--dur-fast) ease; }
 .btn-danger { background: var(--red-bg); color: var(--red); box-shadow: none; width: 100%; }
+.btn-ghost--danger { color: var(--red); }
+.btn-ghost--success { color: var(--green); }
 .btn-warning { background: var(--amber-bg); color: var(--amber); box-shadow: none; width: 100%; }
-/* Teal CTAs — solid filled + soft-tinted variants. Default height 44 for
-   compact grid placement; override with inline style when needed. */
-.btn-teal { background: var(--teal); color: var(--white); height: 44px; font-size: var(--text-sm); box-shadow: none; }
-.btn-teal-soft { background: var(--teal-pale); color: var(--teal-dark); height: 44px; font-size: var(--text-sm); box-shadow: none; }
 
 
 /* Balance row active state */
@@ -1517,7 +1505,7 @@ html.cap-android .scroll-bounce {
   100% { transform: translateY(100%); opacity: 0.92; }
 }
 .sheet-panel--exit {
-  animation: sheetFallOut 260ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: sheetFallOut var(--dur-base) var(--ease-in) both;
 }
 @keyframes scrimFadeOut {
   0%   { opacity: 1; }
@@ -1528,7 +1516,7 @@ html.cap-android .scroll-bounce {
      sees the world behind reveal first, then the panel clears the
      viewport — the inverse of the open sequencing where the scrim
      completes before the panel settles. */
-  animation: scrimFadeOut 200ms ease both;
+  animation: scrimFadeOut var(--dur-fast) var(--ease-out) both;
 }
 @keyframes sheetScaleIn {
   0%   { opacity: 0; transform: scale(0.9); }
@@ -1574,6 +1562,11 @@ html.cap-android .scroll-bounce {
 }
 .sheet-close { width: 30px; height: 30px; border-radius: 50%; background: var(--cream-dark); border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; position: relative; }
 .sheet-close::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+/* Compact controls keep their look but answer to a 44px-tall thumb. */
+.chip, .btn.btn-mini, .btn-ghost, .see-all, .toast-action, .toast-close, .password-input-toggle { position: relative; }
+.chip::after, .btn.btn-mini::after, .btn-ghost::after, .see-all::after, .toast-action::after, .toast-close::after, .password-input-toggle::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+/* A disabled row or chip must not look tappable. */
+.row-item:disabled, .mde-context-chip:disabled, .sheet-close:disabled { opacity: 0.55; cursor: not-allowed; }
 
 
 .bal-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-lt); }

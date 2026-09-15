@@ -120,7 +120,7 @@ export function ExpenseSheet({
           className="input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Bastidores, renta del taller..."
+          placeholder="Bastidores, renta del taller…"
           autoFocus={expense === null}
         />
       </div>

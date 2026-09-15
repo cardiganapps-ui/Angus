@@ -225,8 +225,8 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
                     {contact.leadStage !== "negotiating" && (
                       <button type="button" className="btn btn-ghost btn-mini" onClick={() => setStage("negotiating")}>Negociando</button>
                     )}
-                    <button type="button" className="btn btn-teal-soft btn-mini" onClick={() => setStage("won")}>Ganado</button>
-                    <button type="button" className="btn btn-ghost btn-mini" style={{ color: "var(--red)" }} onClick={() => setStage("lost")}>Perdido</button>
+                    <button type="button" className="btn btn-ghost btn-ghost--success btn-mini" onClick={() => setStage("won")}>Ganado</button>
+                    <button type="button" className="btn btn-ghost btn-ghost--danger btn-mini" onClick={() => setStage("lost")}>Perdido</button>
                   </div>
                 </div>
               </>

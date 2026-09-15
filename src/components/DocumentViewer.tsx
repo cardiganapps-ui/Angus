@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { Document } from "../types";
 import { fileUrl, formatFileSize, isImageMime, isPdfMime } from "../lib/files";
 import { useEscape } from "../hooks/useEscape";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { formatShort } from "../utils/dates";
 import { Icon } from "./Icon";
 import { haptic } from "../lib/haptics";
@@ -40,14 +41,15 @@ export function DocumentViewer({ doc, onClose, onDelete }: { doc: Document; onCl
   const close = () => {
     if (busy) return;
     setExiting(true);
-    setTimeout(onClose, 200);
+    setTimeout(onClose, 250);
   };
   useEscape(busy ? null : close);
+  const trapRef = useFocusTrap(true);
 
   const meta = [doc.kind === "link" && doc.url ? doc.url : formatFileSize(doc.sizeBytes), formatShort(doc.createdAt)].filter(Boolean).join(" · ");
 
   return createPortal(
-    <div className={"doc-viewer" + (exiting ? " doc-viewer--exit" : "")} role="dialog" aria-modal="true" aria-label={doc.name}>
+    <div ref={trapRef as React.RefObject<HTMLDivElement>} className={"doc-viewer" + (exiting ? " doc-viewer--exit" : "")} role="dialog" aria-modal="true" aria-label={doc.name}>
       <div className="doc-viewer-head">
         <button type="button" className="mde-back btn-tap" onClick={close} disabled={busy}>
           <Icon name="chevron-left" size={18} strokeWidth={2.4} />
@@ -137,7 +139,7 @@ export function DocumentViewer({ doc, onClose, onDelete }: { doc: Document; onCl
               {busy ? "Eliminando…" : "Sí, eliminar"}
             </button>
           ) : (
-            <button type="button" className="btn btn-ghost btn-mini" style={{ color: "var(--red)" }} onClick={() => setConfirm(true)}>
+            <button type="button" className="btn btn-ghost btn-ghost--danger btn-mini" onClick={() => setConfirm(true)}>
               <Icon name="trash" size={16} /> Eliminar
             </button>
           ))}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { NoteAttachment } from "../../types";
 import type { TileState } from "../../hooks/useNoteAttachments";
 import { useEscape } from "../../hooks/useEscape";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { Icon } from "../Icon";
 import { haptic } from "../../lib/haptics";
 
@@ -22,6 +23,7 @@ export function AttachmentStrip({
   const [lightboxId, setLightboxId] = useState<string | null>(null);
   const closeLightbox = useCallback(() => setLightboxId(null), []);
   useEscape(lightboxId ? closeLightbox : null);
+  const lightboxRef = useFocusTrap(!!lightboxId);
   // Deleting purges the bytes, so the × arms a "Quitar" step first.
   const [armedId, setArmedId] = useState<string | null>(null);
   const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,6 +84,7 @@ export function AttachmentStrip({
       </div>
       {lightbox?.url && (
         <div
+          ref={lightboxRef as React.RefObject<HTMLDivElement>}
           className="mde-attach-lightbox"
           role="dialog"
           aria-modal="true"

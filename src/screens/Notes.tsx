@@ -136,7 +136,7 @@ export function Notes() {
       <div className="page-header">
         <div className="eyebrow">
           {notes.length} {notes.length === 1 ? "nota" : "notas"}
-          {inboxCount > 0 ? ` · ${inboxCount} sin archivar` : ""}
+          {inboxCount > 0 ? ` · ${inboxCount} en el inbox` : ""}
         </div>
         <h1 className="page-title">Notas</h1>
       </div>
@@ -410,7 +410,7 @@ function NotePropsSheet({
                   Sí, eliminar
                 </button>
               ) : (
-                <button type="button" className="btn btn-ghost btn-mini" style={{ color: "var(--red)" }} onClick={() => setConfirm(true)}>
+                <button type="button" className="btn btn-ghost btn-ghost--danger btn-mini" onClick={() => setConfirm(true)}>
                   Eliminar
                 </button>
               )}

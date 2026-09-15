@@ -122,11 +122,17 @@ export function forecast({
   for (const sale of sales) {
     if (!countingIds.has(sale.id)) continue;
     if (planned.has(sale.id)) {
+      let plannedCents = 0;
       for (const status of installmentPlan(sale.id, installments, payments, today)) {
         if (status.remaining <= 0) continue;
+        plannedCents += toCents(status.remaining);
         if (status.installment.dueDate > lastDay) continue;
         addCents(monthKey(status.installment.dueDate), "committedIn", toCents(status.remaining));
       }
+      // A plan that no longer covers the sale (amount raised after the
+      // cuotas were built) still owes the difference — count it on the sale's month.
+      const uncovered = toCents(saleBalance(sale, payments).owed) - plannedCents;
+      if (uncovered > 0 && sale.date <= lastDay) addCents(monthKey(sale.date), "committedIn", uncovered);
     } else {
       const owed = saleBalance(sale, payments).owed;
       if (owed <= 0) continue;

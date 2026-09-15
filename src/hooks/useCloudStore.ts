@@ -94,6 +94,15 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
         const { error } = await supabase.from(config.table).insert(rows);
         if (!error) return true;
         if (error.code === UNIQUE_VIOLATION) {
+          // Postgres rejects the whole batch for one duplicate. The
+          // duplicate is "already there" (another device won), but the
+          // other rows are still hers — land them one by one.
+          if (rows.length > 1) {
+            for (const row of rows) {
+              const { error: one } = await supabase.from(config.table).insert(row);
+              if (one && one.code !== UNIQUE_VIOLATION) setError(one.message);
+            }
+          }
           await reload();
           return true;
         }

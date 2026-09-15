@@ -281,7 +281,7 @@ export function practiceSnapshot(
     (s) => saleCountsTowardRevenue(s) && s.date >= from && s.date <= to
   );
   const upcoming = events
-    .filter((e) => e.date >= today)
+    .filter((e) => !e.cancelled && e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? "").localeCompare(b.startTime ?? ""));
 
   return {

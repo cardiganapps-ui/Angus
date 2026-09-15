@@ -22,7 +22,7 @@ export default defineConfig({
       manifest: {
         name: "Angus",
         short_name: "Angus",
-        description: "Planificador de proyectos, ventas y agenda para artistas",
+        description: "Planificador de obra, ventas y agenda para artistas",
         theme_color: "#FFFFFF",
         background_color: "#FFFFFF",
         display: "standalone",

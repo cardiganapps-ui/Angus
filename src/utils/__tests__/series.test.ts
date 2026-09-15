@@ -23,6 +23,15 @@ function series(over: Partial<EventSeries> = {}): EventSeries {
     ...over
   };
 }
+describe("seriesDates · biweekly with several weekdays", () => {
+  it("meets every chosen weekday in the SAME fortnight, not alternating weeks", () => {
+    // Start Tue 15 sep, "cada 2 semanas lun y mié": both days belong to
+    // the start week's fortnight, so Monday comes back on 28 sep — not 21.
+    const dates = seriesDates(series({ cadence: "biweekly", weekdays: [1, 3] }), "2026-09-14", "2026-10-15");
+    expect(dates).toEqual(["2026-09-16", "2026-09-28", "2026-09-30", "2026-10-12", "2026-10-14"]);
+  });
+});
+
 const occurrence = (date: string, over: Partial<ScheduleEvent> = {}): ScheduleEvent => ({
   id: `e-${date}`, title: "Óleo", kind: "class", date, startTime: "17:00", endTime: "19:00", location: "Taller",
   projectId: null, contactId: null, budget: null, courseId: null, missed: false, seriesId: "ser1", cancelled: false, detached: false, notes: "", createdAt: date, ...over

@@ -48,7 +48,7 @@
      chrome at this tier). */
   .topbar {
     background: var(--white); border-bottom: 1px solid var(--border-lt);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: var(--shadow-sm);
     padding: 10px max(24px, var(--sar)) 10px max(24px, var(--sal));
   }
   .topbar-brand { position: static; transform: none; color: var(--charcoal); }
@@ -107,7 +107,7 @@
   .icon-btn:hover { opacity: 0.7; }
   .kpi-card:hover { border-color: var(--accent-light); }
   .bal-row:hover { background: var(--accent-mist); }
-  .see-all:hover { color: var(--accent); text-decoration: underline; }
+  .see-all:hover { color: var(--accent-dark); text-decoration: underline; }
   a:not(.btn):hover { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 2px; }
 }
 

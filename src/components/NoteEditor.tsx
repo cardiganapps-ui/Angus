@@ -4,6 +4,7 @@ import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import { useNotes, type NoteLinks } from "../hooks/useNotes";
 import { useEscape } from "../hooks/useEscape";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import type { Note } from "../types";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./notes/MarkdownEditor";
 import { FormatToolbar } from "./notes/FormatToolbar";
@@ -90,6 +91,8 @@ export function NoteEditor({
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<MarkdownEditorHandle | null>(null);
+  // Tab stays inside the editor; focus returns to the row on close.
+  const trapRef = useFocusTrap(true);
 
   const { saveState, setSaveState, scheduleSave, cancelPending } = useNoteAutosave({
     onSave: (d) => saveNote(note.id, d),
@@ -196,6 +199,9 @@ export function NoteEditor({
   };
   const handleContentChange = useCallback(
     (next: string) => {
+      // The editor re-emits on mount (and under StrictMode); a no-op
+      // change must not rewrite updatedAt or spend a version snapshot.
+      if (next === latest.current.content) return;
       setContent(next);
       scheduleSave(latest.current.title, next);
     },
@@ -390,7 +396,7 @@ export function NoteEditor({
   );
 
   return createPortal(
-    <div className={shellClass} style={shellStyle} data-from-origin={hasValidOrigin ? "true" : undefined} role="dialog" aria-modal="true" aria-label={title || "Nota"}>
+    <div ref={trapRef as React.RefObject<HTMLDivElement>} className={shellClass} style={shellStyle} data-from-origin={hasValidOrigin ? "true" : undefined} role="dialog" aria-modal="true" aria-label={title || "Nota"}>
       <div className={"mde-header" + (scrolled ? " is-scrolled" : "")}>
         <button type="button" className="mde-back btn-tap" onClick={handleClose}>
           <Icon name="chevron-left" size={18} strokeWidth={2.4} />

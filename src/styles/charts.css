@@ -112,7 +112,7 @@
 .report-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 16px; }
 .report-kpi { background: var(--white); border: 1px solid var(--border-lt); border-radius: var(--radius-lg); padding: 12px 14px; box-shadow: var(--shadow-sm); }
 .report-kpi-label { font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--charcoal-xl); }
-.report-kpi-value { font-family: var(--font-d); font-weight: 800; font-size: var(--text-xl); color: var(--charcoal); margin-top: 4px; letter-spacing: -0.2px; }
+.report-kpi-value { font-variant-numeric: tabular-nums; font-family: var(--font-d); font-weight: 800; font-size: var(--text-xl); color: var(--charcoal); margin-top: 4px; letter-spacing: -0.2px; }
 .report-kpi-delta { font-size: var(--text-xs); color: var(--charcoal-md); margin-top: 3px; font-variant-numeric: tabular-nums; }
 .report-kpi-delta--up { color: var(--green); }
 .report-kpi-delta--down { color: var(--red); }

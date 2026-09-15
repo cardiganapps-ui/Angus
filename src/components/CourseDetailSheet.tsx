@@ -182,7 +182,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
               <div className="money-stat-label">Pagado</div>
               <div className="money-stat-value money-stat-value--paid">
                 {formatMXNShort(cost.paid)}
-                {cost.total !== null && cost.total > 0 ? <span className="money-stat-of"> de {formatMXNShort(cost.total)}</span> : null}
+                {cost.total !== null && cost.total > 0 ? <span className="money-stat-of" style={{ display: "block" }}>de {formatMXNShort(cost.total)}</span> : null}
               </div>
             </div>
           </div>
@@ -222,7 +222,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
               value={
                 course.paymentPlan === "free"
                   ? "Sin costo"
-                  : `${labelFor(COURSE_PAYMENT_PLAN, course.paymentPlan)}${course.cost !== null ? ` · ${formatMXN(course.cost)}` : ""}`
+                  : `${labelFor(COURSE_PAYMENT_PLAN, course.paymentPlan)}${course.cost !== null ? ` · ${formatMXNShort(course.cost)}` : ""}`
               }
             />
             {course.notes && (
@@ -273,7 +273,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
                     </button>
                     <button
                       type="button"
-                      className={`btn-mini ${s.missed ? "btn-mini--active" : ""}`}
+                      className={`btn btn-secondary btn-mini ${s.missed ? "btn-mini--active" : ""}`}
                       aria-pressed={s.missed}
                       onClick={() => toggleMissed(s)}
                     >
@@ -370,7 +370,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
           </div>
           <div className="section-header" style={{ padding: "18px 0 8px" }}>
             <span className="section-title">Material</span>
-            <span className="quick-actions" style={{ padding: 0, border: "none", gap: 4 }}>
+            <span className="quick-actions" style={{ padding: 0, border: "none", gap: 14 }}>
               <button type="button" className="see-all btn-tap" onClick={() => setLinkOpen(true)}>+ Enlace</button>
               <button type="button" className="see-all btn-tap" onClick={() => setUploadOpen(true)}>+ Archivo</button>
             </span>
@@ -393,12 +393,12 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
                     {cost.total !== null && cost.total > 0
                       ? cost.remaining === 0
                         ? "Pagado por completo"
-                        : `Faltan ${formatMXN(cost.remaining ?? 0)}`
-                      : `${formatMXN(cost.paid)} pagados`}
+                        : `Faltan ${formatMXNShort(cost.remaining ?? 0)}`
+                      : `${formatMXNShort(cost.paid)} pagados`}
                   </div>
                   <div className="row-sub">
                     {labelFor(COURSE_PAYMENT_PLAN, course.paymentPlan)}
-                    {course.cost !== null ? ` · ${formatMXN(course.cost)}` : ""}
+                    {course.cost !== null ? ` · ${formatMXNShort(course.cost)}` : ""}
                     {rule?.active ? " · se registra solo cada mes" : ""}
                   </div>
                 </div>

@@ -139,7 +139,7 @@ function SwipeDismissToast({ scale, opacity, top, leaving, onSwipeRemove, liveRo
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ startY: 0, dy: 0, dragging: false });
 
-  const SETTLE = "transform 0.32s cubic-bezier(0.34, 1.4, 0.6, 1)";
+  const SETTLE = "transform var(--dur-slow) var(--ease-spring)";
   const STACK_TRANSITION = "top var(--dur-slow) var(--ease-spring), transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out)";
   const SLIDE_OUT_MS = 240;
 
@@ -190,7 +190,7 @@ function SwipeDismissToast({ scale, opacity, top, leaving, onSwipeRemove, liveRo
     if (!dragging) return;
     if (dy < -50) {
       haptic.tap();
-      el.style.transition = `transform ${SLIDE_OUT_MS}ms cubic-bezier(0.4, 0, 1, 1), opacity ${SLIDE_OUT_MS}ms ease`;
+      el.style.transition = `transform ${SLIDE_OUT_MS}ms var(--ease-in), opacity ${SLIDE_OUT_MS}ms var(--ease-out)`;
       el.style.transform = `scale(${scale}) translateY(-${Math.abs(dy) + 60}px)`;
       el.style.opacity = "0";
       setTimeout(onSwipeRemove, SLIDE_OUT_MS + 20);

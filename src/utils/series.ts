@@ -1,5 +1,5 @@
 import type { EventSeries, ScheduleEvent } from "../types";
-import { addDays, addMonths, parseISODate } from "./dates";
+import { addDays, addMonths, parseISODate, weekRange } from "./dates";
 
 /* ── Event series expansion ──
    Which dates a series lands on, and which of those still need a row.
@@ -28,10 +28,13 @@ export function seriesDates(series: Shape, from: string, to: string): string[] {
     const step = series.cadence === "weekly" ? 7 : 14;
     const startDow = parseISODate(series.startDate).getDay();
     const days = series.weekdays.length ? [...new Set(series.weekdays)] : [startDow];
+    // Every weekday train anchors to the START WEEK, so a biweekly
+    // "lun y mié" meets both days in the same fortnight; a day that
+    // falls before startDate in that week begins one step later.
+    const weekStart = weekRange(series.startDate, 1).from;
     for (const dow of days) {
-      // First occurrence of this weekday at or after startDate.
-      const offset = (dow - startDow + 7) % 7;
-      let d = addDays(series.startDate, offset);
+      let d = addDays(weekStart, (dow + 6) % 7);
+      if (d < series.startDate) d = addDays(d, step);
       for (let n = 0; n < 2000 && d <= last; n++) {
         if (d >= from) out.add(d);
         d = addDays(d, step);
@@ -117,6 +120,7 @@ export function seriesToEventPatch(series: EventSeries): Partial<ScheduleEvent> 
     location: series.location,
     projectId: series.projectId,
     contactId: series.contactId,
+    courseId: series.courseId,
     notes: series.notes
   };
 }

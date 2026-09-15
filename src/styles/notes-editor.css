@@ -61,7 +61,7 @@
 /* Find-jump landing flash — when the user jumps via Find or the
    outline drawer, briefly tint the target line so the eye lands. */
 .mde-line.is-jump-flash {
-  animation: mdeLineFlash 700ms var(--ease-out);
+  animation: mdeLineFlash var(--dur-slower) var(--ease-out);
   border-radius: 6px;
 }
 @keyframes mdeLineFlash {

@@ -152,11 +152,13 @@ export function leadFunnel(contacts: Contact[], from: string, to: string): LeadF
   let open = 0;
   let won = 0;
   let lost = 0;
+  // A won lead becomes a client but keeps `leadStage: "won"`, so the
+  // funnel counts outcomes by stage and only open ones by relationship.
   for (const c of contacts) {
-    if (c.relationship !== "lead" || !inRange(c.createdAt, from, to)) continue;
+    if (!inRange(c.createdAt, from, to)) continue;
     if (c.leadStage === "won") won++;
     else if (c.leadStage === "lost") lost++;
-    else open++;
+    else if (c.relationship === "lead") open++;
   }
   return { open, won, lost, conversion: won + lost > 0 ? Math.round((won / (won + lost)) * 100) : null };
 }
