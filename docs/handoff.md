@@ -180,7 +180,7 @@ resetting it breaks nothing else, nothing stores it).
 
 **2.3 — Repository secrets.** GitHub → `cardiganapps-ui/Angus` →
 **Settings** → **Secrets and variables** → **Actions** → *New
-repository secret*, five times:
+repository secret*, six times:
 
 | Name | Value |
 |---|---|
@@ -189,20 +189,28 @@ repository secret*, five times:
 | `R2_ACCESS_KEY_ID` | same as §1.3 |
 | `R2_SECRET_ACCESS_KEY` | same as §1.3 |
 | `R2_BACKUP_BUCKET` | `angus-backups` |
+| `R2_BUCKET_NAME` | `angus-documents` — the job mirrors its objects into the backup bucket under `files/` |
 
 **2.4 — Run it by hand once.** Actions → **Nightly backup** → *Run
 workflow*. Don't wait for 09:10 UTC to find out it doesn't work. The log
-prints the object key it wrote.
+prints the object key it wrote, then `copied … / skipped … / of …` for
+the documents mirror (all zeros until §1 is done and she has uploaded
+something).
 
 **2.5 — Then restore it.** A backup that has never been restored is a
 hypothesis, and the plan's acceptance bar says *performed*, not
 *configured*. Download the dump from R2 and:
 
-    gunzip -c angus-YYYY-MM-DD.sql.gz | psql "<a scratch database>"
+    gunzip angus-YYYY-MM-DD.sql.gz
+    psql "<a scratch database>" -v ON_ERROR_STOP=1 -f angus-YYYY-MM-DD.sql
 
-Any throwaway Postgres works — `docker run -e POSTGRES_PASSWORD=x -p
-5432:5432 postgres:17` is enough. Then compare row counts per table
-against production. Ping me with the dump and I'll do the diff.
+`-v ON_ERROR_STOP=1` is not optional: without it `psql` prints every
+error, keeps going, and still exits 0. Any throwaway Postgres works —
+`docker run -e POSTGRES_PASSWORD=x -p 5432:5432 postgres:17` is enough,
+and it has to be an **empty** one (the dump has no `--clean`). Then
+compare exact row counts per table against production — the query and
+the sharp edges are in `docs/playbook.md` §8b. Ping me with the dump and
+I'll do the diff.
 
 ---
 

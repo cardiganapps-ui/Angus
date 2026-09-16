@@ -97,6 +97,8 @@ export function Contacts() {
               icon="users"
               title="Sin contactos todavía"
               body="Agrega clientes, galerías, prospectos o colaboradores. Desde su ficha puedes escribirles por WhatsApp."
+              actionLabel="Agregar contacto"
+              onAction={() => setCreating(true)}
             />
           </div>
         </div>

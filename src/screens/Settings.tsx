@@ -58,7 +58,8 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
   }
 
   /* A copy, not a report: read from the server so a capped store can't
-     hand her a backup of a subset. */
+     hand her a backup of a subset. Rows only — the files it lists are
+     backed up nightly to R2, not bundled here. */
   async function downloadEverything() {
     if (backingUp) return;
     setBackingUp(true);
@@ -74,10 +75,13 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
         showToast("Tu navegador no permitió la descarga.", "error");
         return;
       }
+      // Named out loud: the file holds the rows, not the photos.
+      const files = backup.contains.files.count;
+      const sinArchivos = files > 0 ? ` · no incluye ${files} archivo${files === 1 ? "" : "s"}` : "";
       if (broken.length > 0) {
         showToast(`Respaldo incompleto: faltaron ${broken.length} tablas.`, "warning");
       } else {
-        showSuccess(`Respaldo descargado · ${countRows(backup)} registros`);
+        showSuccess(`Respaldo descargado · ${countRows(backup)} registros${sinArchivos}`);
       }
     } finally {
       setBackingUp(false);
@@ -254,7 +258,7 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
         <Row
           icon="download"
           label={backingUp ? "Preparando tu respaldo…" : "Descargar todo"}
-          hint="Una copia completa de tu taller, en un archivo. Guárdala fuera del teléfono."
+          hint="Todos tus registros en un archivo — sin las fotos ni los documentos. Guárdala fuera del teléfono."
           onClick={() => void downloadEverything()}
         />
         <Row

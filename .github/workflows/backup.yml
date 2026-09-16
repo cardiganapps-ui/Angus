@@ -51,12 +51,15 @@ jobs:
 
       - run: npm ci
 
-      - name: Dump to R2
+      # The dump and the document bytes are one job on purpose: a
+      # database that points at photos nobody copied is not a backup.
+      - name: Dump and mirror to R2
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BACKUP_BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
           BACKUP_RETENTION_DAYS: "30"
         run: node scripts/backup-db.mjs

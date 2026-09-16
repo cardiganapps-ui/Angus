@@ -120,12 +120,12 @@
   --blur-dialog:  blur(8px) saturate(1.3);
   /* ── Liquid Glass material tokens ──
      One vocabulary for every frosted chrome surface (tab pill, topbar,
-     toasts, banners, ⌘K palette, slash menu, FAB). Three grades:
+     toasts, banners, slash menu, FAB). Three grades:
        chrome — the floating tab pill / FAB: low alpha + heavy blur so
                 content clearly reads THROUGH it (the "lens" grade).
        bar    — the topbar strip: higher alpha, moderate blur — content
                 fades behind it but the bar stays quiet.
-       panel  — floating panels (toast, ⌘K, slash menu): high alpha for
+       panel  — floating panels (toast, slash menu): high alpha for
                 text legibility over arbitrary page content.
      Backgrounds use color-mix over var(--white) so dark.css's token
      flip (--white → #1A1A1A) restyles every glass surface at once;
@@ -406,39 +406,6 @@ html, body {
 }
 #root { height: 100%; }
 
-/* WKWebView (Capacitor on iOS) renders 14–17% larger than Safari for
-   the same CSS, even with text-size-adjust:none. We can't disable that
-   from the CSS layer — it's a WebKit/system decision. So when the
-   native shell flags itself with .cap-ios (see lib/nativeBoot.ts),
-   we (a) shrink the design-system text scale and (b) apply a global
-   `zoom` to catch every inline `fontSize: 22`, `padding: 20`, etc. that
-   isn't routed through --text-scale. Both rules are scoped to
-   .cap-ios — NOT .cap-native — because the compensation exists solely
-   for WKWebView's inflation. Android's Chromium WebView renders at
-   parity with Chrome, so applying this there shrank the whole app ~20%
-   below design size (12.8px inputs, ~35px touch targets). Web build is
-   untouched either way.
-
-   Density target: noticeably MORE compact than the old PWA. Users
-   reported the native build felt "zoomed in" compared to the PWA on
-   iOS Safari (which itself renders ~14% smaller than WKWebView for
-   the same CSS). Going to 0.80 means content renders ~9% smaller than
-   the PWA did, which is the "fit more info into the screen" density
-   they asked for. Inputs still meet the 16px-font / 44px-target floor
-   because their post-zoom sizes (16 × 0.80 = 12.8 visual px = ~13.4
-   physical px on a 3x device) sit above iOS's auto-zoom-on-focus
-   trigger and the human comfort threshold for touch targets.
-
-   `zoom` is a WebKit/Blink-supported non-standard property that
-   rescales an element's layout box AND its descendants — unlike
-   transform:scale, which only affects the visual layer and leaves
-   layout boxes the original size. Safe here because the PWA / desktop
-   web build never hits this branch. */
-html.cap-ios {
-  --text-scale: 0.80;
-  zoom: 0.80;
-}
-
 /* Opt-in: re-enable native text selection + the iOS magnifier for
    content where copying is plausible (note bodies, free-form text, etc.). */
 .selectable,
@@ -579,7 +546,7 @@ a[href^="tel:"], a[href^="mailto:"] {
   /* Overlay scrims keep their dim but lose the blur (dark.css's
      sheet-overlay override hardcodes one, hence the specificity). */
   :root:root .sheet-overlay, :root:root .drawer-overlay,
-  :root:root .fab-overlay, :root:root .cmdp-overlay {
+  :root:root .fab-overlay {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

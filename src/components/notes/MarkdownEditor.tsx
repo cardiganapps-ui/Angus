@@ -559,11 +559,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       caretRef.current = { line: 0, col: 0, endLine: 0, endCol: 0 };
       historyRef.current = { past: [], future: [], lastTs: 0 };
     },
-    /* Insert text at the caret (replacing any selection). Used by
-       voice dictation to push transcript chunks into the document
-       without going through the DOM input event pipeline. Pushes
-       history first so the user can undo the whole dictation pass
-       chunk by chunk. */
+    /* Insert text at the caret (replacing any selection) without going
+       through the DOM input event pipeline — NoteEditor uses it to drop
+       an `![](attachment:<id>)` line in once an upload lands. Pushes
+       history first so the insertion is one undo step. */
     insertText(text?: string) {
       if (readOnly || !text) return;
       const c = caretRef.current;
@@ -636,9 +635,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   // exhaustive-deps suggests wrapping this in useCallback — but that's
   // the wrong fix here. onBeforeInput calls handleEnter (a `const`
   // declared BELOW it), so a useCallback dep array listing handleEnter
-  // would evaluate it at render → a temporal-dead-zone ReferenceError,
-  // the exact TDZ-at-mount class e2e/notes-editor.spec.js guards. The
-  // handler reads ALL editor content from refs (linesRef/caretRef/…), so
+  // would evaluate it at render → a temporal-dead-zone ReferenceError
+  // the moment the editor mounts. The handler reads ALL editor content
+  // from refs (linesRef/caretRef/…), so
   // re-creating it each render is harmless and the native listener just
   // re-attaches in one cheap DOM op (see useEffect below). Suppress at
   // the source rather than contort the editor's function ordering.
@@ -648,17 +647,11 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     // NOT via React's onBeforeInput prop. React polyfills
     // onBeforeInput via the legacy DOM3 `textInput` event in some
     // scenarios — those synthesized events don't carry `inputType`
-    // OR even put it on the nativeEvent. Sentry breadcrumbs from
-    // two consecutive bug repros on iOS Safari confirmed inputType
-    // was empty across every event, including via e.nativeEvent.
+    // OR even put it on the nativeEvent. On iOS Safari that left
+    // inputType empty across every event, including via e.nativeEvent.
     // A direct addEventListener gets the real InputEvent with
     // inputType populated per spec.
     const inputType = e.inputType;
-    // Breadcrumb: every input event into the editor. Data field
-    // truncated to avoid logging large pasted blobs; the bug we're
-    // tracking only needs the inputType + 1-2 chars of data. PII
-    // scrubber in initSentry's beforeSend strips this further before
-    // the event leaves the client.
     if (readOnly) { e.preventDefault(); return; }
     // Real IME composition (CJK / dead-key accents on desktop
     // Spanish): compositionstart fires first → composingRef = true.
@@ -1183,9 +1176,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   // Native beforeinput listener attached directly to the
   // contenteditable root, bypassing React's onBeforeInput prop.
   // React polyfills onBeforeInput via legacy textInput events on
-  // some platforms — confirmed via Sentry breadcrumbs that on iOS
-  // Safari those synthesized events arrived with inputType empty
-  // on BOTH the synthetic event and the underlying nativeEvent.
+  // some platforms — on iOS Safari those synthesized events arrived
+  // with inputType empty on BOTH the synthetic event and the
+  // underlying nativeEvent.
   // Without inputType the switch in onBeforeInput fell into the
   // default branch for every event (deletes included), which
   // preventDefaults and then early-returns on `!e.data`, so

@@ -54,6 +54,8 @@ export function Classes() {
               icon="graduation"
               title="Sin clases todavía"
               body="Crea un grupo con sus días y horario. Angus agenda las sesiones, te deja pasar lista y cobra la colegiatura cada mes."
+              actionLabel="Crear clase"
+              onAction={() => setCreating(true)}
             />
           </div>
         ) : (

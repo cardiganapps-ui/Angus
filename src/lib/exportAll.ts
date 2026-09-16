@@ -12,7 +12,15 @@ import { supabase } from "./supabase";
    That is why it reads from the server rather than from AppContext: the
    stores are capped and could be showing her a subset, and a backup of
    a subset is the most dangerous kind of backup. It also covers the
-   tables no store loads at all (note_versions, workspace_members). */
+   tables no store loads at all (note_versions, workspace_members).
+
+   It is a copy of the ROWS. `documents` and `note_attachments` are
+   pointers into R2 — this file carries their metadata, never the image
+   bytes, and it says so in `contains` and in the toast. Bundling the
+   photos would need a zip writer and a phone able to hold them all in
+   memory; the nightly mirror in scripts/backup-db.mjs is what backs up
+   the bytes. An export that let her believe her photographs were in it
+   would be worse than no export at all. */
 
 /** Every workspace-scoped table, in FK order so a restore can replay it. */
 const TABLES = [
@@ -45,17 +53,34 @@ export const TABLE_COUNT = TABLES.length;
 
 const PAGE = 1000;
 
+/** The files this export describes but does not contain. */
+export interface FileSummary {
+  count: number;
+  bytes: number;
+}
+
 export interface Backup {
   /** Bumped when the shape changes, so a restore script can branch. */
-  format: 1;
+  format: 2;
   app: string;
   workspaceId: string;
   exportedAt: string;
+  /** What is in this file and what is not — read before trusting it. */
+  contains: {
+    rows: true;
+    /** The bytes live in R2; only their rows travel in this file. */
+    fileBytes: false;
+    files: FileSummary;
+    note: string;
+  };
   /** Rows per table, keyed by table name. */
   tables: Record<string, unknown[]>;
   /** Tables that could not be read, and why. A partial backup says so. */
   failed: Record<string, string>;
 }
+
+const FILES_NOTE =
+  "Este archivo contiene tus registros, no tus archivos: las fotos, los PDF y las imágenes de tus notas siguen guardadas en línea y no viajan aquí.";
 
 /* `workspaces` and `workspace_members` key on `id` / `workspace_id`;
    every other table has a `workspace_id`. */
@@ -80,6 +105,23 @@ async function readAll(table: string, workspaceId: string): Promise<unknown[]> {
   }
 }
 
+/* Counted from the rows that were actually read, so the number she is
+   warned about matches the export in her hand. A `link` document is a
+   URL, not bytes, so it is not something the export is missing. */
+export function summarizeFiles(tables: Record<string, unknown[]>): FileSummary {
+  let count = 0;
+  let bytes = 0;
+  for (const table of ["documents", "note_attachments"] as const) {
+    for (const row of tables[table] ?? []) {
+      const r = row as { kind?: string; size_bytes?: number | null };
+      if (table === "documents" && r.kind !== "file") continue;
+      count += 1;
+      bytes += r.size_bytes ?? 0;
+    }
+  }
+  return { count, bytes };
+}
+
 export async function buildBackup(workspaceId: string, exportedAt: string): Promise<Backup> {
   const tables: Record<string, unknown[]> = {};
   const failed: Record<string, string> = {};
@@ -92,7 +134,15 @@ export async function buildBackup(workspaceId: string, exportedAt: string): Prom
       failed[table] = err instanceof Error ? err.message : String(err);
     }
   }
-  return { format: 1, app: "angus", workspaceId, exportedAt, tables, failed };
+  return {
+    format: 2,
+    app: "angus",
+    workspaceId,
+    exportedAt,
+    contains: { rows: true, fileBytes: false, files: summarizeFiles(tables), note: FILES_NOTE },
+    tables,
+    failed
+  };
 }
 
 export function countRows(backup: Backup): number {

@@ -18,7 +18,7 @@ All in `src/components/` unless noted. Props are the real signatures.
 | `ChipSelect` | 3–8 options that can wrap (contact type, lead stage, event kind). | `options: {value, label, color?}[]` (color → dot before label), `value`, `onChange`, `ariaLabel`. Generic over the value type. |
 | `PickerField` + `PickerSheet` | Choosing an **entity** (a contact, a project) or any list > 8 items. Field looks like an input with a chevron; opens a stacked sheet with check marks and (when > 8) a search box. | `PickerField`: `title`, `options: {value,label}[]`, `value`, `onChange`, `placeholder?` ("Ninguno"). `PickerSheet` is used by it; you rarely need it directly. |
 | `AnimatedNumber` | Any KPI / money figure. Counts up from the previous value; no "0" flash. | `value`, `format?`, `duration?`, `enabled?`. |
-| `EmptyState` | Every "nothing here yet" surface, inside a `.card`. | `icon: IconName`, `title`, `body`. Body copy says what to do next. |
+| `EmptyState` | Every "nothing here yet" surface, inside a `.card`. | `icon: IconName`, `title`, `body`, optional `actionLabel` + `onAction` (renders a `.btn .btn-primary .empty-state-action`). Body copy says what to do next; pass the action pair whenever the next step is one unambiguous create — reuse the handler the screen's FAB already calls. A filter-miss empty state ("Nada coincide") stays text-only. |
 | `LoadingSkeleton` / `SkeletonCrossfade` | First paint while data loads. Route-aware layouts. Already wired in `App.tsx`; add a layout case when you add a tab. | `LoadingSkeleton { route? }`; `SkeletonCrossfade { showContent, route?, children }`. |
 | `PullToRefresh` | Already wraps every signed-in screen; calls `refreshAll()` from `AppContext`. Don't add a second one. | `onRefresh`, `children`. |
 | `Toast` via `useToast()` (`context/ToastContext.tsx`) | Confirmations and errors. Success after every save/delete; errors from rejected writes are automatic (`DataErrorToast`). | `showSuccess(msg)`, `showToast(msg, kind, opts)` with kind `"success" \| "error" \| "warning" \| "info"`. |
@@ -243,9 +243,23 @@ managed backups. The app is the only copy of her business memory, so
 these two things are the whole disaster plan.
 
 **Nightly, automatic** — `.github/workflows/backup.yml` runs
-`scripts/backup-db.mjs` at 09:10 UTC (~03:10 CDMX): `pg_dump` of the
-`public` + `auth` schemas, gzipped, to `r2://angus-backups/pg/`, pruned
-to 30 days. RPO is up to 24h, accepted deliberately.
+`scripts/backup-db.mjs` at 09:10 UTC (~03:10 CDMX), in two phases:
+
+1. **The database.** `pg_dump` of the `public` + `auth` schemas, gzipped,
+   to `r2://angus-backups/pg/`, pruned to 30 days.
+2. **The files.** Every object in `angus-documents` copied server-side to
+   `r2://angus-backups/files/<same key>` — the runner never touches the
+   bytes. Objects already there with the same size and ETag are skipped,
+   so a nightly run costs one list plus whatever she uploaded that day.
+   Nothing under `files/` is ever pruned: a photo deleted in the app is
+   precisely the object a restore is wanted for.
+
+RPO is up to 24h, accepted deliberately.
+
+Phase 2 exists because the dump alone is a trap. `documents` and
+`note_attachments` rows are *pointers* into the documents bucket; a
+restored database would faithfully preserve paths to photos that no
+longer exist anywhere.
 
 Required GitHub repository secrets (**the workflow no-ops loudly until
 these exist**):
@@ -253,32 +267,85 @@ these exist**):
 | Secret | Where to get it |
 |---|---|
 | `SUPABASE_DB_URL` | Supabase → Project Settings → Database → Connection string (**session pooler**, with the password) |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | the same pair the `api/` routes use |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | the same pair the `api/` routes use; the token needs both buckets in its scope |
 | `R2_BACKUP_BUCKET` | optional; defaults to `angus-backups`. Create the bucket first — the script does not. |
+| `R2_BUCKET_NAME` | optional; defaults to `angus-documents`. The bucket to mirror *from*. |
 
-Two refusals are deliberate: a dump under 4 KiB is never uploaded (that
+Three refusals are deliberate: a dump under 4 KiB is never uploaded (that
 is `pg_dump` "succeeding" against nothing and overwriting good history),
-and the prune never deletes its way down to only today's copy.
+the prune never deletes its way down to only today's copy, and the mirror
+stops if the two bucket names are equal or if the source lists zero
+objects while the backup already holds files (a renamed bucket, not an
+emptied studio).
 
 Run it by hand with `npm run backup` (needs those vars in `.env.local`).
 
-**Restore** — into a scratch project first, always. A backup that has
-never been restored is a hypothesis, not a backup:
+**Restore** — into a scratch database first, always. A backup that has
+never been restored is a hypothesis, not a backup, and **no restore of
+this project has ever been rehearsed** (`docs/handoff.md` §2.5). What
+follows is derived from the flags the dump is actually taken with, not
+from a run that happened: treat the first attempt as the rehearsal and
+correct this section from what it does.
+
+What the dump *is*: plain SQL, gzipped, `pg_dump --no-owner
+--no-privileges --schema=public --schema=auth`. Note what is missing —
+no `--clean`, no `--if-exists`, no custom format. Four consequences:
+
+- It only ever CREATEs. Into a database that already holds those objects
+  it fails on the first `CREATE TABLE`, so **the target must be empty**.
+- `psql -f` on its own prints errors, carries on, and exits **0** — it
+  cannot tell a restore from a pile of failures. `-v ON_ERROR_STOP=1` is
+  what makes the exit code mean something. Never restore without it.
+- `auth` is in the dump so her accounts and password hashes survive, but
+  a Supabase project already owns an `auth` schema; loading this dump
+  into a fresh project aborts on `auth.users`, and dropping Supabase's
+  `auth` to make room takes GoTrue's grants with it (`--no-privileges`
+  means the dump cannot put them back). Rehearse on plain Postgres;
+  worst case in a real incident, restore `public` and recreate the two
+  accounts by hand (§9).
+- `--schema` also skipped anything those schemas depend on from outside
+  them — extensions, roles. Expect the first run to stop on one of
+  those. That is the rehearsal earning its keep, not a broken backup.
 
 ```bash
 aws s3 cp s3://angus-backups/pg/angus-<stamp>.sql.gz . \
   --endpoint-url https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com
 gunzip angus-<stamp>.sql.gz
-psql "<scratch-project-connection-string>" -f angus-<stamp>.sql
+
+docker run --rm -d --name angus-restore -p 5433:5432 \
+  -e POSTGRES_PASSWORD=x -e POSTGRES_DB=angus_restore postgres:17
+
+psql "postgresql://postgres:x@localhost:5433/angus_restore" \
+  -v ON_ERROR_STOP=1 -f angus-<stamp>.sql
+echo "psql exit $?"   # 0 only if every statement applied
 ```
 
-Then diff it against production before trusting it — row counts per
-table are the cheap check:
+**Verify with exact counts, on both sides.** `pg_stat_user_tables.n_live_tup`
+is an estimate and reads 0 on a freshly restored database until `analyze`,
+so it cannot tell a full restore from an empty one. Run this against
+production and against the restore, and diff the two outputs:
 
 ```sql
-select relname, n_live_tup from pg_stat_user_tables
-where schemaname = 'public' order by relname;
+select table_name,
+       (xpath('/row/c/text()',
+              query_to_xml(format('select count(*) as c from public.%I', table_name),
+                           false, true, '')))[1]::text::bigint as rows
+from information_schema.tables
+where table_schema = 'public' and table_type = 'BASE TABLE'
+order by table_name;
 ```
+
+The restore is done when that diff is empty *and* `select count(*) from
+auth.users` matches — not when `psql` finished.
+
+**Restoring the files** is a copy in the other direction, keys unchanged:
+
+```bash
+aws s3 sync s3://angus-backups/files/ s3://angus-documents/ \
+  --endpoint-url https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com
+```
+
+Every `r2_path` in the restored rows resolves again only after that sync.
 
 **Her own copy** — Ajustes → Tus datos → **Descargar todo**
 (`src/lib/exportAll.ts`) writes every workspace-scoped table as one JSON
@@ -286,6 +353,13 @@ file. It reads from the server, not from `AppContext`, because the stores
 are capped and a backup of a subset is the most dangerous kind. It
 records any table it could not read in `failed` and says so in the toast
 rather than handing her a quiet partial.
+
+It carries **rows, not bytes**: the `documents` / `note_attachments`
+entries are metadata, and the photos themselves stay in R2. The file says
+so in its own `contains` block and the UI says so in Spanish, because a
+"copia completa" that quietly omits her photographs is worse than no
+export at all. Bundling the bytes would need a zip writer; the nightly
+mirror above is the file backup.
 
 The CSVs in `lib/exportCsv.ts` are *reports* (a period, resolved names,
 for an accountant), not backups. Don't confuse the two.

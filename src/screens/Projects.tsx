@@ -109,6 +109,8 @@ export function Projects() {
               icon="palette"
               title="Sin piezas todavía"
               body="Agrega una pieza, encargo o serie en la que estés trabajando. Con medida, año y lugar tendrás tu inventario completo."
+              actionLabel="Agregar pieza"
+              onAction={() => setEditing("new")}
             />
           </div>
         </div>

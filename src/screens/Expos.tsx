@@ -63,6 +63,8 @@ export function Expos() {
               icon="map-pin"
               title="Sin expos todavía"
               body="Agrega una expo o feria a la agenda, ponle presupuesto y liga sus ventas y gastos. Angus te dice si valió la pena."
+              actionLabel="Agregar expo"
+              onAction={() => setCreating(true)}
             />
           </div>
         </div>

@@ -116,6 +116,8 @@ export function Studies() {
               icon="book"
               title="Sin cursos todavía"
               body="Agrega la clase, taller o maestría que estás tomando. Angus agenda las sesiones, te recuerda las entregas y lleva lo que has pagado."
+              actionLabel="Agregar curso"
+              onAction={() => setCreating(true)}
             />
           </div>
         </div>

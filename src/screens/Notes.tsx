@@ -161,7 +161,9 @@ export function Notes() {
             <EmptyState
               icon="edit"
               title="Sin notas todavía"
-              body="Apuntes de clase, críticas que recibiste, la bitácora de una pieza. Toca + para escribir la primera; después puedes ligarla a un curso o a una tarea."
+              body="Apuntes de clase, críticas que recibiste, la bitácora de una pieza. Escribe la primera; después puedes ligarla a un curso o a una tarea."
+              actionLabel="Escribir nota"
+              onAction={() => setQuickOpen(true)}
             />
           </div>
         </div>

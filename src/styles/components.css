@@ -91,7 +91,6 @@
    the non-`.page` scroll surfaces below; `.page` uses the absolute
    sentinel above instead so even short content bounces. */
 .drawer-nav::after,
-.cmdp-list::after,
 .sheet-panel::after,
 .sheet-scroll::after,
 .lp-root::after,
@@ -117,7 +116,7 @@
 .topbar-brand, .topbar-new-btn, .topbar-new-item, .topbar-search-btn,
 .segmented-btn, .seg-btn, .view-btn, .fin-tab, .auth-tab,
 .session-status, .session-row, .see-all, .sheet-close, .sheet-handle,
-.cmdp-item, .context-menu-item {
+.context-menu-item {
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
@@ -157,7 +156,7 @@
      .glass-chrome — floating lens (tab pill grade), with the
                      edge-lensing pseudo-layers built in
      .glass-bar    — bar strip (topbar grade)
-     .glass-panel  — floating panel (toast/palette grade)
+     .glass-panel  — floating panel (toast grade)
      .glass-tinted — accent lens (FAB grade)
    NEVER stack one glass surface over another — WebKit composites
    stacked backdrop-filters out of z-order (see the :has() rule that
@@ -266,11 +265,6 @@
    are computed from it, so bumping here keeps the whole bottom zone in
    proportion automatically. */
 :root { --bottom-tabs-h: 66px; }
-/* Native iOS 26+ Liquid Glass bar (plugins/native-chrome): the DOM
-   pill unmounts and the native bar takes its zone — 56pt + 8pt float
-   offset = 64pt, ÷ the webview's 0.80 zoom = 80 CSS px reserved so
-   .page / FAB clear it. Class managed by src/lib/nativeChrome.ts. */
-html.native-chrome { --bottom-tabs-h: 80px; }
 .bottom-tabs {
   position: fixed;
   /* Floating pill — detached from the screen edges so it reads as a
@@ -382,37 +376,6 @@ html.native-chrome { --bottom-tabs-h: 80px; }
 /* Safari < 17 + Firefox fall back gracefully — the central token swap
    in the Liquid Glass utilities block above turns --glass-bg-chrome
    solid when the browser can't render the blur. */
-
-/* ── TRUE refraction (Chromium only) ──
-   src/lib/glassRefraction.ts puts .glass-refract on <html> when the
-   engine can render SVG displacement filters inside backdrop-filter
-   (Chromium family; WebKit ignores url() there). The runtime-built
-   #lg-lens-* filters bend the backdrop at the lens edge — REAL
-   refraction — so the painted edge-lens layers and inset speculars
-   come off: physics replaces the fake. Non-Chromium engines never get
-   the class and keep the hand-tuned CSS glass. If an old Chromium
-   drops the url() declaration at parse time, the cascade falls back
-   to the -webkit- prefixed token filter above — plain blur, no hole. */
-html.glass-refract .bottom-tabs {
-  -webkit-backdrop-filter: var(--glass-filter-chrome);
-  backdrop-filter: url(#lg-lens-pill);
-  box-shadow:
-    0 12px 34px -10px rgba(0, 0, 0, 0.22),
-    0 5px 14px -6px rgba(0, 0, 0, 0.10);
-}
-html.glass-refract .bottom-tabs::before,
-html.glass-refract .bottom-tabs::after {
-  display: none;
-}
-html.glass-refract .fab {
-  -webkit-backdrop-filter: var(--glass-filter-chrome);
-  backdrop-filter: url(#lg-lens-fab);
-}
-html[data-theme="dark"].glass-refract .bottom-tabs {
-  box-shadow:
-    0 12px 34px -10px rgba(0, 0, 0, 0.62),
-    0 5px 14px -6px rgba(0, 0, 0, 0.45);
-}
 
 /* CRITICAL: hide the floating tabs while any BOTTOM-SHEET is open.
    The pill is z-index 40 and sheets are z-index 350, so normally
@@ -1134,7 +1097,7 @@ button.kpi-card:active {
 }
 /* Unified disabled affordance — desaturate + lift cursor, and suppress
    the spring scale so the button reads as inert rather than "loading".
-   Button-specific rules (e.g. .btn-oauth:disabled) still layer on top. */
+   Variant rules (e.g. .btn-primary:disabled) still layer on top. */
 .btn[disabled], .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -1220,49 +1183,6 @@ button.kpi-card:active {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-/* ── OAUTH BUTTONS ──
-   Social-login CTAs shown above the email form. The Google variant
-   follows Google's sign-in brand guidelines (white background, dark
-   text, visible border) while Apple uses the required black/white
-   solid styling. Both share a 44px touch target with the brand icon
-   left-aligned in a 16px inline gap. */
-.btn-oauth {
-  width: 100%;
-  display: flex; align-items: center; justify-content: center;
-  gap: 10px;
-  height: 46px;
-  font-size: 14px; font-weight: 700;
-  border-radius: var(--radius-pill);
-  font-family: var(--font); letter-spacing: 0.01em;
-  cursor: pointer; border: 1.5px solid var(--border);
-  -webkit-tap-highlight-color: transparent;
-  transition: transform var(--dur-slow) var(--ease-spring), background var(--dur-slow);
-}
-.btn-oauth:active { transform: scale(0.97); }
-.btn-oauth:disabled { opacity: 0.6; cursor: default; }
-.btn-oauth-google { background: var(--white); color: var(--charcoal); }
-.btn-oauth-apple  { background: var(--charcoal); color: var(--white); border-color: var(--charcoal); }
-/* Passkey — the recommended fast path for returning users, so it leads
-   with the brand teal tint (a notch softer than .btn-primary-teal so it
-   doesn't fight the form's main submit). Token-driven → dark mode flips
-   automatically. */
-.btn-oauth-passkey {
-  background: var(--teal-pale);
-  color: var(--teal-dark);
-  border-color: color-mix(in srgb, var(--teal) 28%, transparent);
-}
-
-.auth-divider {
-  display: flex; align-items: center; gap: 10px;
-  margin: 4px 0 16px;
-  color: var(--charcoal-xl); font-size: 12px; font-weight: 600;
-}
-.auth-divider::before,
-.auth-divider::after {
-  content: ""; flex: 1; height: 1px; background: var(--border-lt);
-}
-
-
 /* ── .scroll-bounce ──
    iOS rubber-band-on-any-content scroll surface, mirroring the
    .page pattern. Use on full-viewport scroll containers (Patient
@@ -1289,16 +1209,6 @@ button.kpi-card:active {
   height: 1px;
   pointer-events: none;
   visibility: hidden;
-}
-
-/* Android native: no rubber-band to preserve (Chromium shows a stretch/
-   glow affordance instead), and that stretch animates SIMULTANEOUSLY
-   with the custom PullToRefresh spinner on .page — a double-indicator
-   that reads broken. `none` kills the OS affordance so the Cardigan
-   pull-to-refresh owns the top-edge gesture, matching iOS. */
-html.cap-android .page,
-html.cap-android .scroll-bounce {
-  overscroll-behavior-y: none;
 }
 
 /* ── .empty-state ──
@@ -1338,6 +1248,16 @@ html.cap-android .scroll-bounce {
   color: var(--charcoal-md);
   line-height: 1.55;
   max-width: 320px;
+}
+/* The "no dead ends" CTA. Overrides .btn-primary's width:100% — a pill
+   spanning the whole card reads like a form submit; centered and capped
+   it reads as an invitation. Declared after .btn-primary so the plain
+   class selector wins without a specificity bump. */
+.empty-state-action {
+  width: auto;
+  min-width: 160px;
+  max-width: 100%;
+  margin-top: 6px;
 }
 
 /* ── .empty-state--day ──

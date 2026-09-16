@@ -173,6 +173,8 @@ export function Schedule() {
                   icon="calendar"
                   title="Sin eventos próximos"
                   body="Agrega clases, expos, entregas, reuniones o pendientes personales. Una clase semanal se agenda sola."
+                  actionLabel="Agregar evento"
+                  onAction={() => setEditing({ newOn: today })}
                 />
               </div>
             </div>
