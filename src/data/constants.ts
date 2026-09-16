@@ -229,7 +229,9 @@ export const RECURRENCE_KIND: { value: RecurrenceKind; label: string }[] = [
 
 export const RECURRENCE_CADENCE: { value: RecurrenceCadence; label: string; every: string }[] = [
   { value: "weekly", label: "Semanal", every: "semanas" },
-  { value: "biweekly", label: "Quincenal", every: "quincenas" },
+  // NOT "Quincenal": a quincena is the 15th and month-end, 24 a year.
+  // This fires every 14 days (26 a year), which is what the label must say.
+  { value: "biweekly", label: "Cada 14 días", every: "periodos de 14 días" },
   { value: "monthly", label: "Mensual", every: "meses" },
   { value: "quarterly", label: "Trimestral", every: "trimestres" },
   { value: "yearly", label: "Anual", every: "años" }
@@ -285,6 +287,11 @@ export const TEXT_SCALE_OPTIONS: { value: TextScale; label: string }[] = [
 
 export const DEPOSIT_PERCENT_OPTIONS = [25, 30, 40, 50];
 
+/* The only "Quincenal" left in the app, and it earns the word:
+   generateInstallmentSchedule steps this one by 15 days (~24 a year),
+   the shape of a real quincena — unlike recurring rules and event
+   series, which step 14 (26 a year) and now say so. Don't "unify" the
+   three; utils/__tests__/recurrence.test.ts pins each step. */
 export const INSTALLMENT_FREQUENCY: { value: "monthly" | "biweekly"; label: string }[] = [
   { value: "monthly", label: "Mensual" },
   { value: "biweekly", label: "Quincenal" }

@@ -82,7 +82,12 @@ export function nextOccurrence(rule: RuleShape, after: string): string | null {
 }
 
 /* How much a rule is worth per month, for "fijos al mes" bands and the
-   forecast's estimated lines. Weekly × 52 / 12, etc. Cent-exact. */
+   forecast's estimated lines. Weekly × 52 / 12, etc. Cent-exact.
+
+   `biweekly` is 26 because nthOccurrence steps it by 14 days (365/14).
+   It is NOT a Mexican quincena — that is the 15th and month-end, 24 a
+   year, and would need its own cadence with its own occurrence rule and
+   period key. The labels say "cada 14 días" so the promise matches. */
 const PER_YEAR: Record<RecurrenceCadence, number> = {
   weekly: 52,
   biweekly: 26,
@@ -101,17 +106,20 @@ export function describeCadence(rule: Pick<RecurringRule, "cadence" | "interval"
   const n = Math.max(1, rule.interval);
   const singular: Record<RecurrenceCadence, string> = {
     weekly: "Cada semana",
-    biweekly: "Cada quincena",
+    biweekly: "Cada 14 días",
     monthly: "Cada mes",
     quarterly: "Cada trimestre",
     yearly: "Cada año"
   };
   const plural: Record<RecurrenceCadence, string> = {
     weekly: "semanas",
-    biweekly: "quincenas",
+    biweekly: "días",
     monthly: "meses",
     quarterly: "trimestres",
     yearly: "años"
   };
-  return n === 1 ? singular[rule.cadence] : `Cada ${n} ${plural[rule.cadence]}`;
+  if (n === 1) return singular[rule.cadence];
+  // "Cada 2 periodos de 14 días" is not something anyone says.
+  if (rule.cadence === "biweekly") return `Cada ${n * 14} días`;
+  return `Cada ${n} ${plural[rule.cadence]}`;
 }

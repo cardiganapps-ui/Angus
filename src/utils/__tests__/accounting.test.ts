@@ -445,3 +445,23 @@ describe("budgetProgress", () => {
     expect(rows[2].spent).toBe(0);
   });
 });
+
+describe("generateInstallmentSchedule frequency steps", () => {
+  /* The plan's quincenal is 15 days (the quincena shape), deliberately
+     unlike a recurring rule's 14. Pinned so a "consistency" pass can't
+     silently reschedule someone's payments. */
+  it("steps a quincenal plan by 15 days", () => {
+    const plan = generateInstallmentSchedule(900, 3, "2026-01-05", "biweekly");
+    expect(plan.map((p) => p.dueDate)).toEqual(["2026-01-05", "2026-01-20", "2026-02-04"]);
+  });
+
+  it("steps a monthly plan by calendar months, clamping a short one", () => {
+    const plan = generateInstallmentSchedule(900, 3, "2026-01-31", "monthly");
+    expect(plan.map((p) => p.dueDate)).toEqual(["2026-01-31", "2026-02-28", "2026-03-31"]);
+  });
+
+  it("splits so the cuotas add back to the total exactly", () => {
+    const plan = generateInstallmentSchedule(1000, 3, "2026-01-01", "monthly");
+    expect(plan.reduce((n, p) => n + p.amount, 0)).toBe(1000);
+  });
+});

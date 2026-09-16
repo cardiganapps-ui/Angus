@@ -21,7 +21,7 @@ const WEEKDAYS = [
 ];
 const CADENCE_ITEMS: { k: SeriesCadence; l: string }[] = [
   { k: "weekly", l: "Semanal" },
-  { k: "biweekly", l: "Quincenal" }
+  { k: "biweekly", l: "Cada 14 días" }
 ];
 
 export interface ScheduleValue {

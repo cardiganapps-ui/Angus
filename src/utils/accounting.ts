@@ -146,6 +146,10 @@ export function generateInstallmentSchedule(
   firstDueDate: string,
   frequency: InstallmentFrequency
 ): PlannedInstallment[] {
+  /* 15 days, not 14: a plan's "quincenal" is the quincena shape (~24 a
+     year), which is what someone paying in quincenas expects. Recurring
+     rules and event series use 14 and label themselves "cada 14 días" —
+     see data/constants.ts INSTALLMENT_FREQUENCY. */
   return splitEvenly(total, count).map((amount, i) => ({
     amount,
     dueDate: frequency === "monthly" ? addMonths(firstDueDate, i) : addDays(firstDueDate, i * 15)

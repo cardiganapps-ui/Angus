@@ -143,3 +143,25 @@ describe("periodKeyFamily", () => {
     expect(periodKeyFor("weekly", "2026-09-14")).toBe(periodKeyFor("biweekly", "2026-09-16"));
   });
 });
+
+/* Three modules take a "biweekly" and two of them mean something
+   different from the third. These pin each step so a later tidy-up
+   can't quietly change what a rule or a plan does to her money. */
+describe("biweekly means 14 days here and 15 in a payment plan", () => {
+  const rule = { cadence: "biweekly" as const, interval: 1, startDate: "2026-01-01", endDate: null, active: true };
+
+  it("a recurring rule steps 14 days", () => {
+    expect(nthOccurrence(rule, 1)).toBe("2026-01-15");
+    expect(nthOccurrence(rule, 2)).toBe("2026-01-29");
+  });
+
+  it("its monthly equivalent matches 26 a year, not a quincena's 24", () => {
+    // 1200 every 14 days = 1200 * 26 / 12 = 2600/mo.
+    expect(monthlyEquivalent({ amount: 1200, cadence: "biweekly", interval: 1 })).toBe(2600);
+  });
+
+  it("describes itself in days, since 'cada 2 quincenas' is not a phrase", () => {
+    expect(describeCadence({ cadence: "biweekly", interval: 1 })).toBe("Cada 14 días");
+    expect(describeCadence({ cadence: "biweekly", interval: 2 })).toBe("Cada 28 días");
+  });
+});
