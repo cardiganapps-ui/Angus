@@ -139,6 +139,17 @@ Variables**. Add four, each ticked for **Production** *and* **Preview**:
 | `R2_ACCESS_KEY_ID` | from 1.3 |
 | `R2_SECRET_ACCESS_KEY` | from 1.3 |
 | `R2_BUCKET_NAME` | `angus-documents` |
+| `SUPABASE_URL` | `https://xbpvqvlomrnuxydyqyqj.supabase.co` |
+| `SUPABASE_ANON_KEY` | the publishable key |
+
+**✅ DONE 2026-09-16** — all six set on Production + Preview and
+redeployed. Note the table used to list only the first four: `api/_r2.ts`
+also reads `SUPABASE_URL` and `SUPABASE_ANON_KEY` to verify the caller's
+JWT, and `isStorageConfigured()` does not check them — so following the
+old table would have flipped the routes from "storage not configured" to
+a confusing auth failure instead of working. Verified by asking:
+all three routes now answer `401 unauthorized` (the JWT gate) instead of
+`503 storage_not_configured`.
 
 **None of these may be prefixed `VITE_`.** Vite inlines anything with
 that prefix into the browser bundle, which would hand every visitor
@@ -185,8 +196,16 @@ data dies. The first red run is the reminder. Never silence the job.
 `angus-backups`. Separate from `angus-documents` on purpose: different
 retention, and a compromise of one is not both.
 
-**2.2 — Database connection string.** Supabase dashboard → project
-`angus` → **Connect** (top bar) → **Session pooler** → copy the URI.
+**2.2 — Database connection string. ✅ DONE** — the password was rotated
+through the Management API (`PATCH /v1/projects/{ref}/database/password`,
+the same call the dashboard makes) and the resulting URI is in
+`.env.local` as `SUPABASE_DB_URL`. Nothing broke: PostgREST, GoTrue and
+the app all still answer 200, which is the practical proof of the claim
+below that nothing stores this password. Host confirmed by DNS as
+`aws-0-us-east-1.pooler.supabase.com`.
+
+The original instructions, still true if you ever need to redo it —
+Supabase dashboard → project `angus` → **Connect** → **Session pooler**.
 
 > Take the **Session pooler** (port 5432), not "Direct connection".
 > Direct connections are IPv6-only on this plan and GitHub Actions
@@ -205,7 +224,7 @@ repository secret*, six times:
 
 | Name | Value |
 |---|---|
-| `SUPABASE_DB_URL` | the pooler URI from 2.2, password filled in |
+| `SUPABASE_DB_URL` | the pooler URI — **already in `.env.local`**, copy it from there |
 | `R2_ACCOUNT_ID` | same as §1.2 |
 | `R2_ACCESS_KEY_ID` | same as §1.3 |
 | `R2_SECRET_ACCESS_KEY` | same as §1.3 |
