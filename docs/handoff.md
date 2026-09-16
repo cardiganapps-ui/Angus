@@ -199,19 +199,31 @@ the documents mirror (all zeros until §1 is done and she has uploaded
 something).
 
 **2.5 — Then restore it.** A backup that has never been restored is a
-hypothesis, and the plan's acceptance bar says *performed*, not
-*configured*. Download the dump from R2 and:
+hypothesis, and the acceptance bar says *performed*, not *configured*.
 
-    gunzip angus-YYYY-MM-DD.sql.gz
-    psql "<a scratch database>" -v ON_ERROR_STOP=1 -f angus-YYYY-MM-DD.sql
+    npm run restore:drill
 
-`-v ON_ERROR_STOP=1` is not optional: without it `psql` prints every
-error, keeps going, and still exits 0. Any throwaway Postgres works —
-`docker run -e POSTGRES_PASSWORD=x -p 5432:5432 postgres:17` is enough,
-and it has to be an **empty** one (the dump has no `--clean`). Then
-compare exact row counts per table against production — the query and
-the sharp edges are in `docs/playbook.md` §8b. Ping me with the dump and
-I'll do the diff.
+That is the whole step. `scripts/restore-drill.mjs` pulls the newest
+dump out of R2, starts a throwaway Postgres 17 in Docker, restores with
+`-v ON_ERROR_STOP=1`, and diffs exact per-table row counts against
+production — including `auth.users`, because losing it means nobody can
+sign in to reach whatever else restored. It prints PASS or FAIL and
+exits accordingly. It only ever *reads* production (one count query).
+
+Needs `.env.local` to hold the same values you just put in the repo
+secrets, plus Docker running. `TARGET_DB_URL=…` restores somewhere else
+instead of spawning a container; `KEEP_CONTAINER=1` leaves it up to poke
+at.
+
+Why it cannot simply run against a spare Supabase project: the dump
+includes `--schema=auth`, and loading that into a live Supabase aborts —
+dropping its `auth` schema takes GoTrue's grants with it, which
+`--no-privileges` cannot put back. Vanilla Postgres has no such
+attachment, which is why the drill uses it.
+
+`-v ON_ERROR_STOP=1` is the load-bearing flag: plain `psql -f` prints
+every error, keeps going, and still exits 0 — a restore that "worked".
+The sharp edges are in `docs/playbook.md` §8b.
 
 ---
 
