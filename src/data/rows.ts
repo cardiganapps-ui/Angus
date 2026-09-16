@@ -96,6 +96,7 @@ const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
 
 export const projectStore: CloudStoreConfig<Project, ProjectRow> = {
   table: "projects",
+  cap: 2_000,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -139,6 +140,7 @@ export const projectStore: CloudStoreConfig<Project, ProjectRow> = {
 
 export const contactStore: CloudStoreConfig<Contact, ContactRow> = {
   table: "contacts",
+  cap: 2_000,
   fromRow: (r) => ({
     id: r.id,
     name: r.name,
@@ -164,8 +166,16 @@ export const contactStore: CloudStoreConfig<Contact, ContactRow> = {
   }
 };
 
+/* The only date-window candidate, and not enabled yet. Its generator
+   (utils/series.ts) diffs forward only, from max(series.startDate, today),
+   so forward coverage past SERIES_HORIZON_DAYS is enough — unlike the
+   money tables, whose diff reaches back to each rule's own startDate.
+   Turning `window` on requires Schedule / Reports / Forecast to declare
+   their range via ensureDateRange first, or paging past the edge renders
+   a confidently-empty month. */
 export const eventStore: CloudStoreConfig<ScheduleEvent, EventRow> = {
   table: "events",
+  cap: 20_000,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -209,6 +219,7 @@ export const eventStore: CloudStoreConfig<ScheduleEvent, EventRow> = {
 
 export const eventSeriesStore: CloudStoreConfig<EventSeries, EventSeriesRow> = {
   table: "event_series",
+  cap: 500,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -272,6 +283,7 @@ export interface CourseRow {
 
 export const courseStore: CloudStoreConfig<Course, CourseRow> = {
   table: "courses",
+  cap: 500,
   fromRow: (r) => ({
     id: r.id,
     name: r.name,
@@ -330,6 +342,7 @@ export interface AssignmentRow {
 
 export const assignmentStore: CloudStoreConfig<Assignment, AssignmentRow> = {
   table: "assignments",
+  cap: 10_000,
   fromRow: (r) => ({
     id: r.id,
     courseId: r.course_id,
@@ -379,6 +392,7 @@ export interface NoteRow {
 
 export const noteStore: CloudStoreConfig<Note, NoteRow> = {
   table: "notes",
+  cap: 10_000,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -430,6 +444,7 @@ export interface DocumentRow {
 
 export const documentStore: CloudStoreConfig<Document, DocumentRow> = {
   table: "documents",
+  cap: 20_000,
   fromRow: (r) => ({
     id: r.id,
     kind: r.kind,
@@ -478,6 +493,7 @@ export interface NoteAttachmentRow {
 
 export const noteAttachmentStore: CloudStoreConfig<NoteAttachment, NoteAttachmentRow> = {
   table: "note_attachments",
+  cap: 20_000,
   fromRow: (r) => ({
     id: r.id,
     noteId: r.note_id,
@@ -510,6 +526,7 @@ export interface NoteTagRow {
 
 export const noteTagStore: CloudStoreConfig<NoteTag, NoteTagRow> = {
   table: "note_tags",
+  cap: 200,
   fromRow: (r) => ({ id: r.id, label: r.label, color: r.color, createdAt: r.created_at.slice(0, 10) }),
   toRow: (t) => {
     const row: Partial<NoteTagRow> = {};
@@ -529,6 +546,7 @@ export interface NoteTagLinkRow {
 
 export const noteTagLinkStore: CloudStoreConfig<NoteTagLink, NoteTagLinkRow> = {
   table: "note_tag_links",
+  cap: 20_000,
   fromRow: (r) => ({ id: r.id, noteId: r.note_id, tagId: r.tag_id, createdAt: r.created_at.slice(0, 10) }),
   toRow: (l) => {
     const row: Partial<NoteTagLinkRow> = {};
@@ -575,6 +593,7 @@ export interface AttendanceRow {
 
 export const classGroupStore: CloudStoreConfig<ClassGroup, ClassGroupRow> = {
   table: "class_groups",
+  cap: 200,
   fromRow: (r) => ({
     id: r.id,
     name: r.name,
@@ -604,6 +623,7 @@ export const classGroupStore: CloudStoreConfig<ClassGroup, ClassGroupRow> = {
 
 export const classEnrollmentStore: CloudStoreConfig<ClassEnrollment, ClassEnrollmentRow> = {
   table: "class_enrollments",
+  cap: 2_000,
   fromRow: (r) => ({
     id: r.id,
     groupId: r.group_id,
@@ -627,8 +647,13 @@ export const classEnrollmentStore: CloudStoreConfig<ClassEnrollment, ClassEnroll
   }
 };
 
+/* Fastest-growing table (one row per session x student) and the one that
+   CANNOT be windowed: the row carries event_id, not a session date, and
+   utils/classes.ts::attendanceRate reads a student's whole history. A
+   created_at window would quietly corrupt that rate. Capped only. */
 export const attendanceStore: CloudStoreConfig<Attendance, AttendanceRow> = {
   table: "attendance",
+  cap: 40_000,
   fromRow: (r) => ({
     id: r.id,
     eventId: r.event_id,
@@ -723,6 +748,7 @@ export interface RecurringRuleRow {
 
 export const saleStore: CloudStoreConfig<Sale, SaleRow> = {
   table: "sales",
+  cap: 20_000,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -760,6 +786,7 @@ export const saleStore: CloudStoreConfig<Sale, SaleRow> = {
 
 export const paymentStore: CloudStoreConfig<Payment, PaymentRow> = {
   table: "payments",
+  cap: 40_000,
   fromRow: (r) => ({
     id: r.id,
     saleId: r.sale_id,
@@ -783,6 +810,7 @@ export const paymentStore: CloudStoreConfig<Payment, PaymentRow> = {
 
 export const installmentStore: CloudStoreConfig<Installment, InstallmentRow> = {
   table: "installments",
+  cap: 20_000,
   fromRow: (r) => ({
     id: r.id,
     saleId: r.sale_id,
@@ -804,6 +832,7 @@ export const installmentStore: CloudStoreConfig<Installment, InstallmentRow> = {
 
 export const expenseStore: CloudStoreConfig<Expense, ExpenseRow> = {
   table: "expenses",
+  cap: 20_000,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -839,6 +868,7 @@ export const expenseStore: CloudStoreConfig<Expense, ExpenseRow> = {
 
 export const recurringRuleStore: CloudStoreConfig<RecurringRule, RecurringRuleRow> = {
   table: "recurring_rules",
+  cap: 1_000,
   fromRow: (r) => ({
     id: r.id,
     kind: r.kind,

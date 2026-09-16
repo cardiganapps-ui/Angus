@@ -22,7 +22,7 @@ import type {
   Workspace,
   WorkspaceSettings
 } from "../types";
-import { useCloudStore } from "../hooks/useCloudStore";
+import { canDiff, makeBreaker, useCloudStore } from "../hooks/useCloudStore";
 import {
   assignmentStore,
   attendanceStore,
@@ -46,10 +46,10 @@ import {
 } from "../data/rows";
 import { importLocalData } from "../lib/importLocal";
 import { deleteFile } from "../lib/files";
-import { pendingMaterializations } from "../utils/materialize";
-import { pendingOccurrences } from "../utils/series";
+import { INCOME_LOOKAHEAD_DAYS, pendingMaterializations } from "../utils/materialize";
+import { SERIES_HORIZON_DAYS, pendingOccurrences } from "../utils/series";
 import { makeId } from "../utils/id";
-import { todayISO } from "../utils/dates";
+import { addDays, todayISO } from "../utils/dates";
 
 /** What App hands the provider for the active workspace's own row. */
 export interface WorkspaceActions {
@@ -69,8 +69,13 @@ interface AppContextValue {
   renameWorkspace: (name: string) => Promise<void>;
   markOnboarded: () => Promise<void>;
   loading: boolean;
+  /** A rejected WRITE, already reverted. */
   error: string | null;
   clearError: () => void;
+  /** A READ problem — incomplete or failed load. Never "no se pudo
+      guardar": nothing was being saved. Carries its own copy so the
+      pilot can see what actually went wrong. */
+  dataWarning: { kind: "read" | "partial"; message: string; detail: string | null } | null;
   /** Re-fetch every store (pull-to-refresh). Never flips `loading`. */
   refreshAll: () => Promise<void>;
 
@@ -237,6 +242,17 @@ export function AppProvider({
     documents.loading ||
     noteAttachments.loading;
 
+  /* A generator decides what to INSERT by diffing against the loaded
+     rows, so a partial read doesn't make its answer stale — it makes it
+     wrong, and the duplicate it provokes is rejected forever. Both ends
+     of the range matter: materialize.ts scans back to each active rule's
+     own startDate, series.ts forward to SERIES_HORIZON_DAYS. */
+  const MAX_GENERATOR_ROUNDS = 6;
+  /* Latched on purpose, including through refreshAll: a breaker the user
+     can reset by pulling to refresh is a pull-to-refresh-shaped loop. */
+  const materializeBreaker = useRef(makeBreaker(MAX_GENERATOR_ROUNDS));
+  const generateBreaker = useRef(makeBreaker(MAX_GENERATOR_ROUNDS));
+
   // Materialize due recurring rules into real rows. Runs once the data
   // is in, and again whenever a rule or its rows change; the unique
   // index on (rule, period) makes a race between two devices harmless.
@@ -251,18 +267,31 @@ export function AppProvider({
   const expenseItems = expenses.items;
   const addSales = sales.addMany;
   const addExpenses = expenses.addMany;
+  const rulesLoad = rules.load;
+  const salesLoad = sales.load;
+  const expensesLoad = expenses.load;
   useEffect(() => {
     // A rule that hasn't landed yet can't be referenced by its rows.
     if (loading || materializing.current || rulesInflight > 0) return;
-    const pending = pendingMaterializations(ruleItems, saleItems, expenseItems, todayISO());
+    const today = todayISO();
+    const earliestRule = ruleItems
+      .filter((r) => r.active)
+      .reduce<string | null>((m, r) => (m === null || r.startDate < m ? r.startDate : m), null);
+    const canMaterialize =
+      canDiff([rulesLoad], today, today) &&
+      canDiff([salesLoad], earliestRule ?? today, addDays(today, INCOME_LOOKAHEAD_DAYS)) &&
+      canDiff([expensesLoad], earliestRule ?? today, today);
+    if (!canMaterialize) return;
+    const pending = pendingMaterializations(ruleItems, saleItems, expenseItems, today);
     if (pending.sales.length === 0 && pending.expenses.length === 0) return;
     const signature = [...pending.sales, ...pending.expenses]
       .map((r) => `${r.recurringRuleId}:${r.periodKey}`)
       .sort()
       .join("|");
     if (signature === failedMaterialization.current) return;
+    if (!materializeBreaker.current.take()) return;
     materializing.current = true;
-    const created = todayISO();
+    const created = today;
     const jobs: Promise<boolean>[] = [];
     if (pending.sales.length) {
       jobs.push(addSales(pending.sales.map((s) => ({ ...s, id: makeId(), createdAt: created }))));
@@ -277,7 +306,7 @@ export function AppProvider({
       .finally(() => {
         materializing.current = false;
       });
-  }, [loading, rulesInflight, ruleItems, saleItems, expenseItems, addSales, addExpenses]);
+  }, [loading, rulesInflight, ruleItems, saleItems, expenseItems, addSales, addExpenses, rulesLoad, salesLoad, expensesLoad]);
 
   // Same idea for recurring sessions: keep ~12 weeks of occurrences on
   // the calendar. Waits for a just-created series to land (FK).
@@ -287,17 +316,22 @@ export function AppProvider({
   const seriesInflight = series.inflight;
   const eventItems = events.items;
   const addEvents = events.addMany;
+  const seriesLoad = series.load;
+  const eventsLoad = events.load;
   useEffect(() => {
     if (loading || generating.current || seriesInflight > 0) return;
-    const pending = pendingOccurrences(seriesItems, eventItems, todayISO());
+    const today = todayISO();
+    if (!canDiff([seriesLoad, eventsLoad], today, addDays(today, SERIES_HORIZON_DAYS))) return;
+    const pending = pendingOccurrences(seriesItems, eventItems, today);
     if (pending.length === 0) return;
     const signature = pending
       .map((e) => `${e.seriesId}:${e.date}`)
       .sort()
       .join("|");
     if (signature === failedGeneration.current) return;
+    if (!generateBreaker.current.take()) return;
     generating.current = true;
-    const created = todayISO();
+    const created = today;
     void addEvents(pending.map((e) => ({ ...e, id: makeId(), createdAt: created })))
       .then((ok) => {
         failedGeneration.current = ok ? null : signature;
@@ -305,7 +339,7 @@ export function AppProvider({
       .finally(() => {
         generating.current = false;
       });
-  }, [loading, seriesInflight, seriesItems, eventItems, addEvents]);
+  }, [loading, seriesInflight, seriesItems, eventItems, addEvents, seriesLoad, eventsLoad]);
   const importedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -321,6 +355,74 @@ export function AppProvider({
       });
   }, [loading, workspaceId, projects, contacts, events]);
 
+  /* Read health, kept strictly apart from write errors. `error` means a
+     save was rejected and reverted; everything below means the app is
+     looking at less than she has. */
+  const readError =
+    projects.load.readError ??
+    contacts.load.readError ??
+    events.load.readError ??
+    sales.load.readError ??
+    payments.load.readError ??
+    installments.load.readError ??
+    expenses.load.readError ??
+    rules.load.readError ??
+    series.load.readError ??
+    groups.load.readError ??
+    enrollments.load.readError ??
+    attendance.load.readError ??
+    courses.load.readError ??
+    assignments.load.readError ??
+    notes.load.readError ??
+    noteTags.load.readError ??
+    noteTagLinks.load.readError ??
+    documents.load.readError ??
+    noteAttachments.load.readError;
+  const partialOf = [
+    events.load.truncated && "tu agenda",
+    sales.load.truncated && "tus ventas",
+    payments.load.truncated && "tus pagos",
+    installments.load.truncated && "las cuotas",
+    expenses.load.truncated && "tus gastos",
+    rules.load.truncated && "tus movimientos fijos",
+    series.load.truncated && "tus series",
+    projects.load.truncated && "tu obra",
+    contacts.load.truncated && "tus contactos",
+    groups.load.truncated && "tus clases",
+    enrollments.load.truncated && "las inscripciones",
+    attendance.load.truncated && "las asistencias",
+    courses.load.truncated && "tus cursos",
+    assignments.load.truncated && "tus tareas",
+    notes.load.truncated && "tus notas",
+    noteTags.load.truncated && "las etiquetas",
+    noteTagLinks.load.truncated && "las etiquetas",
+    documents.load.truncated && "tu material",
+    noteAttachments.load.truncated && "las imágenes",
+  ].filter((x): x is string => typeof x === "string");
+  const partialKey = [...new Set(partialOf)].join("|");
+  const generatorsBlocked = materializeBreaker.current.tripped || generateBreaker.current.tripped;
+
+  const dataWarning = useMemo(() => {
+    if (readError) {
+      return {
+        kind: "read" as const,
+        message: "No se pudieron cargar todos tus datos. Toca Recargar.",
+        detail: readError
+      };
+    }
+    const names = partialKey ? partialKey.split("|") : [];
+    if (names.length === 0) return null;
+    const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+    return {
+      kind: "partial" as const,
+      message: generatorsBlocked
+        ? `Solo se cargó una parte de ${list}. Tus movimientos fijos no se generarán hasta que esté completo.`
+        : `Solo se cargó una parte de ${list}. Algunos totales pueden estar incompletos.`,
+      detail: null
+    };
+    // partialKey, not the array: a fresh array each render re-fires the toast.
+  }, [readError, partialKey, generatorsBlocked]);
+
   const value = useMemo<AppContextValue>(
     () => ({
       workspaceId,
@@ -330,6 +432,7 @@ export function AppProvider({
       renameWorkspace: (name: string) => actions.renameWorkspace(workspaceId, name),
       markOnboarded: () => actions.markOnboarded(workspaceId),
       loading,
+      dataWarning,
       error:
         actions.error ??
         projects.error ??
@@ -573,6 +676,7 @@ export function AppProvider({
       workspace,
       actions,
       loading,
+      dataWarning,
       projects,
       contacts,
       events,
