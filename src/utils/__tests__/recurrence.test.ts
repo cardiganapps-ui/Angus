@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RecurringRule } from "../../types";
-import {
-  describeCadence,
-  monthlyEquivalent,
-  nextOccurrence,
-  nthOccurrence,
-  occurrencesBetween
-} from "../recurrence";
+import { describeCadence, monthlyEquivalent, nextOccurrence, nthOccurrence, occurrencesBetween, periodKeyFamily, periodKeyFor } from "../recurrence";
 
 function rule(over: Partial<RecurringRule> = {}): RecurringRule {
   return {
@@ -123,5 +117,29 @@ describe("describeCadence", () => {
     expect(describeCadence({ cadence: "monthly", interval: 1 })).toBe("Cada mes");
     expect(describeCadence({ cadence: "weekly", interval: 2 })).toBe("Cada 2 semanas");
     expect(describeCadence({ cadence: "yearly", interval: 1 })).toBe("Cada año");
+  });
+});
+
+describe("periodKeyFamily", () => {
+  it("groups the cadences that key periods the same way", () => {
+    expect(periodKeyFamily("weekly")).toBe("week");
+    expect(periodKeyFamily("biweekly")).toBe("week");
+    expect(periodKeyFamily("monthly")).toBe("month");
+    expect(periodKeyFamily("quarterly")).toBe("month");
+    expect(periodKeyFamily("yearly")).toBe("month");
+  });
+
+  /* The money-duplication bug this exists to prevent: the same September,
+     keyed two different ways, cannot collide on the unique index. */
+  it("shows why a cross-family switch duplicates a period", () => {
+    const sameDay = "2026-09-14";
+    expect(periodKeyFor("monthly", sameDay)).toBe("2026-09");
+    expect(periodKeyFor("weekly", sameDay)).toBe("2026-09-14");
+    expect(periodKeyFor("monthly", sameDay)).not.toBe(periodKeyFor("weekly", sameDay));
+  });
+
+  it("re-keys nothing within a family", () => {
+    expect(periodKeyFor("monthly", "2026-09-30")).toBe(periodKeyFor("yearly", "2026-09-01"));
+    expect(periodKeyFor("weekly", "2026-09-14")).toBe(periodKeyFor("biweekly", "2026-09-16"));
   });
 });

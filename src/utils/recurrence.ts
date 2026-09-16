@@ -42,7 +42,19 @@ export function nthOccurrence(rule: RuleShape, n: number): string {
 }
 
 export function periodKeyFor(cadence: RecurrenceCadence, date: string): string {
-  return cadence === "weekly" || cadence === "biweekly" ? weekRange(date, 1).from : date.slice(0, 7);
+  return periodKeyFamily(cadence) === "week" ? weekRange(date, 1).from : date.slice(0, 7);
+}
+
+/* Which SHAPE of period key a cadence produces. Two cadences in the same
+   family key the same periods the same way, so switching between them
+   re-keys nothing and the unique index still recognises the rows already
+   generated. Across families the shape changes — "2026-09" vs a Monday
+   "2026-09-14" — so the old row and the new one do not collide, the
+   index cannot see the clash, and the same month gets billed twice.
+   Editing across families therefore needs a reconciliation pass, not a
+   plain update. */
+export function periodKeyFamily(cadence: RecurrenceCadence): "week" | "month" {
+  return cadence === "weekly" || cadence === "biweekly" ? "week" : "month";
 }
 
 /** Every occurrence with from <= date <= to (inclusive), in order. */

@@ -17,11 +17,26 @@ import { PickerField } from "./PickerField";
 import { makeId } from "../utils/id";
 import { formatShort, todayISO } from "../utils/dates";
 import { formatMXN } from "../utils/money";
-import { monthlyEquivalent, nextOccurrence } from "../utils/recurrence";
+import { monthlyEquivalent, nextOccurrence, periodKeyFamily } from "../utils/recurrence";
 import { haptic } from "../lib/haptics";
 
 const KIND_ITEMS = RECURRENCE_KIND.map((k) => ({ k: k.value, l: k.label }));
 const CADENCE_OPTIONS = RECURRENCE_CADENCE.map((c) => ({ value: c.value, label: c.label }));
+
+/* Editing a rule never touches the rows it already generated — that is
+   deliberate for an amount change ("solo afecta los siguientes"), but
+   three edits corrupt money rather than just drifting:
+
+     - cadence across period-key families: the same September, keyed
+       "2026-09" and again as Mondays, cannot collide on the unique
+       index, so it is billed twice;
+     - an earlier start date, or a smaller interval: both back-fill
+       periods that already closed, rewriting months she has read.
+
+   Until the reconciliation pass lands (a "solo los próximos / regenerar"
+   scope choice, like EventSheet's), the sheet simply doesn't offer them.
+   Slowing a rule down, ending it, pausing it and changing its amount all
+   stay available, which is every edit she actually makes. */
 
 export function RecurringRuleSheet({
   rule,
@@ -59,11 +74,20 @@ export function RecurringRuleSheet({
     title.trim().length > 0 &&
     parsedAmount > 0 &&
     Number.isInteger(parsedInterval) &&
-    parsedInterval >= 1 &&
+    parsedInterval >= (rule ? rule.interval : 1) &&
     parsedInterval <= 12 &&
     startDate.length > 0 &&
+    (!rule || startDate >= rule.startDate) &&
     (!endDate || endDate >= startDate) &&
     validCategory;
+
+  // Editing: the already-generated rows pin what may still change.
+  const locked = rule !== null;
+  const cadenceOptions = locked
+    ? CADENCE_OPTIONS.filter((o) => periodKeyFamily(o.value) === periodKeyFamily(rule.cadence))
+    : CADENCE_OPTIONS;
+  const minInterval = locked ? rule.interval : 1;
+  const minStartDate = locked ? rule.startDate : undefined;
 
   const draft = { cadence, interval: parsedInterval || 1, startDate, endDate: endDate || null, active: true };
   const next = canSave ? nextOccurrence(draft, todayISO()) : null;
@@ -81,8 +105,13 @@ export function RecurringRuleSheet({
     setCategory(next === "income" ? "class" : "rent");
   }
 
-  function handleSave() {
-    if (!canSave) return;
+  /* Awaits the write. It used to fire-and-forget, then unconditionally
+     buzz, toast "Regla actualizada" and close — so a rejected save
+     announced itself as a success and the sheet was already gone by the
+     time the error toast arrived. The store resolves a boolean for
+     exactly this. */
+  async function handleSave() {
+    if (!canSave || submitting) return;
     setSubmitting(true);
     const patch = {
       kind,
@@ -98,19 +127,24 @@ export function RecurringRuleSheet({
       courseId: kind === "expense" ? courseId || null : null,
       notes: notes.trim()
     };
-    if (rule) {
-      void updateRule(rule.id, patch);
-    } else {
-      void addRule({ id: makeId(), createdAt: todayISO(), active: true, groupId: null, ...patch });
+    const ok = rule
+      ? await updateRule(rule.id, patch)
+      : await addRule({ id: makeId(), createdAt: todayISO(), active: true, groupId: null, ...patch });
+    if (!ok) {
+      // The store already reverted and surfaced why; stay open so her
+      // typing isn't lost and she can retry.
+      setSubmitting(false);
+      return;
     }
     haptic.success();
     showSuccess(rule ? "Regla actualizada" : kind === "income" ? "Ingreso fijo creado" : "Gasto fijo creado");
     onClose();
   }
 
-  function handleDelete() {
-    if (!rule) return;
-    void removeRule(rule.id);
+  async function handleDelete() {
+    if (!rule || submitting) return;
+    setSubmitting(true);
+    await removeRule(rule.id);
     haptic.warn();
     showSuccess("Regla eliminada");
     onClose();
@@ -124,8 +158,8 @@ export function RecurringRuleSheet({
         <SheetActions
           canSave={canSave}
           submitting={submitting}
-          onSave={handleSave}
-          onDelete={rule ? handleDelete : undefined}
+          onSave={() => void handleSave()}
+          onDelete={rule ? () => void handleDelete() : undefined}
           confirmText="¿Eliminar esta regla? Los movimientos ya registrados se conservan."
         />
       }
@@ -179,7 +213,7 @@ export function RecurringRuleSheet({
             className="input"
             type="number"
             inputMode="numeric"
-            min={1}
+            min={minInterval}
             max={12}
             value={interval}
             onChange={(e) => setInterval(e.target.value)}
@@ -190,7 +224,7 @@ export function RecurringRuleSheet({
       <div className="input-group">
         <span className="input-label">Frecuencia</span>
         <ChipSelect
-          options={CADENCE_OPTIONS}
+          options={cadenceOptions}
           value={cadence}
           onChange={setCadence}
           ariaLabel="Frecuencia"
@@ -198,6 +232,12 @@ export function RecurringRuleSheet({
         {next && (
           <div className="input-help">
             Próximo: {formatShort(next)} · equivale a {formatMXN(perMonth)} al mes.
+          </div>
+        )}
+        {locked && cadenceOptions.length < CADENCE_OPTIONS.length && (
+          <div className="input-help">
+            Para cambiar entre semanas y meses, crea una regla nueva y termina esta: los movimientos
+            ya registrados se contarían dos veces.
           </div>
         )}
       </div>
@@ -210,8 +250,12 @@ export function RecurringRuleSheet({
             className="input"
             type="date"
             value={startDate}
+            min={minStartDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
+          {locked && (
+            <div className="input-help">Solo hacia adelante: mover la fecha atrás recalcularía meses ya cerrados.</div>
+          )}
         </div>
         <div className="input-group">
           <label className="input-label" htmlFor="rule-end">Hasta</label>
