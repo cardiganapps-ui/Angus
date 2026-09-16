@@ -99,23 +99,29 @@ export function Toast({ message, type = "error", duration, onDismiss, onRetry, a
             {glyph}
           </span>
         )}
-        <span role="button" tabIndex={0} onClick={dismiss}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); dismiss(); } }}
-          aria-label="Cerrar"
-          className="toast-message">{message}</span>
+        {/* The message IS the accessible name of the live region. An
+            aria-label here replaces the text content in the name
+            computation, so this element used to announce the rejected
+            write as "Cerrar, botón" and the failure was never spoken —
+            the exact silent data loss the Prime Directive exists to
+            prevent. Tap-to-dismiss stays for pointers; the named
+            control is the sibling button. */}
+        <span onClick={dismiss} className="toast-message">{message}</span>
         {onRetry && (
           <button onClick={(e) => { e.stopPropagation(); onRetry(); dismiss(); }}
             className="toast-action">
             {actionLabel || "Reintentar"}
           </button>
         )}
-        {!onRetry && (
-          <button onClick={(e) => { e.stopPropagation(); dismiss(); }}
-            aria-label="Cerrar"
-            className="toast-close">
-            <Icon name="x" size={14} />
-          </button>
-        )}
+        {/* Rendered for every toast, not just the ones without an
+            action: a persistent toast whose only dismissal was a
+            pointer tap or a swipe left keyboard and switch users with
+            no way to close it. */}
+        <button onClick={(e) => { e.stopPropagation(); dismiss(); }}
+          aria-label="Cerrar aviso"
+          className="toast-close">
+          <Icon name="x" size={14} />
+        </button>
       </div>
     </SwipeDismissToast>
   );

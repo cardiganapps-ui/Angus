@@ -63,6 +63,16 @@ export function useNoteAutosave(opts: NoteAutosaveOptions) {
     pendingSaveArgs.current = null;
   }, []);
 
+  /* Put a rejected save back in the queue. `cancelPending` disarms the
+     unmount flush, which is correct for a path that is about to persist
+     explicitly — but only if that persist SUCCEEDS. When it does not, the
+     text she typed exists nowhere except the editor's React state, and
+     whatever was going to unmount it is about to destroy it. Re-arming
+     restores the last-ditch flush and lets the next keystroke retry. */
+  const armPending = useCallback((args: { title: string; content: string }) => {
+    pendingSaveArgs.current = args;
+  }, []);
+
   useEffect(
     () => () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -79,5 +89,5 @@ export function useNoteAutosave(opts: NoteAutosaveOptions) {
     []
   );
 
-  return { saveState, setSaveState, scheduleSave, cancelPending };
+  return { saveState, setSaveState, scheduleSave, cancelPending, armPending };
 }

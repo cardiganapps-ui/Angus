@@ -6,7 +6,7 @@
   background: var(--accent-dark); color: var(--white);
   padding: 8px 14px;
   border-radius: 0 0 var(--radius) 0;
-  font-size: 13px; font-weight: 700;
+  font-size: var(--text-md); font-weight: 700;
   text-decoration: none;
   z-index: 200;
   transform: translateY(-100%);
@@ -57,9 +57,8 @@
   /* Spacious cards on desktop */
   .card { border-radius: var(--radius-lg); }
   .kpi-card { padding: 18px 20px; }
-  .kpi-value { font-size: 24px; }
+  .kpi-value { font-size: var(--text-2xl); }
   .row-item { padding: 14px 18px; min-height: 66px; }
-  .section-title { font-size: 16px; }
 
   .row-item { border-left: 3px solid transparent; }
   .row-item:first-child { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
@@ -76,7 +75,7 @@
 @media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
   button, a, select { min-height: 36px; }
   .icon-btn { min-width: 36px; min-height: 36px; }
-  .btn { height: 42px; font-size: 14px; }
+  .btn { height: 42px; font-size: var(--text-md); }
   .fab { width: 48px; height: 48px; }
   .fab-action { min-height: 38px; }
 }
@@ -124,9 +123,21 @@
 .icon-btn:focus-visible { outline-offset: 0; border-radius: 50%; }
 .focus-visible-none:focus-visible { outline: none; }
 
-/* ── REDUCED MOTION ── */
+/* ── REDUCED MOTION ──
+   The delays matter as much as the durations. Staggered entrances start
+   at `opacity: 0` / `scaleY(0)` (listEntryIn in base.css, chartGrow in
+   charts.css) and space themselves with animation-delay, so collapsing
+   only the duration left every row invisible for its full delay — up to
+   384ms of blank list for someone who asked for LESS motion, which is
+   worse than the motion. Zero the delays too. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
 }
 
 /* ── CUSTOM SCROLLBAR (desktop) ── */
@@ -150,11 +161,13 @@
 @media (min-width: 1024px) {
   :root { --text-scale: 1.1; }
   .row-item { padding: 16px 20px; min-height: 70px; }
-  .row-title { font-size: var(--text-md); }
   .kpi-card { padding: 20px 22px; }
-  .kpi-value { font-size: 26px; }
-  .section-title { font-size: var(--text-lg); }
   .card { box-shadow: var(--shadow-sm); }
+  /* .row-title / .kpi-value / .section-title used to be re-declared here
+     (and at 768) to fake a larger tier. They read from --text-md /
+     --text-2xl / --text-lg now, so the --text-scale bump above already
+     grows them — re-stating the same tokens would only be a second place
+     to forget. */
   .page {
     max-width: none;
     margin: 0;

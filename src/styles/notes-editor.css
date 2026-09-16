@@ -200,6 +200,24 @@
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
+/* Touch target. The box stays 18px because it sits INSIDE a ~29px
+   text line: components.css's full 44×44 expansion would spill into
+   the lines above and below, and two neighbouring tareas would steal
+   each other's taps (exactly what the note on that pattern warns
+   about). So the hit area grows to the width of the marker gutter
+   (26px, stopping where the text starts) and to just under the line
+   pitch — 2.2× the tappable area, with no tap stolen from the caret
+   or from the next task. The real remedy for the small target is the
+   keyboard path: Mod+Enter toggles the task the caret is on. */
+.mde-check::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+}
 .mde-line--task[data-indent="1"] .mde-check { left: 20px; }
 .mde-line--task[data-indent="2"] .mde-check { left: 36px; }
 .mde-line--task[data-indent="3"] .mde-check { left: 52px; }
@@ -263,7 +281,10 @@
 .mde-toolbar {
   display: flex;
   align-items: center;
-  gap: 2px;
+  /* 8px, not 2px: each tool's hit area reaches 4px past its own box
+     (see .mde-tool::after), so the gap is what keeps two neighbours
+     from overlapping and stealing each other's taps. */
+  gap: 8px;
   padding: 6px 10px;
   background: var(--cream);
   border-bottom: 1px solid var(--border-lt);
@@ -277,7 +298,12 @@
 .mde-tool {
   position: relative;
   width: 36px;
-  height: 36px;
+  /* 44, not the 36 this used to declare: components.css's global
+     `button { min-height: 44px }` was already clamping it to 44 and
+     the declared 36 never rendered. Stating the real height changes
+     nothing on screen — the active pill and the toolbar band keep the
+     exact size they ship with today. */
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -290,6 +316,18 @@
   transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
   -webkit-tap-highlight-color: transparent;
   font-family: var(--font);
+}
+/* Width is the part the 44px rule was missing (36px wide against a
+   documented 44). Same ::after expansion components.css gives .chip /
+   .btn-mini / .toast-action: the glyph stays 36px, the thumb gets 44.
+   Paired with the toolbar's 8px gap above so the areas never touch. */
+.mde-tool::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 0;
+  bottom: 0;
 }
 @media (hover: hover) {
   .mde-tool:hover:not(:disabled) { background: rgba(255, 255, 255, 0.6); color: var(--charcoal); }
@@ -319,15 +357,25 @@
   width: 1px;
   height: 18px;
   background: var(--border);
-  margin: 0 4px;
+  /* The toolbar's own gap spaces it now; a margin on top of that
+     would push the groups apart twice. */
+  margin: 0;
   flex-shrink: 0;
 }
 
 /* ── Image attachments — strip + lightbox + drop overlay ──────────
    The strip sits below the markdown body inside the scroll
    container so it scrolls with the note rather than docking. Each
-   tile is 80×80 with a small delete chip in the corner; tap the
-   tile to open the lightbox. */
+   tile is 90×90 with a small delete chip in the corner; tap the
+   tile to open the lightbox.
+
+   90, not the 80 it started at, because the tile carries TWO targets:
+   the thumb (opens the lightbox) and the destructive × over it. The ×
+   needs a 44×44 corner; on an 80px tile that left the thumb with no
+   44×44 square anywhere. At 90 the × owns the top-right 44×44 and the
+   thumb keeps a full-height 44px column beside it — 88 was two short
+   once the tile's 1px border is counted. Three still fit a 360px
+   phone (90×3 + 2 gaps = 290 in a 320px content width). */
 .mde-attach-strip {
   display: flex;
   flex-wrap: wrap;
@@ -338,8 +386,8 @@
 }
 .mde-attach-tile {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 90px;
+  height: 90px;
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--cream-dark, var(--cream));
@@ -378,12 +426,22 @@
   font-weight: 800;
   font-size: 18px;
 }
+/* min-height: 0 is load-bearing, not tidying. components.css sets a
+   global `button { min-height: 44px }`, and min-height clamps height,
+   so this chip was rendering 22 wide × 44 TALL — a dark ellipse down
+   the side of every thumbnail. It needs the opt-out that .sheet-close
+   already has, then earns its 44px back as a hit area instead.
+   Geometry is deliberate: a 28px box inset 8px in a 90px tile puts
+   the 44×44 ::after exactly on the tile's top-right quadrant — not
+   clipped by the tile's overflow, not spilling onto a neighbouring
+   tile, and leaving the thumb a clean 44px column down the left. */
 .mde-attach-delete {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 22px;
-  height: 22px;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.55);
@@ -394,15 +452,33 @@
   justify-content: center;
   padding: 0;
 }
+.mde-attach-delete::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
 .mde-attach-delete:hover { background: var(--red); }
 .mde-attach-delete.is-armed {
   width: auto;
-  height: 24px;
+  height: 28px;
   padding: 0 10px;
   border-radius: var(--radius-pill);
   background: var(--red);
   font: 700 var(--text-xs) var(--font-d);
   animation: mdeArmIn var(--dur-fast) var(--ease-out);
+}
+/* The armed pill is wider than 44px already, so it takes the
+   height-only band instead of a fixed square. */
+.mde-attach-delete.is-armed::after {
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 44px;
+  transform: translateY(-50%);
 }
 @keyframes mdeArmIn {
   from { transform: scale(0.85); opacity: 0; }
@@ -427,12 +503,16 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
 }
+/* Same min-height clamp as the delete chip: without the opt-out this
+   round button rendered 36 wide × 44 tall. Nothing sits next to it,
+   so the hit area can expand freely to 44×44. */
 .mde-attach-lightbox-close {
   position: absolute;
   top: calc(var(--sat, 0px) + 16px);
   right: 16px;
   width: 36px;
   height: 36px;
+  min-height: 0;
   border-radius: 50%;
   border: none;
   background: rgba(255, 255, 255, 0.18);
@@ -441,6 +521,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+.mde-attach-lightbox-close::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 /* Drop overlay — surface inside the scroll area when the user is
@@ -575,7 +664,9 @@
 .mde-header-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  /* 34px buttons + a 5px reach each side = 44; a 10px gap is the
+     smallest that keeps two hit areas from touching. */
+  gap: 10px;
 }
 
 .mde-save-indicator {
@@ -589,8 +680,14 @@
 .mde-save-indicator.is-saved  { color: var(--charcoal-xl); }
 
 .mde-icon-btn {
+  position: relative;
   width: 34px;
   height: 34px;
+  /* Opt out of the global button min-height so the hover/active pill
+     is the 34px square this file draws, then take the 44 back as a
+     hit area (see ::after). */
+  min-height: 0;
+  flex-shrink: 0;
   border-radius: 9px;
   display: inline-flex;
   align-items: center;
@@ -601,6 +698,15 @@
   color: var(--charcoal-md);
   transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
   -webkit-tap-highlight-color: transparent;
+}
+.mde-icon-btn::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 @media (hover: hover) {
   .mde-icon-btn:hover { background: var(--cream); }
@@ -821,7 +927,9 @@
 .mde-find {
   display: flex;
   align-items: center;
-  gap: 6px;
+  /* 34px buttons reaching 5px each side — 10px is the gap that keeps
+     Anterior / Siguiente / Cerrar from overlapping hit areas. */
+  gap: 10px;
   padding: 8px 12px;
   background: var(--accent-mist);
   border-bottom: 1px solid var(--border-lt);
@@ -863,8 +971,13 @@
   white-space: nowrap;
 }
 .mde-find-btn {
-  width: 28px;
-  height: 28px;
+  position: relative;
+  /* Was 28×28 on paper and 28×44 on screen (the global button
+     min-height again). 34×34 with a 44×44 reach gives the same square
+     pill the header uses and a real thumb target in both axes. */
+  width: 34px;
+  height: 34px;
+  min-height: 0;
   border-radius: 7px;
   display: inline-flex;
   align-items: center;
@@ -876,6 +989,15 @@
   transition: background var(--dur-fast) ease, transform var(--dur-fast) ease;
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
+}
+.mde-find-btn::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 @media (hover: hover) {
   .mde-find-btn:hover:not(:disabled) { background: var(--white); color: var(--charcoal); }

@@ -33,7 +33,10 @@ function Tool({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      aria-pressed={active ? "true" : "false"}
+      /* Only the format toggles are toggles. "Adjuntar imagen" has no
+         `active` at all, and an unconditional aria-pressed made it
+         announce as a permanently-unpressed toggle button. */
+      aria-pressed={active === undefined ? undefined : active}
     >
       {children}
       {hint && (

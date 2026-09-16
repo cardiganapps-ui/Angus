@@ -180,6 +180,40 @@ describe("moneyPulse", () => {
   it("has no comparison when there is no prior month to compare with", () => {
     expect(moneyPulse(sales, [payment("p", "s1", 100, "2026-09-05")], [], TODAY).netChange).toBeNull();
   });
+
+  /* The contradiction this closes: a deposit taken on the 3rd, the
+     commission cancelled on the 20th. Hoy counted the $4 000 as progress
+     toward her goal while Dinero called the same pesos "Por devolver".
+     `income` (and therefore the net and the trend chart) stays cash
+     basis — the money did arrive — but `earned`, which is what the goal
+     ring reads, excludes what she is holding to give back. */
+  it("separates cash that arrived from cash that is hers to keep", () => {
+    const cancelled = sale("s2", 4000, { status: "cancelled" });
+    const deposit = payment("p3", "s2", 4000, "2026-09-03");
+    const pulse = moneyPulse([...sales, cancelled], [...payments, deposit], expenses, TODAY);
+    expect(pulse.income).toBe(6000); // 2000 live + 4000 on the cancelled sale
+    expect(pulse.refundable).toBe(4000);
+    expect(pulse.earned).toBe(2000);
+    expect(pulse.net).toBe(5500); // unchanged: cash basis, refunds are not an expense
+    expect(goalProgress(pulse.earned, 10000)!.ratio).toBeCloseTo(0.2);
+  });
+
+  it("leaves earned equal to income when nothing is cancelled", () => {
+    const pulse = moneyPulse(sales, payments, expenses, TODAY);
+    expect(pulse.refundable).toBe(0);
+    expect(pulse.earned).toBe(pulse.income);
+  });
+
+  /* A deposit received last month and cancelled this one is last
+     month's slice: this month's goal is not retroactively docked for it,
+     and the standing liability still shows up in Dinero. */
+  it("only discounts refunds whose cash landed inside the month", () => {
+    const cancelled = sale("s2", 4000, { status: "cancelled" });
+    const august = payment("p3", "s2", 4000, "2026-08-03");
+    const pulse = moneyPulse([...sales, cancelled], [...payments, august], expenses, TODAY);
+    expect(pulse.refundable).toBe(0);
+    expect(pulse.earned).toBe(pulse.income);
+  });
 });
 
 describe("trendChart", () => {

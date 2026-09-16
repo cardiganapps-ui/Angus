@@ -94,7 +94,10 @@ export function Money() {
         {refundable > 0 && (
           <div className="kpi-card list-entry-stagger" style={stagger(2)}>
             <div className="kpi-label">Por devolver</div>
-            <div className="kpi-value" style={{ color: "var(--red)" }}>
+            {/* Amber, not red: one row down in Balance, red in the money
+                column means a client owes HER. The same hue for money she
+                owes out would point the debt in two directions at once. */}
+            <div className="kpi-value" style={{ color: "var(--amber)" }}>
               <AnimatedNumber value={refundable} format={formatMXNShort} />
             </div>
           </div>

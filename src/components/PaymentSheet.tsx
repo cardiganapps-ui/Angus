@@ -55,14 +55,33 @@ export function PaymentSheet({
     onClose();
   }
 
+  /* Same rule as handleSave, in the other direction: "Pago eliminado"
+     over a rejected delete tells her the money is gone from the books
+     while the row is still there. The store reverts and reports it. */
   async function handleDelete() {
     if (!payment || submitting) return;
     setSubmitting(true);
-    await removePayment(payment.id);
+    const ok = await removePayment(payment.id);
+    if (!ok) {
+      setSubmitting(false);
+      haptic.warn();
+      return;
+    }
     haptic.warn();
     showSuccess("Pago eliminado");
     onClose();
   }
+
+  /* Deleting a payment is the only delete in the app that silently
+     rewrites a balance, so the confirm says what it actually does:
+     `saleBalance` recomputes owed from the remaining payments,
+     `installmentPlan` re-allocates them across the cuotas in due-date
+     order, and `profitLoss` (cash basis, by payment date) loses it from
+     the month it landed in — which may be a month she has already
+     closed and read. */
+  const deleteConfirm = payment
+    ? `¿Eliminar este pago de ${formatMXN(payment.amount)}? La venta vuelve a deber esa cantidad, las cuotas de su plan se recalculan y el mes en que entró deja de contarlo.`
+    : "¿Eliminar este pago?";
 
   return (
     <Sheet
@@ -74,7 +93,7 @@ export function PaymentSheet({
           submitting={submitting}
           onSave={() => void handleSave()}
           onDelete={payment ? () => void handleDelete() : undefined}
-          confirmText="¿Eliminar este pago?"
+          confirmText={deleteConfirm}
         />
       }
     >

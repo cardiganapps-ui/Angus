@@ -3,7 +3,8 @@
 Everything in this repo that can be built, tested and applied without a
 credential has been. What is left is a short list of things that are
 *only* obtainable by someone with an account: five secrets, one design
-asset, one decision, and two weeks of real use.
+asset, one decision, one migration, three settings nobody but the repo
+owner can change, and two weeks of real use.
 
 Each item below says **why it matters**, **how it's verified today**, and
 **the exact steps**. They are independent — do them in any order — except
@@ -333,6 +334,178 @@ that is the most valuable bug report this project can receive.
 
 Stages 3–7 were implemented against my ranking of what matters. The
 pilot is what re-ranks them against hers.
+
+---
+
+## 7 — Apply migration 021 (written, committed, NOT applied)
+
+**Status:** every migration up to 020 is live. `021_session_tuition_index.sql`
+is the first one in this repo that exists only as a file. It was written
+deliberately without applying it — read the header before you run it; it
+is forty lines of why.
+
+**What it fixes.** `sales_session_contact_uidx` picks its rows with
+`recurring_rule_id is null`, which is not a property of a row but of its
+history: `on delete set null` means every sale a rule ever generated
+falls into that predicate the moment the rule is deleted. Two monthly
+rules can bill the same contact for the same period — a student enrolled
+in two class groups gets one rule per group — and once the first rule is
+deleted, deleting the second raises a duplicate-key error *from the
+cascade*. The client reads 23505 as "already materialized", so the delete
+that failed is the delete she is told worked. The migration matches the
+session-id *shape* of `period_key` instead.
+
+Today's database is nearly empty, so nothing is currently broken by it;
+it is one enrollment away from being.
+
+### Steps
+
+**7.1** — Supabase dashboard → project `angus` → **SQL Editor** → paste
+`supabase/migrations/021_session_tuition_index.sql` → *Run*. It drops and
+recreates one index inside a transaction; the new predicate is a strict
+subset of the old one, so there is no data to clean up first and nothing
+to do if it is run twice.
+
+**7.2 — Verify the definition changed**, not that the statement returned:
+
+```sql
+select pg_get_indexdef('public.sales_session_contact_uidx'::regclass);
+```
+
+The result must contain `period_key ~ '^[0-9a-fA-F]{8}-…'`. If it still
+reads `WHERE ((recurring_rule_id IS NULL) AND (period_key IS NOT NULL))`,
+the old index is still there and nothing happened.
+
+---
+
+## 8 — Protect `main` (nothing gates production today)
+
+**Status:** `git log --merges` returns **zero** across all 53 commits.
+Every change this project has ever made reached `main` as a direct push,
+which means the `pull_request` trigger in `.github/workflows/ci.yml` has
+never once fired. CI has been running *after* the fact, on pushes.
+
+**Half of this is now fixed in the repo and needs nothing from you.**
+`vercel.json` sets `buildCommand` to `npm run lint && npm test && npm run
+build`, so the checks run *inside* the deploy: a commit that breaks lint
+or the suite fails the Vercel build, the build is never promoted, and the
+previous deployment stays live serving her data. Builds get roughly a
+minute longer. That is the price of the last gate before users.
+
+It does **not** stop a broken commit landing on `main` — only you can do
+that, and it is a GitHub setting, not a file.
+
+> Why not a Vercel `ignoreCommand`: the Ignored Build Step runs before
+> the install step, so it cannot run the suite, and reading GitHub's
+> check status from there needs a token this project does not hold plus a
+> wait for a run that has usually not started yet. Exit code 0 means
+> *skip the build*. A gate that answers "skip" whenever it cannot tell
+> would quietly stop deploying anything at all — the failure mode is
+> silent and total, which is exactly the wrong shape for this app.
+
+### Steps
+
+**8.1** — GitHub → `cardiganapps-ui/Angus` → **Settings** → **Rules** →
+**Rulesets** → *New ruleset* → *New branch ruleset*.
+
+- Name: `main`
+- Enforcement status: **Active**
+- Target branches → *Add target* → **Include default branch**
+- Rules to tick:
+  - **Restrict deletions**
+  - **Block force pushes**
+  - **Require a pull request before merging** → *Required approvals:* **0**
+    (this is a two-person project; the point is the check, not a reviewer)
+  - **Require status checks to pass** → *Add checks* → **`check`** — the
+    job id in `ci.yml`, which is what shows up on a PR — and tick
+    **Require branches to be up to date before merging**
+- **Bypass list: leave it empty.** Adding yourself as a bypass actor
+  turns this straight back into what it replaced.
+
+**8.2 — What changes for the agents.** Nothing about how the work is
+done: they already branch as `claude/**`, and `ci.yml` already runs on
+both the branch push and the PR. Only the last step changes — open a pull
+request instead of `git push origin main`, and merge it once `check` is
+green. §0 above becomes "open a PR from that branch and merge it" rather
+than `git merge --ff-only`.
+
+**8.3 — Verify by trying to break it.** From a scratch branch, push one
+commit that deliberately fails a test and open a PR. The merge button
+must be blocked. Then `git push origin main` directly and confirm GitHub
+refuses it. A protection rule nobody has tried to violate is a claim, not
+a control.
+
+---
+
+## 9 — Turn the CSP on (it is shipping in report-only mode)
+
+**Status:** the production origin shipped with **no security headers at
+all** — `vercel.json` was three lines and set only `regions`. It now
+sends HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`,
+`Referrer-Policy`, `Cross-Origin-Opener-Policy`, a `Permissions-Policy`
+denying the device APIs this app never touches, and an enforced
+`Content-Security-Policy: frame-ancestors 'none'`. Those are
+uncontroversial and are on.
+
+The **full** content policy ships as
+`Content-Security-Policy-Report-Only`, deliberately. A CSP that breaks
+image loading or uploads is far worse here than no CSP — her photos are
+the part of this app that cannot be re-created — and the policy was
+written from reading `src/lib/files.ts`, `src/lib/api.ts` and
+`src/lib/supabase.ts` rather than from a deployment. Report-only means
+the browser reports what it *would* have blocked and blocks nothing, so
+one real deployment tells us whether it is right.
+
+**One violation is already known and is a genuine decision, not a
+mistake to fix:** `heic2any`'s bundled libheif builds its binding
+functions with `new Function`, which `script-src 'self'` forbids. It is
+caught — `maybeConvertHeic` falls back to the original file — so an
+iPhone HEIC would still upload, just untranscoded, and then fail to
+render in most browsers. The alternatives are to accept that, or to add
+`'unsafe-eval'` and give back most of what the policy was for. Decide
+with the real console in front of you.
+
+### Steps
+
+**9.1** — Deploy, open <https://angus-xi.vercel.app> in Chrome with the
+console open, and use the parts that talk to another origin: sign in,
+open a piece and add a photo, open the photo, export a note to PDF, load
+a note with an inline attachment. Every violation logs as
+`[Report Only] Refused to …` and names the directive and the URL it
+would have blocked.
+
+**9.2** — Once §4's e2e account exists, `npm run e2e` does this for you:
+the harness already collects console errors, so a CSP violation fails the
+run instead of waiting for someone to notice.
+
+**9.3** — Widen only what the console actually named. The origins the app
+needs are `*.supabase.co` (REST + auth + realtime) and
+`*.r2.cloudflarestorage.com` (the browser PUTs bytes straight there and
+loads signed GETs back as images); everything else is same-origin,
+including the self-hosted fonts.
+
+**9.4** — When the console is clean, or the remainder is accepted, move
+the value: copy the `Content-Security-Policy-Report-Only` string into the
+`Content-Security-Policy` entry — replacing `frame-ancestors 'none'`,
+which it already contains — and delete the report-only entry. Redeploy
+and walk the same list again, because this time it bites.
+
+---
+
+## 10 — The repository is public
+
+Not a task, a fact worth knowing before the next item goes in: GitHub
+reports `cardiganapps-ui/Angus` as **public**. `CLAUDE.md` and this file
+are tracked, so the Supabase project ref, the Vercel project and team
+ids, the admin address and **Andrea's email address** are world-readable
+today. No credential is exposed — `.env.local` is gitignored and the
+build fails on a secret in the bundle (§ `scripts/check-bundle-secrets.mjs`) —
+and the anon key is public by design, so nothing here is an incident.
+
+If that is deliberate, nothing to do. If it is not: Settings → General →
+Danger Zone → *Change visibility* → Private, and note that branch
+protection rulesets (§8) stay available on a private repo only on a paid
+plan — so do §8 first and check it still applies afterwards.
 
 ---
 

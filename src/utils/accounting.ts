@@ -236,6 +236,36 @@ export function profitLoss(
   return { income, expenses: spent, net: subtractMoney(income, spent) };
 }
 
+/* ── Refundable, scoped to a period ──
+   `totals().refundable` answers "how much do I owe back right now", over
+   all time. This answers a different question: of the cash that arrived
+   in THIS range, how much is already earmarked for return — every payment
+   in the range whose sale has since been cancelled.
+
+   It is reported ALONGSIDE profitLoss, never subtracted inside it.
+   profitLoss stays cash basis so a status edited in September cannot
+   rewrite March. This figure is deliberately allowed to move when a
+   status changes, which is why the only headline it may drive is the
+   CURRENT month's goal — a target she is still working toward, not a
+   closed month she has already read and acted on.
+
+   Invariant: this is always a subset of profitLoss(...).income over the
+   same range — both sum payments by date, this one over fewer of them.
+   So `income − refundableInRange` can never go negative. */
+export function refundableInRange(
+  sales: Sale[],
+  payments: Payment[],
+  from: string,
+  to: string
+): number {
+  const cancelled = new Set(sales.filter((s) => s.status === "cancelled").map((s) => s.id));
+  return sumMoney(
+    payments
+      .filter((p) => cancelled.has(p.saleId) && inRange(p.date, from, to))
+      .map((p) => p.amount)
+  );
+}
+
 export function expensesByCategory(expenses: Expense[], from: string, to: string) {
   const buckets = new Map<string, number>();
   for (const e of expenses) {

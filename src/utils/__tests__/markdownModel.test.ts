@@ -264,17 +264,24 @@ describe("renderLineHTML — structure", () => {
     expect(html).toContain('<span class="md-heading md-h1">Title</span>');
   });
 
-  it("renders task with interactive button", () => {
+  /* The task control moved from aria-pressed (toggle button) to
+     role="checkbox" + aria-checked, and gained a name taken from the
+     line's prose — an unnamed toggle button told a screen-reader user
+     nothing about which tarea they were ticking. */
+  it("renders task with interactive checkbox", () => {
     const html = renderLineHTML(tokenizeLine("[ ] todo"), { lineIdx: 5 });
     expect(html).toContain('data-mde-checkbox');
     expect(html).toContain('data-line="5"');
-    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('role="checkbox"');
+    expect(html).toContain('aria-checked="false"');
+    expect(html).toContain('aria-label="todo"');
+    expect(html).not.toContain("aria-pressed");
   });
 
   it("marks readonly task button as disabled", () => {
     const html = renderLineHTML(tokenizeLine("[x] done"), { readOnly: true });
     expect(html).toContain("disabled");
-    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('aria-checked="true"');
   });
 
   it("escapes HTML in content", () => {

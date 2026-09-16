@@ -94,7 +94,7 @@ export function NoteEditor({
   // Tab stays inside the editor; focus returns to the row on close.
   const trapRef = useFocusTrap(true);
 
-  const { saveState, setSaveState, scheduleSave, cancelPending } = useNoteAutosave({
+  const { saveState, setSaveState, scheduleSave, cancelPending, armPending } = useNoteAutosave({
     onSave: (d) => saveNote(note.id, d),
     onSaveFailed: () => showToast("No se pudo guardar la nota. Sigue escribiendo; lo reintentamos.", "error")
   });
@@ -111,10 +111,21 @@ export function NoteEditor({
       if (isEffectivelyEmpty(ti, co)) await deleteNote(note.id);
       else await saveNote(note.id, { title: ti.trim(), content: co });
     } catch {
-      showToast("No se pudo guardar la nota", "error");
+      /* Do NOT close over a rejected save. Everything she typed since the
+         last successful autosave lives only in this component's state, and
+         `onClose()` unmounts it — while `cancelPending()` above has already
+         disarmed the flush that would otherwise have caught it. Closing
+         here is how that text was lost. Stay open, re-arm the retry, and
+         let her decide what to do with her own words. */
+      armPending({ title: ti.trim(), content: co });
+      setSaveState("dirty");
+      showToast("No se pudo guardar. Dejamos la nota abierta para que no pierdas lo que escribiste.", "error", {
+        persistent: true
+      });
+      return;
     }
     onClose();
-  }, [cancelPending, deleteNote, saveNote, note.id, onClose, showToast]);
+  }, [cancelPending, armPending, setSaveState, deleteNote, saveNote, note.id, onClose, showToast]);
 
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(

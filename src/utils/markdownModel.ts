@@ -234,6 +234,16 @@ export function tokenizeLine(raw?: string | null): LineToken {
   };
 }
 
+/* Accessible name for a task line's checkbox: the line's prose with
+   the inline markdown stripped, capped so a paragraph-long tarea
+   doesn't turn into a paragraph-long control name. */
+const TASK_NAME_MAX = 80;
+export function taskAccessibleName(token: LineToken) {
+  const text = token.inline.map(t => t.text).join("").trim();
+  if (!text) return "Tarea sin texto";
+  return text.length > TASK_NAME_MAX ? `${text.slice(0, TASK_NAME_MAX).trimEnd()}…` : text;
+}
+
 /* Render one tokenized line to HTML. The output contains:
      - <span class="md-syntax" data-syn="n"> wrappers for raw
        markdown characters that must remain in the DOM for caret math
@@ -275,9 +285,22 @@ export function renderLineHTML(token: LineToken, { readOnly = false, lineIdx = 0
     // ignores it; it overlays the (hidden off-caret) raw "[ ] " span.
     const leadingSpaces = token.raw.slice(0, token.indent);
     if (leadingSpaces) html += `<span class="md-syntax" data-syn="${leadingSpaces.length}">${escapeHtml(leadingSpaces)}</span>`;
-    const pressed = token.taskChecked ? "true" : "false";
+    const checked = token.taskChecked ? "true" : "false";
     const disabled = readOnly ? "disabled" : "";
-    html += `<button type="button" class="mde-check${token.taskChecked ? " is-checked" : ""}" data-mde-checkbox data-line="${lineIdx}" data-nocount="1" aria-pressed="${pressed}" contenteditable="false" tabindex="-1" ${disabled}></button>`;
+    // role=checkbox + aria-checked, not aria-pressed: this IS a
+    // checkbox, and "casilla, marcada" is what a task list should
+    // announce. The button has no text of its own, so it takes the
+    // line's prose as its name — otherwise a note with ten tareas
+    // reads as ten identical unnamed controls.
+    //
+    // tabindex stays -1 on purpose. The editor owns Tab (it indents
+    // list lines), so a tabbable control inside the contenteditable
+    // would be unreachable anyway. VoiceOver / TalkBack still reach it
+    // through the accessibility tree and activate it with a double-tap
+    // (→ the click handler), and a desktop keyboard toggles the
+    // caret's line with Mod+Enter. See MarkdownEditor.onKeyDown.
+    const label = taskAccessibleName(token);
+    html += `<button type="button" class="mde-check${token.taskChecked ? " is-checked" : ""}" data-mde-checkbox data-line="${lineIdx}" data-nocount="1" role="checkbox" aria-checked="${checked}" aria-label="${escapeHtml(label)}" contenteditable="false" tabindex="-1" ${disabled}></button>`;
     const bracket = token.taskChecked ? "x" : " ";
     html += `<span class="md-syntax" data-syn="4">[${bracket}] </span>`;
   } else if (token.blockSyntax) {

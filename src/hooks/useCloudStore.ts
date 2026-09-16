@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+/* Defined next to the copy that translates it for her, so the sentinel
+   this file sets and the message she reads cannot drift apart. */
+import { MISSING_ROW } from "../lib/writeErrors";
 import { addDays, todayISO } from "../utils/dates";
 
 export interface Entity {
@@ -92,8 +95,6 @@ const UNIQUE_VIOLATION = "23505";
    stays correct whatever the project's PostgREST `db-max-rows` is; this
    only decides how many round trips a large table costs. */
 const PAGE = 1000;
-
-const MISSING_ROW = "Esa fila ya no está en el servidor.";
 
 /* No request in this app had a deadline. `loading` is the OR of all
    nineteen stores, so a single socket that never answers — studio wifi

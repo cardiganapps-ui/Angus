@@ -51,7 +51,7 @@ export function SaleSheet({
     events,
     settings
   } = useApp();
-  const { showSuccess } = useToast();
+  const { showSuccess, showToast } = useToast();
   const [title, setTitle] = useState(sale?.title ?? "");
   const [amount, setAmount] = useState(sale?.amount?.toString() ?? "");
   const [date, setDate] = useState(sale?.date ?? todayISO());
@@ -148,16 +148,30 @@ export function SaleSheet({
       setSubmitting(false);
       return;
     }
-    if (cuotas) await addInstallments(cuotas);
+    /* The sale landed; the plan is a separate write. If it is refused, say
+       so precisely — telling her the plan was created when only the sale
+       exists is how a payment schedule silently goes missing. */
+    const planned = cuotas ? await addInstallments(cuotas) : true;
     haptic.success();
-    showSuccess(sale ? "Venta actualizada" : rows ? "Venta y plan de pagos creados" : "Venta creada");
+    if (!planned) {
+      showToast("Guardamos la venta, pero no el plan de pagos. Ábrela para volver a intentarlo.", "error", {
+        persistent: true
+      });
+    } else {
+      showSuccess(sale ? "Venta actualizada" : rows ? "Venta y plan de pagos creados" : "Venta creada");
+    }
     onClose();
   }
 
   async function handleDelete() {
     if (!sale || submitting) return;
     setSubmitting(true);
-    await removeSale(sale.id);
+    // The sale owns its payments and cuotas, so claiming a delete the
+    // server refused would leave her believing money is off the books.
+    if (!(await removeSale(sale.id))) {
+      setSubmitting(false);
+      return;
+    }
     haptic.warn();
     showSuccess("Venta eliminada");
     (onDeleted ?? onClose)();

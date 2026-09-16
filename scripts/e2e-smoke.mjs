@@ -172,13 +172,24 @@ await page.click('.drawer-item-label:text-is("Obra")');
 await page.waitForSelector(".page", { timeout: 10000 });
 await page.waitForTimeout(600);
 
+/* Exact matching, deliberately, for everything about the rename.
+   `text=…` unquoted matches case-insensitively by SUBSTRING, and
+   `edited` CONTAINS `title` — so a substring locator for the original
+   still matches the renamed row, and "the old title is gone" could not
+   hold however well the app behaved. It was an assertion nobody ever
+   watched go green. `.row-title` holds the title alone, so whole-string
+   matching is the right instrument here; the create step uses it too,
+   which keeps the absence check below from going quietly vacuous if
+   that markup ever changes. */
+const exactly = (text) => page.getByText(text, { exact: true });
+
 // create
 await page.click('[aria-label="Nueva pieza"]');
 await page.waitForSelector(".sheet-panel", { timeout: 10000 });
 await page.fill("#project-title", title);
 await page.click('.sheet-footer >> text=Guardar');
 await page.waitForTimeout(1200);
-step("a new piece appears in the list", (await page.locator(`text=${title}`).count()) > 0);
+step("a new piece appears in the list", (await exactly(title).count()) > 0);
 await shot("07-created");
 
 // edit
@@ -187,18 +198,44 @@ await page.waitForSelector(".sheet-panel", { timeout: 10000 });
 await page.fill("#project-title", edited);
 await page.click('.sheet-footer >> text=Guardar');
 await page.waitForTimeout(1200);
-step("the edit replaces the old title", (await page.locator(`text=${edited}`).count()) > 0);
-step("the old title is gone", (await page.locator(`text=${title}`).count()) === 0);
+step("the edit replaces the old title", (await exactly(edited).count()) > 0);
+step("the old title is gone", (await exactly(title).count()) === 0);
 await shot("08-edited");
 
-// delete, through the two-tap confirm
+/* ── delete, through the two-tap confirm ──
+   SheetActions renders BOTH footer states into the same grid cell and
+   hides the inactive one (visibility: hidden + aria-hidden + inert), so
+   it can reserve the taller height and swap without the panel jumping.
+   That makes a substring selector the wrong instrument twice over:
+
+   - `text=Eliminar` matches case-insensitively, so it also matches the
+     hidden twin's "Sí, eliminar" AND its question ("¿Eliminar esta
+     pieza? …") — both of which sit EARLIER in the DOM than the button
+     we mean, and neither of which is clickable.
+   - `.sheet-actions-question` is in the DOM from the moment an editing
+     sheet opens, because the twin always renders one. Counting them
+     asserted nothing about whether the confirm was actually armed.
+
+   Roles fix the first: an accessibility-tree locator cannot see an
+   aria-hidden/inert subtree, so it resolves to the real button only.
+   `:visible` fixes the second, and the precondition below keeps it
+   honest — a confirm step that is asserted only after arming is a step
+   that would still "pass" if the app skipped it. */
+// `.last()` because a role locator is strict: if a closing panel is
+// still on its way out, two would match and the click would throw.
+const panel = page.locator(".sheet-panel").last();
+const confirmQuestion = page.locator(".sheet-actions-question:visible");
+
 await page.click(`text=${edited}`);
 await page.waitForSelector(".sheet-panel", { timeout: 10000 });
-await page.click('.sheet-panel >> text=Eliminar');
+step("nothing is armed before she asks", (await confirmQuestion.count()) === 0);
+await panel.getByRole("button", { name: "Eliminar", exact: true }).click();
 await page.waitForTimeout(400);
-step("deleting asks first", (await page.locator(".sheet-actions-question").count()) > 0);
-await page.click('.sheet-panel >> text=Sí, eliminar');
+step("deleting asks first", (await confirmQuestion.count()) > 0);
+await panel.getByRole("button", { name: "Sí, eliminar", exact: true }).click();
 await page.waitForTimeout(1200);
+// Substring is the stricter reading for an absence check — it matches a
+// superset, so zero of them means zero of anything containing the title.
 step("the piece is gone after confirming", (await page.locator(`text=${edited}`).count()) === 0);
 await shot("09-deleted");
 

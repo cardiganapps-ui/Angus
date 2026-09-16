@@ -902,10 +902,49 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     applyModel(replaceRange(lines, sel.startLine, sel.startCol, sel.endLine, sel.endCol, "\n"));
   };
 
+  /* Flip the task on one line. Shared by the checkbox tap, the
+     checkbox's own key handler and the Mod+Enter shortcut.
+
+     Writes linesRef BEFORE setLines, like every other mutation here.
+     The click handler used to skip that, so the next keystroke read
+     the pre-toggle line out of the ref and re-applied it — the box
+     un-ticked itself as soon as you kept typing. */
+  const toggleTaskAt = (lineIdx: number) => {
+    if (readOnly) { haptic.warn(); return; }
+    if (isNaN(lineIdx)) return;
+    const curLines = linesRef.current;
+    const line = curLines[lineIdx];
+    if (line == null) return;
+    const { line: nextLine } = toggleTaskOnLine(line);
+    if (nextLine === line) return;
+    const nextLines = [...curLines.slice(0, lineIdx), nextLine, ...curLines.slice(lineIdx + 1)];
+    pushHistory(historyRef.current, curLines, caretRef.current);
+    linesRef.current = nextLines;
+    setLines(nextLines);
+    haptic.tap();
+  };
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (readOnly) return;
+    // A task checkbox is a real control living INSIDE the
+    // contenteditable. It never gets Tab focus from in here (Tab is
+    // the list-indent key below), but a screen reader's virtual
+    // cursor can land on it — so honour Enter / Space there and let
+    // every other key fall through to the browser untouched.
+    const checkbox = (e.target as HTMLElement | null)?.closest?.("[data-mde-checkbox]") as HTMLElement | null;
+    if (checkbox) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleTaskAt(parseInt(checkbox.dataset.line || "", 10));
+      }
+      return;
+    }
     // Shortcuts
     if (e[MOD]) {
+      // Mod+Enter toggles the task on the caret's line — the keyboard
+      // path to a checkbox that Tab can't reach. Same chord Notion
+      // and Bear use, and it works wherever the caret already is.
+      if (e.key === "Enter") { e.preventDefault(); toggleTaskAt(caretRef.current.line); return; }
       const k = e.key.toLowerCase();
       if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
       if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redo(); return; }
@@ -1120,15 +1159,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     if (!target) return;
     e.preventDefault();
     e.stopPropagation();
-    if (readOnly) { haptic.warn(); return; }
-    const lineIdx = parseInt(target.dataset.line || "", 10);
-    if (isNaN(lineIdx)) return;
-    const line = lines[lineIdx];
-    const { line: nextLine } = toggleTaskOnLine(line);
-    const nextLines = [...lines.slice(0, lineIdx), nextLine, ...lines.slice(lineIdx + 1)];
-    pushHistory(historyRef.current, lines, caretRef.current);
-    setLines(nextLines);
-    haptic.tap();
+    toggleTaskAt(parseInt(target.dataset.line || "", 10));
   };
 
   // Slash-menu selection: replace the "/" on the trigger line with

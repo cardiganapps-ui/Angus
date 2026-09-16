@@ -549,8 +549,11 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 .bottom-tab-label {
   /* 5 tabs of Spanish labels ("Proyectos", "Contactos") crowd each other
      at 360px; the clamp shaves a hair off the smallest phones only and
-     leaves 390px+ at the designed 11px. */
-  font-size: clamp(10px, 2.9vw, 11px); font-weight: 700; letter-spacing: 0.01em;
+     leaves 390px+ at the designed 11px (--text-xs). The floor carries
+     --text-scale-user so her text-size setting still reaches the tab
+     labels — without it they were the one piece of chrome it couldn't
+     touch, on a screen that opts out of OS scaling. */
+  font-size: clamp(calc(10px * var(--text-scale-user, 1)), 2.9vw, var(--text-xs)); font-weight: 700; letter-spacing: 0.01em;
   line-height: 1;
   /* Active label scales up a hair, springing in alongside the icon hop. */
   transition: transform var(--dur-slow) var(--ease-spring);
@@ -774,7 +777,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 
 .fab-action-label {
   padding: 10px 6px 10px 16px;
-  font-size: 13px; font-weight: 600; color: var(--charcoal-md);
+  font-size: var(--text-md); font-weight: 600; color: var(--charcoal-md);
   white-space: nowrap; font-family: var(--font);
   letter-spacing: 0.02em;
 }
@@ -790,13 +793,13 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 /* CARDS & SECTIONS */
 .section { padding: 16px 16px 0; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.section-title { font-family: var(--font-d); font-size: 15px; font-weight: 800; color: var(--charcoal); }
+.section-title { font-family: var(--font-d); font-size: var(--text-lg); font-weight: 800; color: var(--charcoal); }
 /* Title + muted date stacked on the left of a section header (Hoy / Mañana
    on the iPad home). Lets the title stay a single bold line with the date
    as a small eyebrow beneath — never a wrapped two-line title. */
 .section-headline { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .section-sub { font-family: var(--font); font-size: var(--text-xs); font-weight: 600; color: var(--charcoal-xl); letter-spacing: 0.01em; }
-.see-all { font-size: 13px; font-weight: 600; color: var(--accent-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+.see-all { font-size: var(--text-md); font-weight: 600; color: var(--accent-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
 
 .card { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--border-lt); overflow: hidden; }
 
@@ -859,7 +862,7 @@ button.kpi-card:active {
     box-shadow var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-spring-soft);
 }
-.kpi-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--charcoal-xl); margin-bottom: 6px; }
+.kpi-label { font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--charcoal-xl); margin-bottom: 6px; }
 /* Tabular numerals — every dashboard number aligns column-style so a
    row with $1,234 next to $9 doesn't visually shimmer. Applied to the
    key value selectors here + on .bal-amt / .stat-tile-val in
@@ -868,10 +871,10 @@ button.kpi-card:active {
    styled spans that opt in via `style="font-family: var(--font-d)"`
    — most of Cardigan's per-screen numeric values use that pattern,
    so they get tabular alignment without per-call-site changes. */
-.kpi-value { font-family: var(--font-d); font-size: 22px; font-weight: 800; color: var(--charcoal); letter-spacing: -0.4px; font-variant-numeric: tabular-nums; }
+.kpi-value { font-family: var(--font-d); font-size: var(--text-xl); font-weight: 800; color: var(--charcoal); letter-spacing: -0.4px; font-variant-numeric: tabular-nums; }
 .tabular-nums { font-variant-numeric: tabular-nums; }
 [style*="--font-d"] { font-variant-numeric: tabular-nums; }
-.kpi-meta { font-size: 11px; color: var(--charcoal-xl); margin-top: 4px; }
+.kpi-meta { font-size: var(--text-xs); color: var(--charcoal-xl); margin-top: 4px; }
 
 /* BADGE
    Label text is the status hue pulled 28% toward --charcoal. The raw
@@ -913,15 +916,15 @@ button.kpi-card:active {
   background: var(--accent-mist);
   box-shadow: inset 0 0 0 2px var(--accent);
 }
-.row-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-size: 13px; font-weight: 800; color: var(--white); flex-shrink: 0; }
-.row-icon { width: 40px; height: 40px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.row-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-size: var(--text-md); font-weight: 800; color: var(--white); flex-shrink: 0; }
+.row-icon { width: 40px; height: 40px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: var(--text-lg); flex-shrink: 0; }
 .row-content { flex: 1; min-width: 0; }
-.row-title { font-size: 14px; font-weight: 600; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-.row-sub { font-size: 12px; color: var(--charcoal-xl); }
+.row-title { font-size: var(--text-md); font-weight: 600; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.row-sub { font-size: var(--text-sm); color: var(--charcoal-xl); }
 .row-right { text-align: right; flex-shrink: 0; }
-.row-amount { font-family: var(--font-d); font-size: 15px; font-weight: 700; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
-.row-date { font-size: 11px; color: var(--charcoal-xl); }
-.row-chevron { color: var(--border); font-size: 14px; flex-shrink: 0; margin-left: 4px; }
+.row-amount { font-family: var(--font-d); font-size: var(--text-lg); font-weight: 700; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+.row-date { font-size: var(--text-xs); color: var(--charcoal-xl); }
+.row-chevron { color: var(--border); font-size: var(--text-md); flex-shrink: 0; margin-left: 4px; }
 .amount-owe   { color: var(--red); }
 .amount-paid  { color: var(--green); }
 .amount-clear { color: var(--charcoal-xl); }
@@ -967,7 +970,7 @@ button.kpi-card:active {
    reserved height + opacity tween to handle the visibility flip. */
 .input-error-msg {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--red);
   line-height: 1.35;
   margin-top: 6px;
@@ -986,7 +989,7 @@ button.kpi-card:active {
   pointer-events: auto;
 }
 .input-help {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--charcoal-xl);
   line-height: 1.4;
   margin-top: 6px;
@@ -1046,7 +1049,10 @@ button.kpi-card:active {
   top: 50%;
   transform: translateY(-50%);
   font-family: var(--font);
-  font-size: 16px;
+  /* Tracks .input's size expression exactly, not --text-lg: the field
+     floors at 16px for iOS and skips --text-scale, so a token here would
+     drift the "$" off the number's baseline at the tablet tier. */
+  font-size: max(16px, calc(16px * var(--text-scale-user, 1)));
   font-weight: 600;
   color: var(--charcoal-lt);
   pointer-events: none;
@@ -1061,7 +1067,7 @@ button.kpi-card:active {
    currentColor from the text for theming consistency. */
 .form-error {
   display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: var(--red); font-weight: 600;
+  font-size: var(--text-md); color: var(--red); font-weight: 600;
   background: var(--red-bg); border-radius: var(--radius-sm);
   padding: 10px 12px; margin-bottom: 12px; line-height: 1.4;
 }
@@ -1078,7 +1084,7 @@ button.kpi-card:active {
 /* BTN */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 0 20px; height: 48px; font-size: 15px; font-weight: 700;
+  padding: 0 20px; height: 48px; font-size: var(--text-lg); font-weight: 700;
   border-radius: var(--radius-pill); border: none; cursor: pointer;
   font-family: var(--font-d); -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-slow) var(--ease-spring), filter var(--dur-fast) ease, background var(--dur-fast) ease;
@@ -1244,7 +1250,7 @@ button.kpi-card:active {
   letter-spacing: -0.2px;
 }
 .empty-state-body {
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--charcoal-md);
   line-height: 1.55;
   max-width: 320px;
@@ -1376,16 +1382,24 @@ button.kpi-card:active {
      mounts; without it, the sheet pops in solid then animates,
      which on slower devices is perceptible as a one-frame stutter.
      NO `both` (or `forwards`) fill mode — that locks the animated
-     properties (transform, opacity) at the 100% keyframe values
-     forever after the animation completes, and CSS animation fill
-     values OUTRANK inline styles in the cascade. useSheetDrag
-     writes `el.style.transform = translateY(...)` during the drag
-     gesture, and a lingering fill on transform would silently
-     suppress it — the panel can't move, drag-to-dismiss
-     completely breaks. Without the fill, the animation runs once
-     for 520ms and releases the property back to its computed
-     style (no transform = natural resting position), inline
-     mutations work normally. */
+     properties at the 100% keyframe values forever after the
+     animation completes, and CSS animation fill values OUTRANK
+     inline styles in the cascade.
+     ⚠️ THE ENTRANCE MUST NOT TOUCH `transform`. useSheetDrag moves
+     the panel with `el.style.transform = translateY(...)`, and an
+     animation outranks an inline style for the whole time it is
+     RUNNING, not just under a fill mode — so while this played, a
+     grab did nothing and the sheet read as a frozen app for its
+     first half-second. Dropping the fill alone never fixed that.
+     The keyframes therefore animate the INDEPENDENT `translate`
+     property instead: `translate` and `transform` are separate
+     properties that compose (translate first), so the rise and the
+     finger add up rather than fight, and the panel answers a drag
+     from frame one. It also keeps useSheetDrag's release honest —
+     it reads `getComputedStyle(panel).transform`, which now carries
+     the drag offset ALONE instead of the drag plus wherever the
+     rise happened to be. Same reason sheetScaleIn (768+, in
+     responsive.css) animates `scale`, not transform: scale(). */
   animation: sheetRiseIn 520ms var(--ease-out);
 }
 /* Focus trap parks focus on the panel itself (tabindex=-1) so no inner
@@ -1393,19 +1407,20 @@ button.kpi-card:active {
    outline on that container-level focus. Inner buttons still get the
    normal :focus-visible treatment for keyboard navigation. */
 .sheet-panel:focus, .sheet-panel:focus-visible { outline: none; }
+/* `translate`, not `transform` — see the warning on .sheet-panel. */
 @keyframes sheetRiseIn {
-  0%   { transform: translateY(100%); opacity: 0.94; }
-  58%  { transform: translateY(-8px); opacity: 1; }
-  80%  { transform: translateY(3px); }
-  100% { transform: translateY(0); opacity: 1; }
+  0%   { translate: 0 100%; opacity: 0.94; }
+  58%  { translate: 0 -8px; opacity: 1; }
+  80%  { translate: 0 3px; }
+  100% { translate: 0 0; opacity: 1; }
 }
 /* Legacy alias — some screens reference `slideUp` directly. Map to
    the new keyframe so a one-line search-replace later isn't needed. */
 @keyframes slideUp {
-  0%   { transform: translateY(100%); opacity: 0.94; }
-  58%  { transform: translateY(-8px); opacity: 1; }
-  80%  { transform: translateY(3px); }
-  100% { transform: translateY(0); opacity: 1; }
+  0%   { translate: 0 100%; opacity: 0.94; }
+  58%  { translate: 0 -8px; opacity: 1; }
+  80%  { translate: 0 3px; }
+  100% { translate: 0 0; opacity: 1; }
 }
 
 /* ── Sheet exit animation ──
@@ -1438,10 +1453,13 @@ button.kpi-card:active {
      completes before the panel settles. */
   animation: scrimFadeOut var(--dur-fast) var(--ease-out) both;
 }
+/* The 768+ entrance (responsive.css). `scale`, not transform: scale() —
+   same reason as sheetRiseIn: an iPad drags its sheets too, and the
+   entrance must not own the property useSheetDrag writes. */
 @keyframes sheetScaleIn {
-  0%   { opacity: 0; transform: scale(0.9); }
-  70%  { opacity: 1; transform: scale(1.02); }
-  100% { opacity: 1; transform: scale(1); }
+  0%   { opacity: 0; scale: 0.9; }
+  70%  { opacity: 1; scale: 1.02; }
+  100% { opacity: 1; scale: 1; }
 }
 @keyframes expedientePullUp {
   0%   { transform: translateY(100%); }
@@ -1468,10 +1486,14 @@ button.kpi-card:active {
    predictable when the title carries a long patient name (e.g.
    PotentialProfileSheet shows {patient.name} as the title). The
    font-size also clamps slightly downward on narrow viewports so a
-   modestly-long title fits at full size before truncation kicks in. */
+   modestly-long title fits at full size before truncation kicks in.
+   The cap is --text-lg (the scale's documented "sheet title" step; it
+   was a literal 17px, one pixel off the scale and deaf to her text-size
+   setting) and the vw term carries --text-scale-user so the middle of
+   the clamp grows with it too. */
 .sheet-title {
   font-family: var(--font-d);
-  font-size: clamp(15px, 4.4vw, 17px);
+  font-size: clamp(var(--text-md), calc(4.4vw * var(--text-scale-user, 1)), var(--text-lg));
   font-weight: 800;
   color: var(--charcoal);
   flex: 1 1 auto;
@@ -1480,7 +1502,7 @@ button.kpi-card:active {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sheet-close { width: 30px; height: 30px; border-radius: 50%; background: var(--cream-dark); border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; position: relative; }
+.sheet-close { width: 30px; height: 30px; border-radius: 50%; background: var(--cream-dark); border: none; cursor: pointer; font-size: var(--text-lg); display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; position: relative; }
 .sheet-close::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
 /* Compact controls keep their look but answer to a 44px-tall thumb.
    Wrapping rows that hold them carry a >=10px row-gap so two 44px hit
@@ -1667,7 +1689,7 @@ button.row-item {
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 8px; border-radius: var(--radius-pill);
-  font-size: clamp(10px, 2.9vw, 12px); font-weight: 600;
+  font-size: clamp(calc(10px * var(--text-scale-user, 1)), 2.9vw, var(--text-sm)); font-weight: 600;
   border: 1px solid var(--border); background: var(--white); color: var(--charcoal-lt);
   cursor: pointer; white-space: nowrap; flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
@@ -1718,7 +1740,7 @@ button.row-item {
 .picker-row--active .row-title { color: var(--accent-dark); font-weight: 700; }
 .picker-row-none { color: var(--charcoal-xl); font-weight: 500; }
 .picker-check { display: inline-flex; color: var(--accent); flex-shrink: 0; }
-.picker-empty { padding: 20px 16px; font-size: 13px; color: var(--charcoal-xl); text-align: center; }
+.picker-empty { padding: 20px 16px; font-size: var(--text-md); color: var(--charcoal-xl); text-align: center; }
 
 /* ── SHEET ACTIONS ──
    <SheetActions />: both footer states (Guardar/Eliminar and the
@@ -1770,7 +1792,9 @@ button.row-item {
 .search-field input {
   flex: 1; min-width: 0; height: 100%;
   border: none; background: none; outline: none;
-  font-family: var(--font); font-size: 16px; color: var(--charcoal);
+  /* Same expression as .input — a real text field, so it keeps the 16px
+     iOS zoom floor rather than reading --text-lg. */
+  font-family: var(--font); font-size: max(16px, calc(16px * var(--text-scale-user, 1))); color: var(--charcoal);
 }
 .search-field input::placeholder { color: var(--charcoal-lt); }
 .search-field-clear {

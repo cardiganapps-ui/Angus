@@ -4,10 +4,10 @@ import type { ToastEntry } from "../components/Toast";
 /* ── useToastQueue ──
    Port of Cardigan's single toast channel: every surface pushes into
    ONE queue; the UI renders up to MAX_TOASTS with a stagger, oldest
-   fading first. Persistent toasts don't auto-dismiss. Cardigan's
-   data-layer error channels (mutationError / fetchError → persistent
-   retry toasts) are not ported — Angus has no such signals yet; wire
-   them here when the cloud store exposes them. */
+   fading first. Persistent toasts don't auto-dismiss — a rejected write
+   or a failed read stays until she acknowledges it (DataErrorToast),
+   which is why the over-cap eviction below evicts non-persistent
+   entries first and a repeated failure must pass a `key`. */
 
 const MAX_TOASTS = 5;
 

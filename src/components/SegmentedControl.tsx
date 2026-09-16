@@ -22,10 +22,18 @@
  *   onChange(key)
  *   size    — "sm" (default) | "md" — md uses heavier font for primary tabs
  *   role, ariaLabel — optional pass-through
+ *
+ * Two ARIA shapes, picked by `role`:
+ *   "tablist" (default) — children are role="tab" + aria-selected.
+ *   "radiogroup"        — children are role="radio" + aria-checked, with
+ *                         the roving tabindex + arrow-key selection the
+ *                         ARIA radiogroup pattern requires. Modeled on
+ *                         ChipSelect, the other custom radio group here.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { haptic } from "../lib/haptics";
+import { nextSegmentIndex, segmentTabIndex } from "../utils/segmentedKeys";
 
 interface SegItem { k: string; l: ReactNode }
 
@@ -40,6 +48,8 @@ export function SegmentedControl({ items, value, onChange, size = "sm", role = "
 }) {
   const activeIndex = items.findIndex(it => it.k === value);
   const showSlider = activeIndex >= 0;
+  const isRadio = role === "radiogroup";
+  const rootRef = useRef<HTMLDivElement>(null);
 
   // Edge bounce — same intent as before: when the slider lands on
   // the first or last tab, swap the easing to a momentum-squish
@@ -68,24 +78,47 @@ export function SegmentedControl({ items, value, onChange, size = "sm", role = "
       : ""
   }`;
 
+  // Arrow keys move AND select, which is the radiogroup contract. The
+  // buttons are the only element children besides the slider span, so
+  // a plain button query indexes 1:1 with `items`.
+  const select = (index: number) => {
+    const it = items[index];
+    if (!it) return;
+    if (it.k !== value) haptic.tap();
+    onChange(it.k);
+    rootRef.current?.querySelectorAll("button")[index]?.focus();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (!isRadio) return;
+    const next = nextSegmentIndex(e.key, index, items.length);
+    if (next == null) return;
+    e.preventDefault();
+    select(next);
+  };
+
   return (
     <div
+      ref={rootRef}
       className={`segmented segmented--${size}`}
       role={role}
       aria-label={ariaLabel}
       style={{ "--active-i": activeIndex, "--tab-count": items.length, ...style } as CSSProperties}
     >
       {showSlider && <span className={sliderClass} aria-hidden="true" />}
-      {items.map(it => (
+      {items.map((it, i) => (
         <button
           key={it.k}
-          role={role === "tablist" ? "tab" : undefined}
+          role={isRadio ? "radio" : role === "tablist" ? "tab" : undefined}
           aria-selected={role === "tablist" ? value === it.k : undefined}
+          aria-checked={isRadio ? value === it.k : undefined}
+          tabIndex={isRadio ? segmentTabIndex(i, activeIndex) : undefined}
           className={`segmented-btn ${value === it.k ? "active" : ""}`}
           onClick={() => {
             if (it.k !== value) haptic.tap();
             onChange(it.k);
           }}
+          onKeyDown={(e) => onKeyDown(e, i)}
           type="button"
         >
           {it.l}

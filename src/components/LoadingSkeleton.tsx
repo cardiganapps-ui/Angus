@@ -3,12 +3,12 @@ import type { Route } from "../hooks/useNavigation";
 
 /* ── LoadingSkeleton ──
    First paint while auth / data resolves. Mirrors the destination
-   layout (page header, then per route: 2-up KPI tiles + a card of
-   rows for Home, a card of rows for the list screens, two sections
-   for Agenda) with .sk-bar / .sk-circle shimmer bars so the
-   transition to real content feels continuous — never a bare
-   "Cargando…" string. The shimmer pauses under prefers-reduced-motion
-   via responsive.css. */
+   layout (page header, then per route: Home's four-section stack — see
+   SkeletonDashboard — 2-up KPI tiles for Dinero, a card of rows for the
+   list screens, two sections for Agenda) with .sk-bar / .sk-circle
+   shimmer bars so the transition to real content feels continuous —
+   never a bare "Cargando…" string. The shimmer stops under
+   prefers-reduced-motion via responsive.css. */
 export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
   return (
     <div className="page" aria-busy="true" aria-label="Cargando">
@@ -87,31 +87,44 @@ export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
 }
 
 /* ── Dashboard skeleton ──
-   Mirrors Home's real stack — attention rows, the money-pulse card with
-   its hero figure over three stats, the six-month chart, and the taller
-   figures — so the first paint already has the destination's shape and
-   the crossfade has nothing to jump over. */
+   Mirrors Home's real stack — the attention block, the money-pulse card
+   with its hero figure over three stats, the six-month chart, and the
+   taller figures — so the first paint already has the destination's
+   shape and the crossfade has nothing to jump over. */
 function SkeletonDashboard() {
   return (
     <>
+      {/* Home's first block is one of two shapes and the skeleton can't
+          know which: a section header over N attention rows when
+          something is late, or a single .dash-calm line when nothing is.
+          This mirrors the CALM one, because that is the steady state —
+          the busy shape (header + two 62px rows = ~150px against the
+          calm line's ~69px) is ~80px taller, so guessing it shoved the
+          whole page up mid-crossfade on every ordinary load.
+          Guessing calm costs a downward shift only on the days she
+          already has something to deal with. Reusing .card .dash-calm
+          (not a hand-tuned box) is what keeps the two in register: the
+          padding, gap and icon size are the real ones. */}
       <div className="section">
-        <div className="section-header">
-          <span className="sk-bar sk-bar-md" style={{ width: 150 }} />
-        </div>
-        <div className="card">
-          {[0, 1].map((i) => (
-            <div className="row-item" key={i} style={{ cursor: "default", gap: 12 }}>
-              <span className="sk-bar" style={{ width: 34, height: 34, borderRadius: 12 }} />
-              <div
-                className="row-content"
-                style={{ display: "flex", flexDirection: "column", gap: 6 }}
-              >
-                <span className="sk-bar sk-bar-md" style={{ width: `${62 - i * 8}%` }} />
-                <span className="sk-bar sk-bar-xs" style={{ width: `${48 + i * 6}%` }} />
-              </div>
-              <span className="sk-bar sk-bar-md" style={{ width: 62 }} />
-            </div>
-          ))}
+        <div className="card dash-calm">
+          <span className="sk-circle" style={{ width: 34, height: 34 }} />
+          <div
+            className="dash-calm-text"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: 7,
+              // The real text column is a --text-md line box + a 2px
+              // margin + a --text-xs line box; spelling that out keeps
+              // the two heights equal at every text-size setting.
+              height: "calc(var(--text-md) * 1.5 + 2px + var(--text-xs) * 1.45)"
+            }}
+          >
+            <span className="sk-bar sk-bar-md" style={{ width: 92 }} />
+            <span className="sk-bar sk-bar-xs" style={{ width: "76%" }} />
+          </div>
         </div>
       </div>
 

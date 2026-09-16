@@ -63,17 +63,29 @@ export async function importLocalData(workspaceId: string): Promise<boolean> {
   // Each step is idempotent (ids are the client's, duplicates are
   // skipped) and clears its own key, so a failure midway resumes
   // where it stopped instead of re-inserting what already landed.
-  const steps: [string, string, Record<string, unknown>[]][] = [
-    [contactStore.table, KEYS.contacts, withWs(contacts.map(contactStore.toRow))],
-    [projectStore.table, KEYS.projects, withWs(projects.map(projectStore.toRow))],
-    [eventStore.table, KEYS.events, withWs(events.map(eventStore.toRow))]
+  const steps: [string, string, Record<string, unknown>[], boolean][] = [
+    [contactStore.table, KEYS.contacts, withWs(contacts.map(contactStore.toRow)), rawContacts !== null],
+    [projectStore.table, KEYS.projects, withWs(projects.map(projectStore.toRow)), rawProjects !== null],
+    [eventStore.table, KEYS.events, withWs(events.map(eventStore.toRow)), rawEvents !== null]
   ];
-  for (const [table, key, rows] of steps) {
+  for (const [table, key, rows, readable] of steps) {
     if (rows.length > 0) {
       const { error } = await supabase.from(table).upsert(rows, { onConflict: "id", ignoreDuplicates: true });
       if (error) throw new Error(error.message);
     }
-    localStorage.removeItem(key);
+    /* Same rule the nothing-to-import path above already follows, which
+       this loop did not: a key we could not parse is the only copy of
+       whatever it holds, so it is never cleared. An unparseable blob
+       yields no rows, so this loop skipped its upsert and then deleted it
+       anyway — destroying by-hand-recoverable data whenever a sibling key
+       happened to have something in it. */
+    if (readable) {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        /* non-fatal: the rows landed, which is what matters */
+      }
+    }
   }
   return true;
 }

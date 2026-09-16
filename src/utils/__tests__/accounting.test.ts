@@ -15,6 +15,7 @@ import {
   overdueInstallments,
   paidForSale,
   profitLoss,
+  refundableInRange,
   projectEconomics,
   projectMargins,
   saleBalance,
@@ -246,6 +247,46 @@ describe("profit & loss", () => {
       { category: "materials", amount: 800 },
       { category: "transport", amount: 200 }
     ]);
+  });
+});
+
+describe("refundableInRange", () => {
+  const sales = [
+    sale("s1", 10000, "confirmed"),
+    sale("s2", 8000, "cancelled"),
+    sale("s3", 900, "quoted")
+  ];
+  const payments = [
+    payment("p1", "s1", 2000, "2026-09-03"),
+    payment("p2", "s2", 4000, "2026-09-04"), // deposit on the cancelled one
+    payment("p3", "s2", 1500, "2026-08-20"), // same sale, earlier month
+    payment("p4", "s3", 900, "2026-09-07") // quoted, never cancelled
+  ];
+
+  it("counts only payments in the range whose sale is cancelled", () => {
+    expect(refundableInRange(sales, payments, "2026-09-01", "2026-09-30")).toBe(4000);
+    expect(refundableInRange(sales, payments, "2026-08-01", "2026-08-31")).toBe(1500);
+  });
+
+  /* The whole point of scoping it: totals().refundable is the standing
+     liability across all time, this is the slice of ONE period's cash
+     that isn't hers. A deposit taken in August and cancelled in
+     September belongs to August's slice and to today's total alike. */
+  it("differs from the all-time liability when the two fall in different months", () => {
+    expect(totals(sales, payments).refundable).toBe(5500);
+    expect(refundableInRange(sales, payments, "2026-09-01", "2026-09-30")).toBe(4000);
+  });
+
+  /* INVARIANT: always a subset of the same range's cash income, so
+     `income − refundableInRange` can never go negative. */
+  it("never exceeds the range's income", () => {
+    const income = profitLoss(payments, [], "2026-09-01", "2026-09-30").income;
+    expect(refundableInRange(sales, payments, "2026-09-01", "2026-09-30")).toBeLessThanOrEqual(income);
+  });
+
+  it("is zero with nothing cancelled, and includes both boundaries", () => {
+    expect(refundableInRange([sales[0]], payments, "2026-09-01", "2026-09-30")).toBe(0);
+    expect(refundableInRange(sales, payments, "2026-09-04", "2026-09-04")).toBe(4000);
   });
 });
 

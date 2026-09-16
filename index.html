@@ -10,6 +10,33 @@
     <title>Angus</title>
     <link rel="apple-touch-icon" href="/icon-192.png" />
   <meta name="apple-mobile-web-app-title" content="Angus" />
+    <script>
+      /* Blocking and inline ON PURPOSE. dark.css only defines its tokens
+         under html[data-theme="dark"], and hooks/useTheme.ts stamps that
+         attribute from a useEffect — i.e. after React has already painted.
+         Every dark-mode cold start therefore flashed a full-brightness
+         white page. This resolves the same stored preference the hook
+         does, with the same key and the same DOM writes, so the hook's
+         mount pass is a no-op and nothing flips a second time. */
+      (function () {
+        try {
+          var pref = null;
+          /* Private mode / blocked site data: reading throws. Fall through
+             to the OS preference rather than losing first paint. */
+          try { pref = localStorage.getItem("angus-theme"); } catch (e) { /* ignore */ }
+          var dark =
+            pref === "dark" ||
+            (pref !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+          /* The two metas above are media-scoped, which is right for
+             "seguir al sistema" but wrong for an explicit pick — collapse
+             both onto the resolved color, exactly as useTheme does. */
+          var color = dark ? "#1A1620" : "#FFFFFF";
+          var metas = document.querySelectorAll('meta[name="theme-color"]');
+          for (var i = 0; i < metas.length; i++) metas[i].content = color;
+        } catch (e) { /* theming must never be what blocks the app booting */ }
+      })();
+    </script>
 </head>
   <body>
     <div id="root"></div>

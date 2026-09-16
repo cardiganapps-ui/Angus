@@ -66,6 +66,19 @@ type Urgency = "overdue" | "today" | "soon";
 const urgencyOf = (days: number): Urgency =>
   days < 0 ? "overdue" : days === 0 ? "today" : "soon";
 
+/* Amber = pending obligation, and always with the words "Por devolver" —
+   the term Dinero uses for the same pesos. Never red: red on this screen
+   is overdue money owed TO her. */
+const REFUND_TEXT: CSSProperties = { color: "var(--amber)" };
+const REFUND_BAND: CSSProperties = { marginTop: 14 };
+const REFUND_HEAD: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10
+};
+const REFUND_NOTE: CSSProperties = { marginTop: 6, lineHeight: 1.5 };
+
 const ATTENTION_ICON: Record<AttentionItem["kind"], IconName> = {
   installment: "banknote",
   followup: "users",
@@ -141,7 +154,15 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   );
   const pulse = useMemo(() => moneyPulse(sales, payments, expenses, today), [sales, payments, expenses, today]);
   const delta = useMemo(() => netDelta(pulse.netChange, today), [pulse.netChange, today]);
-  const goal = useMemo(() => goalProgress(pulse.income, settings.monthlyIncomeGoal), [pulse.income, settings.monthlyIncomeGoal]);
+  /* `pulse.earned`, not `pulse.income`. The trio below (Entró / Salió /
+     el neto) stays strict cash basis — same numbers as Dinero and the
+     trend chart, and a closed month is never rewritten. The goal ring
+     answers a different question: money she is holding to hand back on a
+     cancelled sale isn't progress toward a target, and celebrating it
+     while Dinero calls the same pesos "Por devolver" is the app telling
+     her two things at once. The band above the ring names the gap so the
+     two figures never look like a rounding error. */
+  const goal = useMemo(() => goalProgress(pulse.earned, settings.monthlyIncomeGoal), [pulse.earned, settings.monthlyIncomeGoal]);
   const chart = useMemo(
     () => trendChart(monthlyTrend(payments, expenses, today, TREND_MONTHS), today.slice(0, 7)),
     [payments, expenses, today]
@@ -389,6 +410,21 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
               </div>
             </div>
           </div>
+
+          {pulse.refundable > 0 && (
+            <div className="money-panel" style={REFUND_BAND}>
+              <div style={REFUND_HEAD}>
+                <span className="badge badge-amber">Por devolver</span>
+                <span className="money-stat-value" style={REFUND_TEXT}>
+                  {formatMXNShort(pulse.refundable)}
+                </span>
+              </div>
+              <div className="money-submeta" style={REFUND_NOTE}>
+                Entró este mes, pero viene de ventas canceladas: es de tus clientes hasta que se
+                los devuelvas{goal ? " y no cuenta para tu meta" : ""}.
+              </div>
+            </div>
+          )}
 
           {goal && (
             <div className={`dash-goal ${goal.reached ? "dash-goal--reached" : ""}`}>

@@ -61,9 +61,16 @@ export class AppErrorBoundary extends Component<Props, State> {
             <Icon name="alert" size={20} />
           </div>
           <div className="empty-state-title">Algo se rompió</div>
+          {/* "Nada se perdió" was not a claim this boundary could make. It
+              wraps the screen, and sheets are component state, not routes —
+              so a half-filled sheet lives inside the subtree being replaced
+              here, and Recargar is what finishes it off. Saved rows really
+              are safe; what she was typing is not, and she is the one who
+              should decide what to do about that. */}
           <div className="empty-state-body">
-            Esta pantalla no pudo abrirse. Tus datos están a salvo — nada se perdió. Puedes
-            recargar, o ir a otra pantalla desde el menú.
+            Esta pantalla no pudo abrirse. Lo que ya guardaste está a salvo; lo que estabas
+            escribiendo aquí, no. Puedes recargar para empezar de nuevo, o ir a otra pantalla
+            desde el menú.
           </div>
           <div className="crash-actions">
             <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>

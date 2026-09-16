@@ -6,7 +6,7 @@ import {
   projectMargins,
   type EconomicsRow
 } from "../utils/accounting";
-import { formatMXN, formatMXNShort, formatMXNShortSigned } from "../utils/money";
+import { formatMXN, formatMXNShort, formatMXNShortSigned, toCents } from "../utils/money";
 import { formatShort } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
@@ -19,6 +19,15 @@ const PIECE_PREVIEW = 8;
 
 const marginClass = (margin: number) =>
   margin < 0 ? "money-margin-neg" : margin > 0 ? "money-margin-pos" : "";
+
+/* Money she owes OUT is not money owed IN, so it can't borrow
+   `.amount-owe` (red) — red already means "this client owes me" one row
+   above, and two opposite directions in the same colour, in the same
+   column, is a misread waiting to happen. Amber is the reserved
+   pending/warning hue and it always ships with the words "Por devolver",
+   the term Dinero already uses for the same pesos. Colour never carries
+   it alone. */
+const REFUND_AMOUNT: CSSProperties = { color: "var(--amber)" };
 
 /* ── Balance ──
    The third money question: was it worth it? Per client, per piece, per
@@ -92,6 +101,13 @@ export function BalanceView({
           <div className="card">
             {clients.map((client, i) => {
               const contact = contacts.find((c) => c.id === client.contactId);
+              /* Three states, not two. `clientBalances` keeps a client whose
+                 only sale was cancelled precisely because she owes them a
+                 deposit back; branching on `owed` alone sent that row into
+                 the "Al corriente" branch and told her there was nothing to
+                 do. Only a client with neither side pending is settled. */
+              const owes = toCents(client.owed) > 0;
+              const refund = toCents(client.refundable) > 0;
               return (
                 <button
                   key={client.contactId}
@@ -103,23 +119,35 @@ export function BalanceView({
                   <div className="row-content">
                     <div className="row-title">{contact?.name ?? "Cliente sin nombre"}</div>
                     <div className="row-sub">
-                      {client.saleCount} {client.saleCount === 1 ? "venta" : "ventas"} ·{" "}
-                      {formatMXNShort(client.committed)}
+                      {client.saleCount === 0
+                        ? "Sin ventas activas · su venta se canceló"
+                        : `${client.saleCount} ${client.saleCount === 1 ? "venta" : "ventas"} · ${formatMXNShort(client.committed)}`}
                     </div>
                   </div>
-                  {client.owed > 0 ? (
-                    <div className="money-row-right">
-                      <span className="row-amount amount-owe">{formatMXN(client.owed)}</span>
-                      <span className="money-submeta">
-                        {formatMXNShort(client.collected)} de {formatMXNShort(client.committed)}
+                  <div className="money-row-right">
+                    {owes && (
+                      <>
+                        <span className="row-amount amount-owe">{formatMXN(client.owed)}</span>
+                        <span className="money-submeta">
+                          {formatMXNShort(client.collected)} de {formatMXNShort(client.committed)}
+                        </span>
+                      </>
+                    )}
+                    {refund && (
+                      <>
+                        <span className="row-amount" style={REFUND_AMOUNT}>
+                          {formatMXN(client.refundable)}
+                        </span>
+                        <span className="badge badge-amber">Por devolver</span>
+                      </>
+                    )}
+                    {!owes && !refund && (
+                      <span className="badge badge-green money-settled">
+                        <Icon name="check" size={12} strokeWidth={2.6} />
+                        Al corriente
                       </span>
-                    </div>
-                  ) : (
-                    <span className="badge badge-green money-settled">
-                      <Icon name="check" size={12} strokeWidth={2.6} />
-                      Al corriente
-                    </span>
-                  )}
+                    )}
+                  </div>
                 </button>
               );
             })}

@@ -10,9 +10,15 @@ import type {
   Sale,
   ScheduleEvent
 } from "../types";
-import { overdueInstallments, profitLoss, saleCountsTowardRevenue, totals } from "./accounting";
+import {
+  overdueInstallments,
+  profitLoss,
+  refundableInRange,
+  saleCountsTowardRevenue,
+  totals
+} from "./accounting";
 import { addMonths, daysBetween, monthRange } from "./dates";
-import { fromCents, remainder, sumMoney, toCents } from "./money";
+import { fromCents, remainder, subtractMoney, sumMoney, toCents } from "./money";
 
 /* ── Dashboard derivations ──
    Everything the home screen shows is derived here so the screen stays a
@@ -300,11 +306,27 @@ export interface MoneyPulse {
   expenses: number;
   net: number;
   owed: number;
+  /** Of this month's income, what she is holding to give back (cancelled sales). */
+  refundable: number;
+  /** income − refundable: the month's cash that is actually hers to keep. */
+  earned: number;
   /** Net change vs the previous month; null when there's no prior data. */
   netChange: number | null;
 }
 
-/** The money half of the dashboard: this month, versus last. */
+/* The money half of the dashboard: this month, versus last.
+
+   `income` / `expenses` / `net` stay strict cash basis — they are the
+   same numbers as the trend chart and Dinero's "Este mes", and a closed
+   month must never be rewritten by a status edited later.
+
+   `earned` is the answer to a DIFFERENT question, the one the goal ring
+   asks: "how am I doing this month against my target". A deposit taken
+   on the 3rd for a commission cancelled on the 20th is cash that arrived
+   (so it stays in `income`) but it is not progress toward a target —
+   it's a liability Dinero is simultaneously reporting as "Por devolver".
+   Counting it twice, once as progress and once as a debt, is what made
+   Hoy and Dinero contradict each other on the same money. */
 export function moneyPulse(
   sales: Sale[],
   payments: Payment[],
@@ -313,19 +335,29 @@ export function moneyPulse(
 ): MoneyPulse {
   const [previous, current] = monthlyTrend(payments, expenses, today, 2);
   const hadPrevious = previous.income !== 0 || previous.expenses !== 0;
+  const { from, to } = monthRange(today);
+  const refundable = refundableInRange(sales, payments, from, to);
   return {
     income: current.income,
     expenses: current.expenses,
     net: current.net,
     owed: totals(sales, payments).owed,
-    netChange: hadPrevious ? current.net - previous.net : null
+    refundable,
+    // Never negative: refundableInRange sums a subset of the payments
+    // `income` already counted.
+    earned: subtractMoney(current.income, refundable),
+    netChange: hadPrevious ? subtractMoney(current.net, previous.net) : null
   };
 }
 
 /* ── Monthly goal ──
    How far this month's collected income is from the goal she set in
    Ajustes. `ratio` is clamped to 1 so a ring never overdraws; `reached`
-   is the celebration flag. */
+   is the celebration flag.
+
+   Feed it `moneyPulse().earned`, never `.income`: cash she is holding to
+   refund on a cancelled sale is not progress toward a target. See the
+   note on moneyPulse. */
 export interface GoalProgress {
   collected: number;
   goal: number;
