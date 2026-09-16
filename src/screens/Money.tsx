@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import type { Contact, Expense, Payment, Sale } from "../types";
 import {
@@ -56,9 +56,15 @@ export function Money() {
 
   const today = todayISO();
   const month = monthRange(today);
-  const { owed, refundable } = totals(sales, payments);
-  const net = profitLoss(payments, expenses, month.from, month.to).net;
-  const fixedOut = sumMoney(rules.filter((r) => r.kind === "expense" && r.active).map(monthlyEquivalent));
+  const { owed, refundable } = useMemo(() => totals(sales, payments), [sales, payments]);
+  const net = useMemo(
+    () => profitLoss(payments, expenses, month.from, month.to).net,
+    [payments, expenses, month.from, month.to]
+  );
+  const fixedOut = useMemo(
+    () => sumMoney(rules.filter((r) => r.kind === "expense" && r.active).map(monthlyEquivalent)),
+    [rules]
+  );
 
   function switchView(next: View) {
     lastView = next;

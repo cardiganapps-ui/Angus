@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { ExpenseCategory } from "../types";
@@ -26,13 +26,24 @@ export function Budgets() {
   const range = periodRange(period);
   const months = period.span === "year" ? 12 : period.span === "quarter" ? 3 : 1;
 
-  const scaled = Object.fromEntries(
-    Object.entries(settings.budgets).map(([k, v]) => [k, (v ?? 0) * months])
-  ) as Partial<Record<ExpenseCategory, number>>;
-  const rows = budgetProgress(expenses, scaled, range.from, range.to);
-  const budgeted = new Set(rows.map((r) => r.category));
-  const unbudgeted = expensesByCategory(expenses, range.from, range.to).filter(
-    (c) => !budgeted.has(c.category as ExpenseCategory)
+  const scaled = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(settings.budgets).map(([k, v]) => [k, (v ?? 0) * months])
+      ) as Partial<Record<ExpenseCategory, number>>,
+    [settings.budgets, months]
+  );
+  const rows = useMemo(
+    () => budgetProgress(expenses, scaled, range.from, range.to),
+    [expenses, scaled, range.from, range.to]
+  );
+  const budgeted = useMemo(() => new Set(rows.map((r) => r.category)), [rows]);
+  const unbudgeted = useMemo(
+    () =>
+      expensesByCategory(expenses, range.from, range.to).filter(
+        (c) => !budgeted.has(c.category as ExpenseCategory)
+      ),
+    [expenses, range.from, range.to, budgeted]
   );
   const totalLimit = sumMoney(rows.map((r) => r.limit));
   const totalSpent = sumMoney(rows.map((r) => r.spent));

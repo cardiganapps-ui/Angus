@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import type { Contact, Expense, Payment, Project, Sale, ScheduleEvent } from "../types";
 import {
   clientBalances,
@@ -42,26 +42,29 @@ export function BalanceView({
   const [clientId, setClientId] = useState<string | null>(null);
   const [allPieces, setAllPieces] = useState(false);
 
-  const clients = clientBalances(sales, payments);
+  /* projectMargins and expoMargins walk every sale, payment and expense
+     once per project and once per expo. Unmemoized they re-ran on every
+     render of this screen, including one caused by tapping "ver todas". */
+  const clients = useMemo(() => clientBalances(sales, payments), [sales, payments]);
 
-  const pieces = projectMargins(
-    projects.map((p) => p.id),
-    sales,
-    payments,
-    expenses
+  const pieces = useMemo(
+    () => projectMargins(projects.map((p) => p.id), sales, payments, expenses),
+    [projects, sales, payments, expenses]
   );
-  const piecesById = new Map(projects.map((p) => [p.id, p]));
+  const piecesById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 
-  const expoEvents = events
-    .filter((e) => e.kind === "expo")
-    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
-  const expos = expoMargins(
-    expoEvents.map((e) => e.id),
-    sales,
-    payments,
-    expenses
+  const expoEvents = useMemo(
+    () =>
+      events
+        .filter((e) => e.kind === "expo")
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
+    [events]
   );
-  const exposById = new Map(expoEvents.map((e) => [e.id, e]));
+  const expos = useMemo(
+    () => expoMargins(expoEvents.map((e) => e.id), sales, payments, expenses),
+    [expoEvents, sales, payments, expenses]
+  );
+  const exposById = useMemo(() => new Map(expoEvents.map((e) => [e.id, e])), [expoEvents]);
 
   if (clients.length === 0 && pieces.length === 0 && expos.length === 0) {
     return (

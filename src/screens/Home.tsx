@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import type { Assignment, Contact, Note, Project, QuickAction, ScheduleEvent } from "../types";
 import type { Route } from "../hooks/useNavigation";
@@ -104,38 +104,74 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   const { notes, sessionNote } = useNotes();
 
   const today = todayISO();
-  const attention = attentionItems(
-    { sales, payments, installments, contacts, projects, events, groups, attendance, assignments },
-    today
+
+  /* Every figure below is derived from the full dataset, and this is the
+     default screen — so without these memos a keystroke in any open
+     sheet re-ran the whole dashboard over every sale, payment, event and
+     note the workspace holds. */
+  const attention = useMemo(
+    () =>
+      attentionItems(
+        { sales, payments, installments, contacts, projects, events, groups, attendance, assignments },
+        today
+      ),
+    [sales, payments, installments, contacts, projects, events, groups, attendance, assignments, today]
   );
   // Homework that isn't urgent yet still deserves a quiet line.
-  const dueSoon = dueAssignments(assignments, today);
+  const dueSoon = useMemo(() => dueAssignments(assignments, today), [assignments, today]);
   const entregasSemana = dueSoon.today.length + dueSoon.soon.length;
   // The student block: today's class, the note she was last in.
-  const studying = courses.some((c) => c.status === "active" || c.status === "upcoming");
-  const todaySession = events
-    .filter((e) => !e.cancelled && e.courseId !== null && e.date === today)
-    .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))[0];
-  const lastNote = studying || notes.length > 0 ? [...notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] : undefined;
-  const courseName = (id: string | null) => (id ? courses.find((c) => c.id === id)?.name : undefined);
-  const pulse = moneyPulse(sales, payments, expenses, today);
-  const delta = netDelta(pulse.netChange, today);
-  const goal = goalProgress(pulse.income, settings.monthlyIncomeGoal);
-  const chart = trendChart(
-    monthlyTrend(payments, expenses, today, TREND_MONTHS),
-    today.slice(0, 7)
+  const studying = useMemo(
+    () => courses.some((c) => c.status === "active" || c.status === "upcoming"),
+    [courses]
   );
-  const snapshot = practiceSnapshot(projects, events, sales, today);
+  const todaySession = useMemo(
+    () =>
+      events
+        .filter((e) => !e.cancelled && e.courseId !== null && e.date === today)
+        .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))[0],
+    [events, today]
+  );
+  const lastNote = useMemo(
+    () =>
+      studying || notes.length > 0
+        ? [...notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+        : undefined,
+    [studying, notes]
+  );
+  const pulse = useMemo(() => moneyPulse(sales, payments, expenses, today), [sales, payments, expenses, today]);
+  const delta = useMemo(() => netDelta(pulse.netChange, today), [pulse.netChange, today]);
+  const goal = useMemo(() => goalProgress(pulse.income, settings.monthlyIncomeGoal), [pulse.income, settings.monthlyIncomeGoal]);
+  const chart = useMemo(
+    () => trendChart(monthlyTrend(payments, expenses, today, TREND_MONTHS), today.slice(0, 7)),
+    [payments, expenses, today]
+  );
+  const snapshot = useMemo(
+    () => practiceSnapshot(projects, events, sales, today),
+    [projects, events, sales, today]
+  );
 
-  const contactName = (id?: string) => contacts.find((c) => c.id === id)?.name;
+  /* Lookup maps, not repeated .find(). describe() runs once per
+     attention row and used to scan sales, contacts, courses and
+     projects from the top each time — O(rows x items) on every render. */
+  const contactById = useMemo(() => new Map(contacts.map((c) => [c.id, c])), [contacts]);
+  const courseById = useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses]);
+  const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+  const saleById = useMemo(() => new Map(sales.map((x) => [x.id, x])), [sales]);
+  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
+  const assignmentById = useMemo(() => new Map(assignments.map((a) => [a.id, a])), [assignments]);
+  const eventById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
+
+  const courseName = (id: string | null) => (id ? courseById.get(id)?.name : undefined);
+  const contactName = (id?: string) => (id ? contactById.get(id)?.name : undefined);
 
   /* An attention row says what it is, whose it is, and how late — in
      that order, because the name is what she scans for. */
   function describe(item: AttentionItem): { title: string; detail: string; when: string } {
     const relative = relativeDayLabel(item.daysUntil);
     if (item.kind === "assignment") {
-      const tarea = assignments.find((a) => a.id === item.assignmentId);
-      const course = courses.find((c) => c.id === item.courseId);
+      const tarea = item.assignmentId ? assignmentById.get(item.assignmentId) : undefined;
+      const course = item.courseId ? courseById.get(item.courseId) : undefined;
       return {
         title: tarea?.title ?? "Tarea",
         detail: `Entregar · ${course?.name ?? "Curso"}`,
@@ -143,8 +179,8 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
       };
     }
     if (item.kind === "class") {
-      const group = groups.find((g) => g.id === item.groupId);
-      const session = events.find((e) => e.id === item.eventId);
+      const group = item.groupId ? groupById.get(item.groupId) : undefined;
+      const session = item.eventId ? eventById.get(item.eventId) : undefined;
       return {
         title: "Pasar lista",
         detail: `${group?.name ?? "Clase"}${session?.startTime ? ` · ${session.startTime}` : ""}`,
@@ -152,7 +188,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
       };
     }
     if (item.kind === "installment") {
-      const sale = sales.find((s) => s.id === item.saleId);
+      const sale = item.saleId ? saleById.get(item.saleId) : undefined;
       const buyer = contactName(item.contactId);
       return {
         title: sale?.title ?? "Cuota de un pago",
@@ -161,7 +197,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
       };
     }
     if (item.kind === "followup") {
-      const contact = contacts.find((c) => c.id === item.contactId);
+      const contact = item.contactId ? contactById.get(item.contactId) : undefined;
       return {
         title: contact?.name ?? "Contacto",
         detail: contact?.leadStage
@@ -170,7 +206,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
         when: relative
       };
     }
-    const project = projects.find((p) => p.id === item.projectId);
+    const project = item.projectId ? projectById.get(item.projectId) : undefined;
     const client = contactName(item.contactId);
     return {
       title: project?.title ?? "Entrega",
@@ -184,7 +220,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   function openItem(item: AttentionItem) {
     haptic.tap();
     if (item.kind === "assignment") {
-      const tarea = assignments.find((a) => a.id === item.assignmentId);
+      const tarea = item.assignmentId ? assignmentById.get(item.assignmentId) : undefined;
       if (tarea) setSheet({ kind: "assignment", assignment: tarea });
       return;
     }
@@ -197,11 +233,11 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
       return;
     }
     if (item.kind === "followup") {
-      const contact = contacts.find((c) => c.id === item.contactId);
+      const contact = item.contactId ? contactById.get(item.contactId) : undefined;
       if (contact) setSheet({ kind: "contact", contact });
       return;
     }
-    const project = projects.find((p) => p.id === item.projectId);
+    const project = item.projectId ? projectById.get(item.projectId) : undefined;
     if (project) setSheet({ kind: "project", project });
   }
 

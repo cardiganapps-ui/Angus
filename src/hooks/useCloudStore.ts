@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { addDays, todayISO } from "../utils/dates";
 
@@ -477,20 +477,44 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
 
   const clearError = useCallback(() => setError(null), []);
 
-  return {
-    items,
-    loading,
-    inflight,
-    error,
-    clearError,
-    load,
-    reload,
-    ensureDateRange,
-    add,
-    addMany,
-    update,
-    remove,
-    removeMany,
-    dropLocal
-  };
+  /* Memoized because AppContext's `value` lists all 19 of these as
+     dependencies. A fresh object literal each render made that useMemo
+     ornamental — it recomputed every time — so every useApp() consumer
+     re-rendered on any state change anywhere in the app. Every callback
+     below is already stable; this makes the container stable too, and
+     the identity now changes only when this store's own state does. */
+  return useMemo(
+    () => ({
+      items,
+      loading,
+      inflight,
+      error,
+      clearError,
+      load,
+      reload,
+      ensureDateRange,
+      add,
+      addMany,
+      update,
+      remove,
+      removeMany,
+      dropLocal
+    }),
+    [
+      items,
+      loading,
+      inflight,
+      error,
+      clearError,
+      load,
+      reload,
+      ensureDateRange,
+      add,
+      addMany,
+      update,
+      remove,
+      removeMany,
+      dropLocal
+    ]
+  );
 }
