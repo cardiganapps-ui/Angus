@@ -48,9 +48,27 @@ commit message states what it changed and what it did *not*.
 
 ---
 
-## 1 — R2 credentials (uploads have never worked)
+## 1 — R2 credentials (bucket side DONE; Vercel env still missing)
 
-**Status: broken in production, today.** Verified by asking it:
+**Status: half cleared on 2026-09-16.** The owner supplied the R2
+credentials, and everything that can be done without dashboard access
+has been:
+
+- ✅ **1.1** both buckets exist (`angus-documents`, `angus-backups`)
+- ✅ **1.2 / 1.3** account id + keypair verified against the live API
+- ✅ **1.4** CORS set on `angus-documents` — it had **no** CORS rule at
+  all, so browser uploads would have failed even once the env was set
+- ✅ the whole R2 leg proven end to end: presigned PUT → signed GET →
+  bytes match → delete → 404
+- ✅ **the `ContentLength` binding is now trusted.** The note below said
+  it could not be, because it had never run. It has: replaying the same
+  presigned URL with a body 500 bytes larger is refused with **403**. The
+  capability is genuinely bounded.
+- ❌ **1.5 Vercel env — still the blocker.** Uploads stay dead in
+  production until these four are set in the dashboard.
+- ❌ **1.6 redeploy** after 1.5.
+
+The original diagnosis, kept because 1.5 is still true:
 
     $ curl -s -X POST https://angus-xi.vercel.app/api/upload-url -d '{}'
     {"error":"Storage not configured","code":"storage_not_configured"}
@@ -63,11 +81,12 @@ live**: piece photos, course material, tarea submissions, note
 attachments, note covers. `CLAUDE.md` described this layer as working; it
 describes the code, which is fine — it is the environment that is empty.
 
-This also means the signed `ContentLength` change in migration-era commit
-`4b950bd` **cannot be trusted yet**. `ContentType` used to be the only
-signed header; it now signs the length too, and a mismatch between what
-the signature promises and what the browser sends breaks every upload.
-`npm run r2:smoke` proves that leg end to end. It has never run.
+~~This also means the signed `ContentLength` change in commit `4b950bd`
+cannot be trusted yet.~~ **Resolved 2026-09-16** — exercised directly
+against the bucket: an honest-length PUT succeeds, the same URL with a
+larger body is refused 403. `npm run r2:smoke` still adds value once 1.5
+lands, because it drives the deployed routes and their JWT check rather
+than the bucket alone.
 
 ### Steps
 
@@ -87,9 +106,10 @@ A 32-character hex string. This is `R2_ACCOUNT_ID`.
 Copy the **Access Key ID** and **Secret Access Key** it shows once.
 These are `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`.
 
-**1.4 — CORS on `angus-documents`.** The browser PUTs straight to R2,
-so without this the upload fails in the browser even with valid
-credentials. Bucket → **Settings** → **CORS policy** → *Edit*:
+**1.4 — CORS on `angus-documents`. ✅ DONE** — applied via the S3 API on
+2026-09-16; the bucket previously had no CORS configuration at all. The
+browser PUTs straight to R2, so without this the upload fails in the
+browser even with valid credentials. The rule now in place:
 
 ```json
 [
