@@ -4,6 +4,14 @@ import { SegmentedControl } from "../components/SegmentedControl";
 
 type Mode = "signin" | "signup" | "magic" | "reset";
 
+/* Angus is a two-person tool. This field keeps a curious visitor from
+   filling her database by accident; it is NOT the security boundary —
+   it ships in the bundle, and anyone can call supabase.auth.signUp
+   directly. The boundary is the allowlist trigger in migration 017,
+   which rejects an address that isn't listed whichever door it uses.
+   Unset (local dev) = no code required. */
+const INVITE_CODE = (import.meta.env.VITE_INVITE_CODE ?? "").trim();
+
 const AUTH_TABS = [
   { k: "signin", l: "Entrar" },
   { k: "signup", l: "Crear cuenta" }
@@ -13,12 +21,17 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [invite, setInvite] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const needsPassword = mode === "signin" || mode === "signup";
-  const canSubmit = email.trim().length > 3 && (!needsPassword || password.length >= 8);
+  const needsInvite = mode === "signup" && INVITE_CODE.length > 0;
+  const canSubmit =
+    email.trim().length > 3 &&
+    (!needsPassword || password.length >= 8) &&
+    (!needsInvite || invite.trim().length > 0);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -30,8 +43,13 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
     let err: string | null = null;
     if (mode === "signin") err = await auth.signIn(addr, password);
     else if (mode === "signup") {
+      if (needsInvite && invite.trim() !== INVITE_CODE) {
+        setError("Ese código de invitación no es correcto.");
+        setBusy(false);
+        return;
+      }
       err = await auth.signUp(addr, password);
-      if (!err) setNotice("Cuenta creada. Si no entras automáticamente, revisa tu correo para confirmarla.");
+      if (!err) setNotice("Cuenta creada. Ya puedes entrar.");
     } else if (mode === "reset") {
       err = await auth.sendPasswordReset(addr);
       if (!err) setNotice("Si ese correo tiene cuenta, te enviamos un enlace para crear una contraseña nueva.");
@@ -98,6 +116,24 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
             </div>
           )}
 
+          {needsInvite && (
+            <div className="input-group">
+              <label className="input-label" htmlFor="auth-invite">
+                Código de invitación
+              </label>
+              <input
+                id="auth-invite"
+                className="input"
+                type="text"
+                autoComplete="off"
+                autoCapitalize="none"
+                value={invite}
+                onChange={(e) => setInvite(e.target.value)}
+              />
+              <div className="input-help">Angus es por invitación. Pídele el código a Diego.</div>
+            </div>
+          )}
+
           <div className={`input-error-msg ${error ? "is-visible" : ""}`} role="alert">
             {error}
           </div>
@@ -152,6 +188,14 @@ function translateError(msg: string): string {
   if (m.includes("email address") && m.includes("invalid")) return "Ese correo no parece válido.";
   if (m.includes("email not confirmed")) return "Confirma tu correo antes de entrar.";
   if (m.includes("already registered")) return "Ese correo ya tiene cuenta. Intenta entrar.";
+  // Raised by public.enforce_signup_allowlist (migration 017).
+  if (m.includes("signup_not_allowed") || m.includes("not allowed")) {
+    return "Angus es por invitación. Pide que agreguen tu correo.";
+  }
+  // shouldCreateUser: false — a magic link is a way in, not a way to sign up.
+  if (m.includes("signups not allowed") || m.includes("user not found")) {
+    return "No encontramos una cuenta con ese correo.";
+  }
   if (m.includes("rate limit")) return "Demasiados intentos. Espera un momento.";
   if (m.includes("password")) return "La contraseña debe tener al menos 8 caracteres.";
   return "No se pudo completar. Revisa tu conexión e inténtalo de nuevo.";

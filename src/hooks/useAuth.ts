@@ -48,7 +48,10 @@ export function useAuth(): AuthState {
   const sendMagicLink = useCallback(async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin }
+      // A magic link is a way IN, never a way to sign UP. Without this,
+      // signInWithOtp creates the account by default — a second public
+      // signup door beside the "Crear cuenta" tab.
+      options: { emailRedirectTo: window.location.origin, shouldCreateUser: false }
     });
     return error ? error.message : null;
   }, []);
