@@ -27,6 +27,24 @@ export default tseslint.config(
     languageOptions: { globals: globals.node }
   },
   {
+    /* scripts/*.mjs escaped linting entirely: the block above matches
+       only .ts and .tsx, so nothing checked the backup job, the secret
+       scanner or the smoke tests. They are Node, not browser. */
+    files: ["scripts/**/*.mjs", "*.config.js"],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: { ...globals.node, crypto: "readonly" }
+    }
+  },
+  {
+    // Tests are Node too — they ran with browser globals before, so a
+    // stray `process` or `Buffer` would have looked undefined.
+    files: ["src/**/__tests__/**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } }
+  },
+  {
     /* Derivations must take the date they work from, never read the clock.
        A helper that accepts `today` and then calls todayISO() disagrees with
        its own caller — that shipped once and broke the suite at midnight. */

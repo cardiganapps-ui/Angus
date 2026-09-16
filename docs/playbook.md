@@ -206,6 +206,36 @@ Never write raw `cubic-bezier(...)` or `ms` literals — tokens only. Reduced mo
   `curl -X POST "https://<ref>.supabase.co/auth/v1/token?grant_type=password" -H "apikey: <publishable>" -H "Content-Type: application/json" -d '{"email":"…","password":"…"}'` → expect HTTP 200 with an `access_token`. pgcrypto lives in the `extensions` schema, so qualify `crypt` / `gen_salt`.
 - Changing a password needs no email: `supabase.auth.updateUser({ password })` on a live session — that's what `ChangePasswordSheet` (account sheet → Seguridad) uses. Password **reset** from the sign-in screen would need email, so it isn't offered yet.
 
+## 7b. What the e2e harness actually covers
+
+`npm run e2e -- <url>` (needs `E2E_EMAIL` / `E2E_PASS`) drives a real
+browser against a real deployment. It does two different things:
+
+**A no-throw sweep.** Signs in, skips onboarding, then visits all three
+tabs and all eleven drawer routes, opening each screen's "new" sheet and
+pressing Escape. It asserts nothing about content — its only failure
+condition is a `pageerror` or a `console.error`. Cheap, and it catches
+the class of bug where a screen explodes on an empty workspace.
+
+**One write journey.** Creates a piece, edits its title, deletes it
+through the two-tap confirm, then RELOADS and checks it stayed gone —
+which is what distinguishes a real write from optimistic local state.
+Until this existed the harness never submitted a single form, so
+nothing covered create / edit / delete, validation, the optimistic
+revert or the materializers: the parts most able to lose her data.
+
+It cleans up after itself, but it does write to whatever account you
+give it. **Use a disposable account, never the artist's.**
+
+`.github/workflows/e2e.yml` runs it nightly — but it is gated on an
+`E2E_ENABLED` repository variable and skips without it, so it is inert
+until someone sets that plus the two secrets. A skipped check is not a
+passing one.
+
+Still not covered, and worth knowing: the notes editor, PDF export, CSV
+export, file upload (that is `npm run r2:smoke`), workspace switching,
+and anything offline.
+
 ## 8b. Backups and restore
 
 The project is on Supabase's **free plan**: no point-in-time recovery, no

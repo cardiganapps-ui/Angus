@@ -147,6 +147,66 @@ for (const [item, fab] of drawerRoutes) {
   await page.waitForTimeout(500);
 }
 
+/* ── The write path ──
+   Everything above opens sheets and presses Escape, so until now this
+   harness asserted exactly one thing: that nothing threw while looking
+   at empty screens. No form was ever submitted, which means no
+   coverage of create, edit, delete, validation, the optimistic revert
+   or the materializers — the parts most able to lose her data.
+
+   One full journey on a real entity. A piece, because Obra is the
+   simplest sheet with a required field and a confirm-gated delete. It
+   cleans up after itself so the account it runs against does not
+   accumulate junk. */
+const step = (name, ok, detail = "") => {
+  console.log(`${ok ? "✓" : "✗"} ${name}${detail ? ` — ${detail}` : ""}`);
+  if (!ok) errors.push(`journey: ${name} ${detail}`);
+};
+
+const title = `E2E pieza ${Date.now()}`;
+const edited = `${title} (editada)`;
+
+await page.click('[aria-label="Menú"]');
+await page.waitForTimeout(500);
+await page.click('.drawer-item-label:text-is("Obra")');
+await page.waitForSelector(".page", { timeout: 10000 });
+await page.waitForTimeout(600);
+
+// create
+await page.click('[aria-label="Nueva pieza"]');
+await page.waitForSelector(".sheet-panel", { timeout: 10000 });
+await page.fill("#project-title", title);
+await page.click('.sheet-footer >> text=Guardar');
+await page.waitForTimeout(1200);
+step("a new piece appears in the list", (await page.locator(`text=${title}`).count()) > 0);
+await shot("07-created");
+
+// edit
+await page.click(`text=${title}`);
+await page.waitForSelector(".sheet-panel", { timeout: 10000 });
+await page.fill("#project-title", edited);
+await page.click('.sheet-footer >> text=Guardar');
+await page.waitForTimeout(1200);
+step("the edit replaces the old title", (await page.locator(`text=${edited}`).count()) > 0);
+step("the old title is gone", (await page.locator(`text=${title}`).count()) === 0);
+await shot("08-edited");
+
+// delete, through the two-tap confirm
+await page.click(`text=${edited}`);
+await page.waitForSelector(".sheet-panel", { timeout: 10000 });
+await page.click('.sheet-panel >> text=Eliminar');
+await page.waitForTimeout(400);
+step("deleting asks first", (await page.locator(".sheet-actions-question").count()) > 0);
+await page.click('.sheet-panel >> text=Sí, eliminar');
+await page.waitForTimeout(1200);
+step("the piece is gone after confirming", (await page.locator(`text=${edited}`).count()) === 0);
+await shot("09-deleted");
+
+// A reload proves the writes reached Postgres rather than only local state.
+await page.reload({ waitUntil: "domcontentloaded" });
+await page.waitForTimeout(2500);
+step("it stays gone after a reload", (await page.locator(`text=${edited}`).count()) === 0);
+
 await browser.close();
 if (errors.length) {
   console.error("FAILED with errors:\n" + errors.join("\n"));

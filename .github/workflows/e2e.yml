@@ -1,0 +1,50 @@
+name: E2E
+
+# Separate from CI on purpose. This drives a real browser against a real
+# deployment with a real account, and the journey it runs CREATES, EDITS
+# and DELETES a row — so it is not something to fire on every push to
+# every branch, and it cannot run at all without credentials.
+#
+# INERT until these repository secrets exist:
+#   E2E_URL    the deployment to drive (defaults to production)
+#   E2E_EMAIL  a disposable account, NOT the artist's
+#   E2E_PASS
+#
+# The `if:` below skips the job cleanly rather than failing red for
+# everyone, but a skipped check is not a passing one — until the secrets
+# are set, nothing here is guarding anything, and it should not be
+# mistaken for coverage.
+on:
+  workflow_dispatch:
+  schedule:
+    # 09:40 UTC, half an hour after the nightly backup.
+    - cron: "40 9 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  journey:
+    runs-on: ubuntu-latest
+    if: ${{ vars.E2E_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Drive the app
+        env:
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASS: ${{ secrets.E2E_PASS }}
+        run: node scripts/e2e-smoke.mjs "${{ vars.E2E_URL || 'https://angus-xi.vercel.app' }}"
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: e2e-out/
+          if-no-files-found: ignore
+          retention-days: 7
