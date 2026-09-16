@@ -201,8 +201,19 @@ through the Management API (`PATCH /v1/projects/{ref}/database/password`,
 the same call the dashboard makes) and the resulting URI is in
 `.env.local` as `SUPABASE_DB_URL`. Nothing broke: PostgREST, GoTrue and
 the app all still answer 200, which is the practical proof of the claim
-below that nothing stores this password. Host confirmed by DNS as
-`aws-0-us-east-1.pooler.supabase.com`.
+below that nothing stores this password. Host and user confirmed against
+`GET /v1/projects/{ref}/config/database/pooler`, which is authoritative:
+`db_host: aws-0-us-east-1.pooler.supabase.com`,
+`db_user: postgres.xbpvqvlomrnuxydyqyqj`.
+
+That endpoint reports port **6543 / transaction mode**, because the
+transaction pooler is the configurable one. Session mode is the same host
+on **5432**, and that is what `SUPABASE_DB_URL` uses — `pg_dump` needs
+session state and will not work over 6543.
+
+(Do not try to identify the host by DNS: `aws-0-…` and `aws-1-…` both
+resolve to live Supabase load balancers, so resolution proves nothing
+about which one serves this project.)
 
 The original instructions, still true if you ever need to redo it —
 Supabase dashboard → project `angus` → **Connect** → **Session pooler**.
