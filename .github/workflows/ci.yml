@@ -2,8 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # Agent branches too: a gate that only runs on main and on PRs does
+    # not guard the work while it is being written, which is when it is
+    # cheapest to fix. A PR from such a branch runs twice; that is the
+    # price of the branch being checked at all.
+    branches: [main, "claude/**"]
   pull_request:
+
+# A later push supersedes an in-flight run on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
