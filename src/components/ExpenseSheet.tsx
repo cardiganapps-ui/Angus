@@ -61,8 +61,8 @@ export function ExpenseSheet({
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => ({ value: c.id, label: c.name }));
 
-  function handleSave() {
-    if (!canSave) return;
+  async function handleSave() {
+    if (!canSave || submitting) return;
     setSubmitting(true);
     const patch = {
       title: title.trim(),
@@ -75,25 +75,29 @@ export function ExpenseSheet({
       courseId: courseId || null,
       notes: notes.trim()
     };
-    if (expense) {
-      void updateExpense(expense.id, patch);
-    } else {
-      void addExpense({
-        id: makeId(),
-        createdAt: todayISO(),
-        recurringRuleId: null,
-        periodKey: null,
-        ...patch
-      });
+    const ok = expense
+      ? await updateExpense(expense.id, patch)
+      : await addExpense({
+          id: makeId(),
+          createdAt: todayISO(),
+          recurringRuleId: null,
+          periodKey: null,
+          ...patch
+        });
+    if (!ok) {
+      // The store reverted and reported why; keep her input on screen.
+      setSubmitting(false);
+      return;
     }
     haptic.success();
     showSuccess(expense ? "Gasto actualizado" : "Gasto registrado");
     onClose();
   }
 
-  function handleDelete() {
-    if (!expense) return;
-    void removeExpense(expense.id);
+  async function handleDelete() {
+    if (!expense || submitting) return;
+    setSubmitting(true);
+    await removeExpense(expense.id);
     haptic.warn();
     showSuccess("Gasto eliminado");
     onClose();
@@ -107,8 +111,8 @@ export function ExpenseSheet({
         <SheetActions
           canSave={canSave}
           submitting={submitting}
-          onSave={handleSave}
-          onDelete={expense ? handleDelete : undefined}
+          onSave={() => void handleSave()}
+          onDelete={expense ? () => void handleDelete() : undefined}
           confirmText="¿Eliminar este gasto?"
         />
       }

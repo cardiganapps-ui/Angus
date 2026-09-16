@@ -105,7 +105,7 @@ export function SaleSheet({
   const cancellingWithMoney = !!sale && status === "cancelled" && sale.status !== "cancelled" && alreadyPaid > 0;
 
   async function handleSave() {
-    if (!canSave) return;
+    if (!canSave || submitting) return;
     setSubmitting(true);
     const patch = {
       title: title.trim(),
@@ -130,31 +130,34 @@ export function SaleSheet({
           createdAt: todayISO()
         }))
       : null;
-    if (sale) {
-      void updateSale(sale.id, patch);
-      if (cuotas) void addInstallments(cuotas);
-    } else {
-      // The cuotas reference the sale, so they go after the server has
-      // it — sequenced here, but the sheet closes right away (both rows
-      // are already on screen optimistically).
-      void addSale({
-        id,
-        createdAt: todayISO(),
-        recurringRuleId: null,
-        periodKey: null,
-        ...patch
-      }).then((ok) => {
-        if (ok && cuotas) void addInstallments(cuotas);
-      });
+    /* The sale has to land before its cuotas: they carry its id as an
+       FK. Awaited either way now — a "Venta y plan de pagos creados"
+       toast over a rejected insert tells her a commitment exists that
+       the server never recorded. */
+    const ok = sale
+      ? await updateSale(sale.id, patch)
+      : await addSale({
+          id,
+          createdAt: todayISO(),
+          recurringRuleId: null,
+          periodKey: null,
+          ...patch
+        });
+    if (!ok) {
+      // The store reverted and reported why; keep her input on screen.
+      setSubmitting(false);
+      return;
     }
+    if (cuotas) await addInstallments(cuotas);
     haptic.success();
     showSuccess(sale ? "Venta actualizada" : rows ? "Venta y plan de pagos creados" : "Venta creada");
     onClose();
   }
 
-  function handleDelete() {
-    if (!sale) return;
-    void removeSale(sale.id);
+  async function handleDelete() {
+    if (!sale || submitting) return;
+    setSubmitting(true);
+    await removeSale(sale.id);
     haptic.warn();
     showSuccess("Venta eliminada");
     (onDeleted ?? onClose)();
@@ -169,7 +172,7 @@ export function SaleSheet({
           canSave={canSave}
           submitting={submitting}
           onSave={() => void handleSave()}
-          onDelete={sale ? handleDelete : undefined}
+          onDelete={sale ? () => void handleDelete() : undefined}
           confirmText="¿Eliminar esta venta? Se eliminarán también sus pagos y cuotas."
         />
       }

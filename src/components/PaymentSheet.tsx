@@ -35,23 +35,30 @@ export function PaymentSheet({
   const parsedAmount = Number(amount);
   const canSave = amount.trim().length > 0 && parsedAmount > 0 && date.length > 0;
 
-  function handleSave() {
-    if (!canSave) return;
+  /* Awaits the write. This is money arriving: "Pago registrado" over a
+     rejected insert is the app telling her she has been paid when the
+     server never heard about it. The store reverts and reports the
+     failure itself, so the sheet just stays open with her input intact. */
+  async function handleSave() {
+    if (!canSave || submitting) return;
     setSubmitting(true);
     const patch = { amount: parsedAmount, date, method, notes: notes.trim() };
-    if (payment) {
-      void updatePayment(payment.id, patch);
-    } else {
-      void addPayment({ id: makeId(), saleId, createdAt: todayISO(), ...patch });
+    const ok = payment
+      ? await updatePayment(payment.id, patch)
+      : await addPayment({ id: makeId(), saleId, createdAt: todayISO(), ...patch });
+    if (!ok) {
+      setSubmitting(false);
+      return;
     }
     haptic.success();
     showSuccess(payment ? "Pago actualizado" : "Pago registrado");
     onClose();
   }
 
-  function handleDelete() {
-    if (!payment) return;
-    void removePayment(payment.id);
+  async function handleDelete() {
+    if (!payment || submitting) return;
+    setSubmitting(true);
+    await removePayment(payment.id);
     haptic.warn();
     showSuccess("Pago eliminado");
     onClose();
@@ -65,8 +72,8 @@ export function PaymentSheet({
         <SheetActions
           canSave={canSave}
           submitting={submitting}
-          onSave={handleSave}
-          onDelete={payment ? handleDelete : undefined}
+          onSave={() => void handleSave()}
+          onDelete={payment ? () => void handleDelete() : undefined}
           confirmText="¿Eliminar este pago?"
         />
       }

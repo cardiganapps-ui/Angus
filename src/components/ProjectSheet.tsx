@@ -78,8 +78,8 @@ export function ProjectSheet({
     ? projectMargins([project.id], sales, payments, expenses)[0]?.economics
     : undefined;
 
-  function handleSave() {
-    if (!canSave) return;
+  async function handleSave() {
+    if (!canSave || submitting) return;
     setSubmitting(true);
     const patch = {
       title: title.trim(),
@@ -98,24 +98,25 @@ export function ProjectSheet({
       courseId: courseId || null,
       notes: notes.trim()
     };
-    if (project) {
-      void updateProject(project.id, patch);
-    } else {
-      const id = makeId();
-      void addProject({ id, createdAt: todayISO(), ...patch }).then((ok) => {
-        if (!onCreated) return;
-        if (ok) onCreated(id);
-        else setSubmitting(false);
-      });
+    const id = project ? project.id : makeId();
+    const ok = project
+      ? await updateProject(project.id, patch)
+      : await addProject({ id, createdAt: todayISO(), ...patch });
+    if (!ok) {
+      // The store reverted and reported why; keep her input on screen.
+      setSubmitting(false);
+      return;
     }
     haptic.success();
     showSuccess(project ? "Pieza actualizada" : "Pieza creada");
-    if (project || !onCreated) onClose();
+    if (!project && onCreated) onCreated(id);
+    else onClose();
   }
 
-  function handleDelete() {
-    if (!project) return;
-    removeProject(project.id);
+  async function handleDelete() {
+    if (!project || submitting) return;
+    setSubmitting(true);
+    await removeProject(project.id);
     haptic.warn();
     showSuccess("Pieza eliminada");
     onClose();
@@ -129,8 +130,8 @@ export function ProjectSheet({
         <SheetActions
           canSave={canSave}
           submitting={submitting}
-          onSave={handleSave}
-          onDelete={project ? handleDelete : undefined}
+          onSave={() => void handleSave()}
+          onDelete={project ? () => void handleDelete() : undefined}
           confirmText="¿Eliminar esta pieza? Sus ventas y gastos quedan sin pieza ligada."
         />
       }

@@ -38,8 +38,8 @@ export function ContactSheet({
   const canSave = name.trim().length > 0;
   const isLead = relationship === "lead";
 
-  function handleSave() {
-    if (!canSave) return;
+  async function handleSave() {
+    if (!canSave || submitting) return;
     setSubmitting(true);
     const patch = {
       name: name.trim(),
@@ -51,25 +51,25 @@ export function ContactSheet({
       followUpDate: isLead && followUpDate ? followUpDate : null,
       notes: notes.trim()
     };
-    if (contact) {
-      updateContact(contact.id, patch);
-      haptic.success();
-      showSuccess("Contacto actualizado");
-      onClose();
+    const id = contact ? contact.id : makeId();
+    const ok = contact
+      ? await updateContact(contact.id, patch)
+      : await addContact({ id, createdAt: todayISO(), ...patch });
+    if (!ok) {
+      // The store reverted and reported why; keep her input on screen.
+      setSubmitting(false);
       return;
     }
-    const id = makeId();
-    void addContact({ id, createdAt: todayISO(), ...patch }).then((ok) => {
-      if (ok && onCreated) onCreated(id);
-    });
     haptic.success();
-    showSuccess("Contacto creado");
-    if (!onCreated) onClose();
+    showSuccess(contact ? "Contacto actualizado" : "Contacto creado");
+    if (!contact && onCreated) onCreated(id);
+    else onClose();
   }
 
-  function handleDelete() {
-    if (!contact) return;
-    removeContact(contact.id);
+  async function handleDelete() {
+    if (!contact || submitting) return;
+    setSubmitting(true);
+    await removeContact(contact.id);
     haptic.warn();
     showSuccess("Contacto eliminado");
     (onDeleted ?? onClose)();
@@ -83,8 +83,8 @@ export function ContactSheet({
         <SheetActions
           canSave={canSave}
           submitting={submitting}
-          onSave={handleSave}
-          onDelete={contact ? handleDelete : undefined}
+          onSave={() => void handleSave()}
+          onDelete={contact ? () => void handleDelete() : undefined}
           confirmText="¿Eliminar este contacto? Sus ventas y eventos quedan sin contacto ligado, sus cobros fijos se detienen y su asistencia a clases se borra."
         />
       }

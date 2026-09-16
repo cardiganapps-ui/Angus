@@ -75,8 +75,8 @@ export function AssignmentSheet({
   const steps = taskProgress(description);
   const canSave = title.trim().length > 0 && courseId !== "";
 
-  function handleSave() {
-    if (!canSave) return;
+  async function handleSave() {
+    if (!canSave || submitting) return;
     setSubmitting(true);
     const today = todayISO();
     const patch = {
@@ -91,19 +91,23 @@ export function AssignmentSheet({
       grade: grade.trim(),
       feedback: feedback.trim()
     };
-    if (assignment) {
-      void updateAssignment(assignment.id, patch);
-    } else {
-      void addAssignment({ id: makeId(), createdAt: today, ...patch });
+    const ok = assignment
+      ? await updateAssignment(assignment.id, patch)
+      : await addAssignment({ id: makeId(), createdAt: today, ...patch });
+    if (!ok) {
+      // The store reverted and reported why; keep her input on screen.
+      setSubmitting(false);
+      return;
     }
     haptic.success();
     showSuccess(assignment ? "Tarea actualizada" : status === "done" ? "Tarea entregada" : "Tarea creada");
     onClose();
   }
 
-  function handleDelete() {
-    if (!assignment) return;
-    void removeAssignment(assignment.id);
+  async function handleDelete() {
+    if (!assignment || submitting) return;
+    setSubmitting(true);
+    await removeAssignment(assignment.id);
     haptic.warn();
     showSuccess("Tarea eliminada");
     (onDeleted ?? onClose)();
@@ -118,8 +122,8 @@ export function AssignmentSheet({
           <SheetActions
             canSave={canSave}
             submitting={submitting}
-            onSave={handleSave}
-            onDelete={assignment ? handleDelete : undefined}
+            onSave={() => void handleSave()}
+            onDelete={assignment ? () => void handleDelete() : undefined}
             confirmText="¿Eliminar esta tarea? La pieza ligada se conserva."
           />
         }
