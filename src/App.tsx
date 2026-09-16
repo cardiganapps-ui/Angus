@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppProvider, useApp, type WorkspaceActions } from "./context/AppContext";
 import { SessionProvider, type SessionValue } from "./context/SessionContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -20,20 +20,26 @@ import { LoadingSkeleton, SkeletonCrossfade } from "./components/LoadingSkeleton
 import { PullToRefresh } from "./components/PullToRefresh";
 import { AuthScreen } from "./screens/AuthScreen";
 import { Home } from "./screens/Home";
-import { Projects } from "./screens/Projects";
-import { Contacts } from "./screens/Contacts";
 import { Schedule } from "./screens/Schedule";
 import { Money } from "./screens/Money";
-import { Settings } from "./screens/Settings";
-import { Recurring } from "./screens/Recurring";
-import { Budgets } from "./screens/Budgets";
-import { Forecast } from "./screens/Forecast";
-import { Reports } from "./screens/Reports";
-import { Expos } from "./screens/Expos";
-import { Classes } from "./screens/Classes";
-import { Studies } from "./screens/Studies";
-import { Notes } from "./screens/Notes";
-import { Onboarding } from "./screens/Onboarding";
+/* Route-level splitting. The three tab routes (Hoy, Agenda, Dinero)
+   stay eager — that is where she lives, and a suspense flash on the
+   default screen would be a regression. Everything reached from the
+   drawer, plus the eight-step Onboarding she sees exactly once per
+   account, loads on first visit instead of riding in the entry chunk. */
+const Projects = lazy(() => import("./screens/Projects").then((m) => ({ default: m.Projects })));
+const Contacts = lazy(() => import("./screens/Contacts").then((m) => ({ default: m.Contacts })));
+const Settings = lazy(() => import("./screens/Settings").then((m) => ({ default: m.Settings })));
+const Recurring = lazy(() => import("./screens/Recurring").then((m) => ({ default: m.Recurring })));
+const Budgets = lazy(() => import("./screens/Budgets").then((m) => ({ default: m.Budgets })));
+const Forecast = lazy(() => import("./screens/Forecast").then((m) => ({ default: m.Forecast })));
+const Reports = lazy(() => import("./screens/Reports").then((m) => ({ default: m.Reports })));
+const Expos = lazy(() => import("./screens/Expos").then((m) => ({ default: m.Expos })));
+const Classes = lazy(() => import("./screens/Classes").then((m) => ({ default: m.Classes })));
+const Studies = lazy(() => import("./screens/Studies").then((m) => ({ default: m.Studies })));
+const Notes = lazy(() => import("./screens/Notes").then((m) => ({ default: m.Notes })));
+const Onboarding = lazy(() => import("./screens/Onboarding").then((m) => ({ default: m.Onboarding })));
+
 import { applyTextScale } from "./lib/appearance";
 import { haptic } from "./lib/haptics";
 
@@ -351,7 +357,9 @@ export default function App() {
         {/* Inside the shell, so a crashed screen leaves the topbar and
             tabs usable; keyed on the route so navigating away clears it. */}
         <AppErrorBoundary resetKey={route} onOpenDiagnostics={() => navigate("settings")}>
-          {active.onboardedAt ? <SignedIn route={route} navigate={navigate} /> : <OnboardingGate />}
+          <Suspense fallback={<LoadingSkeleton route={route} />}>
+            {active.onboardedAt ? <SignedIn route={route} navigate={navigate} /> : <OnboardingGate />}
+          </Suspense>
         </AppErrorBoundary>
       </>
     );

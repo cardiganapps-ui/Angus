@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && tsc -p api/tsconfig.json && vite build && npm run check:bundle",
+    "build": "tsc -b && tsc -p api/tsconfig.json && vite build && npm run check:bundle && npm run check:size",
     "preview": "vite preview",
     "typecheck": "tsc -b && tsc -p api/tsconfig.json",
     "lint": "eslint .",
@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "e2e": "node scripts/e2e-smoke.mjs",
     "check:bundle": "node scripts/check-bundle-secrets.mjs",
-    "backup": "node --env-file=.env.local scripts/backup-db.mjs"
+    "backup": "node --env-file=.env.local scripts/backup-db.mjs",
+    "check:size": "node scripts/check-bundle-size.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1132.0",
