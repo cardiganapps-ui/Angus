@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { AuthState } from "../hooks/useAuth";
 import { SegmentedControl } from "../components/SegmentedControl";
+import { translateError } from "../lib/authErrors";
 
 type Mode = "signin" | "signup" | "magic" | "reset";
 
@@ -182,21 +183,3 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
   );
 }
 
-function translateError(msg: string): string {
-  const m = msg.toLowerCase();
-  if (m.includes("invalid login credentials")) return "Correo o contraseña incorrectos.";
-  if (m.includes("email address") && m.includes("invalid")) return "Ese correo no parece válido.";
-  if (m.includes("email not confirmed")) return "Confirma tu correo antes de entrar.";
-  if (m.includes("already registered")) return "Ese correo ya tiene cuenta. Intenta entrar.";
-  // Raised by public.enforce_signup_allowlist (migration 017).
-  if (m.includes("signup_not_allowed") || m.includes("not allowed")) {
-    return "Angus es por invitación. Pide que agreguen tu correo.";
-  }
-  // shouldCreateUser: false — a magic link is a way in, not a way to sign up.
-  if (m.includes("signups not allowed") || m.includes("user not found")) {
-    return "No encontramos una cuenta con ese correo.";
-  }
-  if (m.includes("rate limit")) return "Demasiados intentos. Espera un momento.";
-  if (m.includes("password")) return "La contraseña debe tener al menos 8 caracteres.";
-  return "No se pudo completar. Revisa tu conexión e inténtalo de nuevo.";
-}
