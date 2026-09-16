@@ -18,7 +18,7 @@ import { firstName } from "../utils/settings";
 import { ProgressRing } from "../components/ProgressRing";
 import { BarChart } from "../components/charts/BarChart";
 import {
-  daysUntil,
+  daysBetween,
   formatDateLong,
   formatMonthLong,
   greetingFor,
@@ -452,12 +452,13 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
                 <EventRow
                   event={nextAgenda}
                   lead={nextAgenda.courseId ? "Tu próxima clase" : "Próximo"}
+                  today={today}
                   onOpen={() => goTo(nextAgenda.courseId ? "studies" : "schedule")}
                 />
               )}
-              {nextStudy && <EventRow event={nextStudy} lead="Tu próxima clase" onOpen={() => goTo("studies")} />}
+              {nextStudy && <EventRow event={nextStudy} lead="Tu próxima clase" today={today} onOpen={() => goTo("studies")} />}
               {nextExpo && (
-                <EventRow event={nextExpo} lead="Próxima expo" onOpen={() => goTo("schedule")} />
+                <EventRow event={nextExpo} lead="Próxima expo" today={today} onOpen={() => goTo("schedule")} />
               )}
             </>
           ) : snapshot.nextEvent ? null : (
@@ -592,10 +593,12 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
 function EventRow({
   event,
   lead,
+  today,
   onOpen
 }: {
   event: ScheduleEvent;
   lead: string;
+  today: string;
   onOpen: () => void;
 }) {
   const kind = EVENT_KIND.find((k) => k.value === event.kind);
@@ -605,7 +608,7 @@ function EventRow({
       <div className="row-content">
         <div className="row-title">{event.title}</div>
         <div className="row-sub">
-          {lead} · {relativeDayLabel(daysUntil(event.date)).toLowerCase()}
+          {lead} · {relativeDayLabel(daysBetween(today, event.date)).toLowerCase()}
           {event.startTime ? ` · ${event.startTime}` : ""}
         </div>
       </div>

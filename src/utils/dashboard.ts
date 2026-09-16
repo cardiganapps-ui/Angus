@@ -11,7 +11,7 @@ import type {
   ScheduleEvent
 } from "../types";
 import { overdueInstallments, profitLoss, saleCountsTowardRevenue, totals } from "./accounting";
-import { addMonths, daysUntil, monthRange } from "./dates";
+import { addMonths, daysBetween, monthRange } from "./dates";
 import { fromCents, remainder, sumMoney, toCents } from "./money";
 
 /* ── Dashboard derivations ──
@@ -79,7 +79,7 @@ export function attentionItems(
   // Homework due within two days, or already late.
   for (const a of assignments) {
     if (!a.dueDate || a.status === "done") continue;
-    const days = daysUntil(a.dueDate);
+    const days = daysBetween(today, a.dueDate);
     if (days > ASSIGNMENT_HORIZON_DAYS) continue;
     items.push({
       key: `assignment:${a.id}`,
@@ -100,7 +100,7 @@ export function attentionItems(
       if (!e.seriesId || e.cancelled || e.date > today || taken.has(e.id)) continue;
       const groupId = seriesToGroup.get(e.seriesId);
       if (!groupId) continue;
-      const days = daysUntil(e.date);
+      const days = daysBetween(today, e.date);
       if (days < -horizonDays) continue;
       items.push({
         key: `class:${e.id}`,
@@ -119,7 +119,7 @@ export function attentionItems(
       key: `installment:${status.installment.id}`,
       kind: "installment",
       date: status.installment.dueDate,
-      daysUntil: daysUntil(status.installment.dueDate),
+      daysUntil: daysBetween(today, status.installment.dueDate),
       saleId: status.installment.saleId,
       contactId: sale?.contactId ?? undefined,
       amount: status.remaining
@@ -132,14 +132,14 @@ export function attentionItems(
       key: `followup:${contact.id}`,
       kind: "followup",
       date: contact.followUpDate,
-      daysUntil: daysUntil(contact.followUpDate),
+      daysUntil: daysBetween(today, contact.followUpDate),
       contactId: contact.id
     });
   }
 
   for (const project of projects) {
     if (!project.dueDate || project.status === "completed") continue;
-    const days = daysUntil(project.dueDate);
+    const days = daysBetween(today, project.dueDate);
     if (days > horizonDays) continue;
     items.push({
       key: `deadline:${project.id}`,
@@ -289,7 +289,7 @@ export function practiceSnapshot(
     parked: projects.filter((p) => p.status === "idea" || p.status === "on_hold").length,
     soldThisMonth: monthSales.length,
     soldThisMonthAmount: sumMoney(monthSales.map((s) => s.amount)),
-    classesAhead: upcoming.filter((e) => e.kind === "class" && daysUntil(e.date) <= horizonDays).length,
+    classesAhead: upcoming.filter((e) => e.kind === "class" && daysBetween(today, e.date) <= horizonDays).length,
     nextExpo: upcoming.find((e) => e.kind === "expo") ?? null,
     nextEvent: upcoming[0] ?? null,
     nextStudySession: upcoming.find((e) => e.courseId !== null && !e.cancelled) ?? null

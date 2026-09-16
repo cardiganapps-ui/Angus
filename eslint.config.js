@@ -25,5 +25,27 @@ export default tseslint.config(
   {
     files: ["api/**/*.ts"],
     languageOptions: { globals: globals.node }
+  },
+  {
+    /* Derivations must take the date they work from, never read the clock.
+       A helper that accepts `today` and then calls todayISO() disagrees with
+       its own caller — that shipped once and broke the suite at midnight. */
+    files: ["src/utils/**/*.ts"],
+    ignores: ["src/utils/dates.ts", "src/utils/__tests__/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./dates",
+              importNames: ["todayISO"],
+              message:
+                "Pure helpers take `today` as an argument. Let the screen call todayISO() once and pass it down."
+            }
+          ]
+        }
+      ]
+    }
   }
 );

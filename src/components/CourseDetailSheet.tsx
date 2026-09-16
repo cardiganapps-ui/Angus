@@ -6,7 +6,7 @@ import { COURSE_KIND, COURSE_KIND_BADGE, COURSE_MODALITY, COURSE_PAYMENT_PLAN, C
 import { assignmentProgress, courseCost, courseSessions, courseTimeline, dueAssignments, nextSession } from "../utils/studies";
 import { describeSeries } from "../utils/series";
 import { formatMXN, formatMXNShort } from "../utils/money";
-import { formatShort, formatWithWeekday, relativeDayLabel, daysUntil, todayISO } from "../utils/dates";
+import { formatShort, formatWithWeekday, relativeDayLabel, daysBetween, todayISO } from "../utils/dates";
 import { Sheet } from "./Sheet";
 import { Icon } from "./Icon";
 import { SegmentedControl } from "./SegmentedControl";
@@ -251,7 +251,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
                         {s.location ? ` · ${s.location}` : ""}
                       </div>
                     </button>
-                    <span className={`badge ${s.date === today ? "badge-teal" : "badge-gray"}`}>{relativeDayLabel(daysUntil(s.date))}</span>
+                    <span className={`badge ${s.date === today ? "badge-teal" : "badge-gray"}`}>{relativeDayLabel(daysBetween(today, s.date))}</span>
                     <button type="button" className={`row-icon-btn btn-tap ${notes.some((n) => n.eventId === s.id) ? "row-icon-btn--on" : ""}`} onClick={() => void openSessionNote(s)} aria-label={`Apuntes de ${formatWithWeekday(s.date)}`}>
                       <Icon name="edit" size={16} strokeWidth={2.2} />
                     </button>

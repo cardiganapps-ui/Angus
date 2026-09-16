@@ -35,7 +35,7 @@ import { haptic } from "../lib/haptics";
 export function Reports() {
   const { sales, payments, expenses, projects, contacts, events, courses, assignments } = useApp();
   const { showSuccess, showToast } = useToast();
-  const [period, setPeriod] = useState<Period>(() => currentPeriod("year"));
+  const [period, setPeriod] = useState<Period>(() => currentPeriod("year", todayISO()));
   const range = periodRange(period);
   const monthsInSpan = period.span === "year" ? 12 : period.span === "quarter" ? 3 : 1;
   const previous = periodRange({ ...period, anchor: addMonths(period.anchor, -monthsInSpan) });

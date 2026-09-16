@@ -5,6 +5,7 @@ import type { ExpenseCategory } from "../types";
 import { EXPENSE_CATEGORY, EXPENSE_CATEGORY_BADGE, labelFor } from "../data/constants";
 import { budgetProgress, expensesByCategory } from "../utils/accounting";
 import { formatMXN, formatMXNShort, subtractMoney, sumMoney } from "../utils/money";
+import { todayISO } from "../utils/dates";
 import { PeriodPicker } from "../components/PeriodPicker";
 import { currentPeriod, periodRange, type Period } from "../utils/period";
 import { EmptyState } from "../components/EmptyState";
@@ -20,7 +21,7 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
 export function Budgets() {
   const { expenses, settings, updateSettings } = useApp();
   const { showSuccess } = useToast();
-  const [period, setPeriod] = useState<Period>(() => currentPeriod("month"));
+  const [period, setPeriod] = useState<Period>(() => currentPeriod("month", todayISO()));
   const [editing, setEditing] = useState<ExpenseCategory | null>(null);
   const range = periodRange(period);
   const months = period.span === "year" ? 12 : period.span === "quarter" ? 3 : 1;

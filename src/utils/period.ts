@@ -1,4 +1,4 @@
-import { formatRange, monthRange, todayISO, trailingMonthsRange, yearRange } from "./dates";
+import { formatRange, monthRange, trailingMonthsRange, yearRange } from "./dates";
 
 /* ── Periods ──
    The PeriodPicker's value: an anchor date + a span. periodRange() turns
@@ -21,7 +21,10 @@ export function periodRange(period: Period): { from: string; to: string; label: 
   return { ...r, label: formatRange(r.from, r.to) };
 }
 
-export function currentPeriod(span: PeriodSpan = "month"): Period {
-  return { anchor: todayISO(), span };
+/* `today` is required, not defaulted: every helper under utils/ derives
+   from a date it is given, so nothing here can disagree with the date
+   its caller already fixed for the rest of the render. */
+export function currentPeriod(span: PeriodSpan, today: string): Period {
+  return { anchor: today, span };
 }
 

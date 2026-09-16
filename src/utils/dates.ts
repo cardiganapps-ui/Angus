@@ -40,14 +40,6 @@ export function formatWithWeekday(iso: string): string {
   return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
-export function isPast(iso: string): boolean {
-  return iso < todayISO();
-}
-
-export function isToday(iso: string): boolean {
-  return iso === todayISO();
-}
-
 /** First and last day of the calendar month `iso` falls in, both inclusive. */
 export function monthRange(iso: string): { from: string; to: string } {
   const [y, m] = iso.split("-").map(Number);
@@ -113,10 +105,6 @@ export function addMonths(iso: string, months: number): string {
   const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
   target.setDate(Math.min(day, last));
   return toISODate(target);
-}
-
-export function daysUntil(iso: string): number {
-  return daysBetween(todayISO(), iso);
 }
 
 /** Signed whole days from `from` to `to` (negative when `to` is earlier). */

@@ -49,7 +49,7 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
 export function Money() {
   const { sales, payments, expenses, contacts, projects, events, rules } = useApp();
   const [view, setView] = useState<View>(lastView);
-  const [period, setPeriod] = useState<Period>(() => currentPeriod("month"));
+  const [period, setPeriod] = useState<Period>(() => currentPeriod("month", todayISO()));
   const [editingSale, setEditingSale] = useState<Sale | "new" | null>(null);
   const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | "new" | null>(null);
