@@ -150,7 +150,12 @@ export async function uploadFile({ file, folder, onProgress }: { file: File; fol
   if (prepared.file.size > MAX_FILE_BYTES) throw new StorageError("too_large", "El archivo pesa más de 25 MB.");
   const ext = extensionFor(prepared.mime);
   const path = `${folder.replace(/\/$/, "")}/${makeId()}.${ext}`;
-  const signed = await apiFetch<{ url: string }>("/api/upload-url", { path, contentType: prepared.mime });
+  // The signed URL is bound to this exact length (see api/upload-url.ts).
+  const signed = await apiFetch<{ url: string }>("/api/upload-url", {
+    path,
+    contentType: prepared.mime,
+    size: prepared.file.size
+  });
   if (!signed.ok) throw storageErrorFrom(signed.error.code, signed.error.status);
   const ok = await putWithProgress(signed.data.url, prepared.file, prepared.mime, onProgress);
   if (!ok) throw new StorageError("failed", "No se pudo subir el archivo.");

@@ -40,8 +40,13 @@ async function api(path, body) {
   return { status: res.status, json };
 }
 
-const path = `ws/${ws.id}/misc/smoke-${Date.now()}.txt`;
+/* parsePath now enforces the shape CLAUDE.md always documented:
+   ws/<workspace>/<folder>/<uuid>.<ext>. A readable "smoke-123.txt" is
+   no longer a legal key. */
+const uuid = () => crypto.randomUUID();
+const path = `ws/${ws.id}/misc/${uuid()}.txt`;
 const body = `angus r2 smoke ${new Date().toISOString()}`;
+const size = new TextEncoder().encode(body).length;
 let failed = false;
 const step = (name, ok, detail = "") => {
   console.log(`${ok ? "✓" : "✗"} ${name}${detail ? ` — ${detail}` : ""}`);
@@ -51,24 +56,52 @@ const step = (name, ok, detail = "") => {
 const unauth = await fetch(`${API}/api/file-url`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path }) });
 step("file-url without a token is 401", unauth.status === 401, `got ${unauth.status}`);
 
-const bad = await api("/api/upload-url", { path: "ws/../etc/passwd", contentType: "text/plain" });
+const bad = await api("/api/upload-url", { path: "ws/../etc/passwd", contentType: "text/plain", size });
 step("traversal path is rejected", bad.status === 400, `got ${bad.status}`);
 
-const foreign = await api("/api/upload-url", { path: `ws/00000000-0000-0000-0000-000000000000/misc/x.txt`, contentType: "text/plain" });
+const badFolder = await api("/api/upload-url", { path: `ws/${ws.id}/secretos/${uuid()}.txt`, contentType: "text/plain", size });
+step("a folder outside the allowlist is rejected", badFolder.status === 400, `got ${badFolder.status}`);
+
+const badName = await api("/api/upload-url", { path: `ws/${ws.id}/misc/anything.txt`, contentType: "text/plain", size });
+step("a filename that is not a uuid is rejected", badName.status === 400, `got ${badName.status}`);
+
+/* A well-SHAPED path in a workspace she does not belong to: this has to
+   fail on membership (403), not on the shape (400), or it stops testing
+   the tenant boundary at all. */
+const foreign = await api("/api/upload-url", { path: `ws/00000000-0000-0000-0000-000000000000/misc/${uuid()}.txt`, contentType: "text/plain", size });
 step("another workspace is forbidden", foreign.status === 403, `got ${foreign.status}`);
 
-const html = await api("/api/upload-url", { path, contentType: "text/html" });
+const html = await api("/api/upload-url", { path, contentType: "text/html", size });
 step("text/html is refused", html.status === 415, `got ${html.status}`);
 
-const signed = await api("/api/upload-url", { path, contentType: "text/plain" });
+const noSize = await api("/api/upload-url", { path, contentType: "text/plain" });
+step("a PUT with no declared size is refused", noSize.status === 413, `got ${noSize.status}`);
+
+const huge = await api("/api/upload-url", { path, contentType: "text/plain", size: 26 * 1024 * 1024 });
+step("a size over the cap is refused", huge.status === 413, `got ${huge.status}`);
+
+const signed = await api("/api/upload-url", { path, contentType: "text/plain", size });
 step("upload-url signs a PUT", signed.status === 200 && !!signed.json.url, `got ${signed.status} ${signed.json.code ?? ""}`);
 if (signed.status === 503) {
   console.error("Storage is not configured on this deployment (R2_* env vars).");
   process.exit(1);
 }
 
+/* ContentLength is a SIGNED header now, so this is the step that proves
+   the whole upload path still works. If it 403s with a signature error,
+   every upload in the app is broken. */
 const put = await fetch(signed.json.url, { method: "PUT", headers: { "Content-Type": "text/plain" }, body });
-step("PUT to R2 succeeds", put.ok, `got ${put.status}`);
+step("PUT to R2 succeeds with the signed length", put.ok, `got ${put.status}`);
+
+const wrongLength = await api("/api/upload-url", { path: `ws/${ws.id}/misc/${uuid()}.txt`, contentType: "text/plain", size });
+if (wrongLength.status === 200) {
+  const mismatch = await fetch(wrongLength.json.url, {
+    method: "PUT",
+    headers: { "Content-Type": "text/plain" },
+    body: `${body} and then some more bytes than were declared`
+  });
+  step("a body longer than the signed length is rejected", !mismatch.ok, `got ${mismatch.status}`);
+}
 
 const get = await api("/api/file-url", { path, name: "smoke.txt" });
 step("file-url signs a GET", get.status === 200 && !!get.json.url, `got ${get.status}`);

@@ -5,12 +5,24 @@ import type { Contact, Project, ScheduleEvent } from "../types";
 
 const KEYS = { contacts: "angus.contacts", projects: "angus.projects", events: "angus.events" };
 
-function readLocal<T>(key: string): T[] {
+/* Returns null when the key holds something unreadable, as opposed to
+   an empty array for "nothing stored". The difference matters: the old
+   version collapsed both to [], and the caller then cleared ALL THREE
+   keys on the "nothing to import" path — so one corrupt blob destroyed
+   the two good ones beside it. */
+function readLocal<T>(key: string): T[] | null {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T[]) : [];
+    raw = localStorage.getItem(key);
   } catch {
-    return [];
+    return null; // storage blocked; nothing is safe to clear
+  }
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -22,11 +34,28 @@ export async function importLocalData(workspaceId: string): Promise<boolean> {
   const seedIds = new Set([...seedContacts, ...seedProjects, ...seedEvents].map((s) => s.id));
   const notSeed = <T extends { id: string }>(rows: T[]) => rows.filter((r) => !seedIds.has(r.id));
 
-  const contacts = notSeed(readLocal<Contact>(KEYS.contacts));
-  const projects = notSeed(readLocal<Project>(KEYS.projects));
-  const events = notSeed(readLocal<ScheduleEvent>(KEYS.events));
+  const rawContacts = readLocal<Contact>(KEYS.contacts);
+  const rawProjects = readLocal<Project>(KEYS.projects);
+  const rawEvents = readLocal<ScheduleEvent>(KEYS.events);
+  const contacts = notSeed(rawContacts ?? []);
+  const projects = notSeed(rawProjects ?? []);
+  const events = notSeed(rawEvents ?? []);
+
   if (contacts.length + projects.length + events.length === 0) {
-    Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+    /* Clear only the keys that were actually readable and actually
+       empty. A key we could not parse is left alone: it is the only
+       copy of whatever it holds, and it might be recoverable by hand. */
+    const clearable: string[] = [];
+    if (rawContacts !== null) clearable.push(KEYS.contacts);
+    if (rawProjects !== null) clearable.push(KEYS.projects);
+    if (rawEvents !== null) clearable.push(KEYS.events);
+    for (const k of clearable) {
+      try {
+        localStorage.removeItem(k);
+      } catch {
+        /* non-fatal */
+      }
+    }
     return false;
   }
 

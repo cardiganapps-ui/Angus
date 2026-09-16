@@ -8,12 +8,20 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 const STATIC_ALLOWED = new Set(["https://angus-xi.vercel.app", "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173"]);
 
+/* Vercel preview hosts for THIS project look like
+   angus-<hash>-<scope>.vercel.app. The old rule accepted any
+   *.vercel.app, which is every Vercel user's deployments — not a
+   session-riding hole (there is no Allow-Credentials here, and auth is
+   a bearer header the attacker's page cannot read) but far wider than
+   it needs to be. */
+const PREVIEW_HOST = /^angus-[a-z0-9-]+\.vercel\.app$/;
+
 function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) return false;
   if (STATIC_ALLOWED.has(origin)) return true;
   try {
     const { protocol, hostname } = new URL(origin);
-    return protocol === "https:" && hostname.endsWith(".vercel.app");
+    return protocol === "https:" && PREVIEW_HOST.test(hostname);
   } catch {
     return false;
   }

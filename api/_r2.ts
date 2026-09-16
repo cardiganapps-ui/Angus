@@ -35,16 +35,30 @@ export function getR2(): S3Client {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/* Every object lives under ws/<workspace_id>/…: no traversal, no empty
-   segments, a workspace id that parses. Membership is checked
-   separately against the database. */
-export function parsePath(path: unknown): { workspaceId: string } | null {
+/* The folders src/lib/files.ts actually writes to. CLAUDE.md has always
+   documented this allowlist as enforced; until now the regex checked
+   only the ws/<uuid>/ prefix and accepted any tail, so the doc
+   described a control that did not exist. The tenant boundary never
+   depended on it — isWorkspaceMember is what stops cross-workspace
+   access — but a claim about a security control has to be true. */
+const FOLDERS = ["cursos", "tareas", "piezas", "sesiones", "notas", "misc"] as const;
+
+/* Every object lives at ws/<workspace_id>/<folder>/<uuid>.<ext>: no
+   traversal, no empty segments, a workspace id and a filename that both
+   parse. Membership is checked separately against the database. */
+export function parsePath(path: unknown): { workspaceId: string; folder: string } | null {
   if (typeof path !== "string" || path.length === 0 || path.length > 512) return null;
   if (path.includes("..") || path.includes("//") || path.includes("\\")) return null;
-  const m = /^ws\/([0-9a-fA-F-]{36})\/.+[^/]$/.exec(path);
-  if (!m || !UUID.test(m[1])) return null;
-  return { workspaceId: m[1].toLowerCase() };
+  const m = /^ws\/([0-9a-fA-F-]{36})\/([a-z]+)\/([0-9a-fA-F-]{36})\.([a-z0-9]{1,8})$/.exec(path);
+  if (!m || !UUID.test(m[1]) || !UUID.test(m[3])) return null;
+  if (!(FOLDERS as readonly string[]).includes(m[2])) return null;
+  return { workspaceId: m[1].toLowerCase(), folder: m[2] };
 }
+
+/* Ceiling for a signed PUT, matching MAX_FILE_BYTES in src/lib/files.ts.
+   The client-side check is advisory once a URL is in hand — the URL is
+   the capability — so the signature has to carry the bound too. */
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 export interface AuthContext {
   user: User;
