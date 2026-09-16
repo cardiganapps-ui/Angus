@@ -4,7 +4,8 @@
    ported editor CSS supplies the typography and motion. */
 
 :root {
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* --font-mono moved to base.css with the other type tokens; it is used
+     outside the notes area now (Ajustes -> Diagnostico). */
   --z-note-editor: 400;
 }
 

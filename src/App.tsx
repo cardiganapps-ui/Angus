@@ -14,6 +14,7 @@ import { EmptyState } from "./components/EmptyState";
 import { Icon } from "./components/Icon";
 import { BottomTabs, TAB_ORDER } from "./components/BottomTabs";
 import { DataErrorToast } from "./components/DataErrorToast";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { UpdateToast } from "./components/UpdateToast";
 import { LoadingSkeleton, SkeletonCrossfade } from "./components/LoadingSkeleton";
 import { PullToRefresh } from "./components/PullToRefresh";
@@ -347,7 +348,11 @@ export default function App() {
     body = (
       <>
         <DataErrorToast />
-        {active.onboardedAt ? <SignedIn route={route} navigate={navigate} /> : <OnboardingGate />}
+        {/* Inside the shell, so a crashed screen leaves the topbar and
+            tabs usable; keyed on the route so navigating away clears it. */}
+        <AppErrorBoundary resetKey={route} onOpenDiagnostics={() => navigate("settings")}>
+          {active.onboardedAt ? <SignedIn route={route} navigate={navigate} /> : <OnboardingGate />}
+        </AppErrorBoundary>
       </>
     );
   }

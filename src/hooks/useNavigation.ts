@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { recordVisit } from "../lib/usage";
 
 /* ── Routes ──
    Three of these live in the bottom tab pill (see TAB_ROUTES); every
@@ -62,6 +63,8 @@ function readRoute(): Route {
   return (ROUTES as readonly string[]).includes(hash) ? (hash as Route) : "home";
 }
 
+export const ALL_ROUTES = ROUTES;
+
 export function useNavigation() {
   const [route, setRoute] = useState<Route>(readRoute);
 
@@ -70,6 +73,14 @@ export function useNavigation() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  /* Which screens she actually opens — the only instrumentation point
+     needed, since every navigation lands here, including a hash change
+     and the OS back gesture. Local counts, never transmitted; see
+     lib/usage.ts. */
+  useEffect(() => {
+    recordVisit(route);
+  }, [route]);
 
   const navigate = useCallback((next: Route) => {
     window.location.hash = next;

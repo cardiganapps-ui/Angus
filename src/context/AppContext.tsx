@@ -22,7 +22,7 @@ import type {
   Workspace,
   WorkspaceSettings
 } from "../types";
-import { canDiff, makeBreaker, useCloudStore } from "../hooks/useCloudStore";
+import { canDiff, makeBreaker, useCloudStore, type LoadReport } from "../hooks/useCloudStore";
 import {
   assignmentStore,
   attendanceStore,
@@ -76,6 +76,11 @@ interface AppContextValue {
       guardar": nothing was being saved. Carries its own copy so the
       pilot can see what actually went wrong. */
   dataWarning: { kind: "read" | "partial"; message: string; detail: string | null } | null;
+  /** Per-table load facts, for Ajustes → Diagnóstico. Each store has
+      carried these since the read bounding; this surfaces them so the
+      caps in data/rows.ts can be checked against real volume instead
+      of against my arithmetic. */
+  loadReports: { table: string; report: LoadReport }[];
   /** Re-fetch every store (pull-to-refresh). Never flips `loading`. */
   refreshAll: () => Promise<void>;
 
@@ -402,6 +407,53 @@ export function AppProvider({
   const partialKey = [...new Set(partialOf)].join("|");
   const generatorsBlocked = materializeBreaker.current.tripped || generateBreaker.current.tripped;
 
+  /* Table name, not variable name: this is read against the caps in
+     data/rows.ts and against Postgres, both of which use the real name. */
+  const loadReports = useMemo<{ table: string; report: LoadReport }[]>(
+    () => [
+    { table: "projects", report: projects.load },
+    { table: "contacts", report: contacts.load },
+    { table: "events", report: events.load },
+    { table: "event_series", report: series.load },
+    { table: "courses", report: courses.load },
+    { table: "assignments", report: assignments.load },
+    { table: "class_groups", report: groups.load },
+    { table: "class_enrollments", report: enrollments.load },
+    { table: "attendance", report: attendance.load },
+    { table: "recurring_rules", report: rules.load },
+    { table: "sales", report: sales.load },
+    { table: "payments", report: payments.load },
+    { table: "installments", report: installments.load },
+    { table: "expenses", report: expenses.load },
+    { table: "notes", report: notes.load },
+    { table: "note_tags", report: noteTags.load },
+    { table: "note_tag_links", report: noteTagLinks.load },
+    { table: "documents", report: documents.load },
+    { table: "note_attachments", report: noteAttachments.load },
+    ],
+    [
+      projects.load,
+      contacts.load,
+      events.load,
+      series.load,
+      courses.load,
+      assignments.load,
+      groups.load,
+      enrollments.load,
+      attendance.load,
+      rules.load,
+      sales.load,
+      payments.load,
+      installments.load,
+      expenses.load,
+      notes.load,
+      noteTags.load,
+      noteTagLinks.load,
+      documents.load,
+      noteAttachments.load,
+    ]
+  );
+
   const dataWarning = useMemo(() => {
     if (readError) {
       return {
@@ -433,6 +485,7 @@ export function AppProvider({
       markOnboarded: () => actions.markOnboarded(workspaceId),
       loading,
       dataWarning,
+      loadReports,
       error:
         actions.error ??
         projects.error ??
@@ -677,6 +730,7 @@ export function AppProvider({
       actions,
       loading,
       dataWarning,
+      loadReports,
       projects,
       contacts,
       events,

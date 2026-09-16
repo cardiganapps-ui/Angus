@@ -254,6 +254,7 @@
   --text-2xl:     calc(24px * var(--text-scale) * var(--text-scale-user));  /* page-level numbers */
   --font:        'Nunito Sans', sans-serif;
   --font-d:      'Nunito', sans-serif;
+  --font-mono:        ui-monospace, "SF Mono", Menlo, Consolas, monospace;  /* raw server text, diagnostics */
 
   /* ── Motion tokens ──
      Four named easings + four durations cover ~99% of the app's

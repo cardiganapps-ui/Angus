@@ -24,6 +24,8 @@ import { SettingsFieldSheet } from "../components/SettingsFieldSheet";
 import { ChangePasswordSheet } from "../components/ChangePasswordSheet";
 import { haptic } from "../lib/haptics";
 import { TABLE_COUNT, buildBackup, countRows, downloadJson } from "../lib/exportAll";
+import { DiagnosticsSheet } from "../components/DiagnosticsSheet";
+import { readEvents, summarize, verdict } from "../lib/diagnostics";
 import { todayISO } from "../utils/dates";
 
 type FieldSheet = "artistName" | "studioName" | "goal" | "medium" | null;
@@ -40,6 +42,7 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
   const session = useSession();
   const { showSuccess, showToast } = useToast();
   const [backingUp, setBackingUp] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [field, setField] = useState<FieldSheet>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -254,6 +257,13 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
           hint="Una copia completa de tu taller, en un archivo. Guárdala fuera del teléfono."
           onClick={() => void downloadEverything()}
         />
+        <Row
+          icon="alert"
+          label="Diagnóstico"
+          value={verdict(summarize(readEvents()))}
+          hint="Qué ha fallado y cuánto se cargó. Solo en este teléfono."
+          onClick={() => setShowDiagnostics(true)}
+        />
         <Row icon="repeat" label="Recurrentes" hint="Ingresos y gastos fijos." onClick={() => navigate("recurring")} />
         <Row icon="target" label="Presupuestos" hint="Límites mensuales por categoría." onClick={() => navigate("budgets")} />
         <Row
@@ -273,6 +283,8 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
           </div>
         </div>
       </Section>
+
+      {showDiagnostics && <DiagnosticsSheet onClose={() => setShowDiagnostics(false)} />}
 
       {field === "artistName" && (
         <SettingsFieldSheet
