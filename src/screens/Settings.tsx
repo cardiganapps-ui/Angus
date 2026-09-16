@@ -23,6 +23,8 @@ import { ChipMultiSelect } from "../components/ChipMultiSelect";
 import { SettingsFieldSheet } from "../components/SettingsFieldSheet";
 import { ChangePasswordSheet } from "../components/ChangePasswordSheet";
 import { haptic } from "../lib/haptics";
+import { TABLE_COUNT, buildBackup, countRows, downloadJson } from "../lib/exportAll";
+import { todayISO } from "../utils/dates";
 
 type FieldSheet = "artistName" | "studioName" | "goal" | "medium" | null;
 
@@ -32,11 +34,12 @@ const FREQ_ITEMS = INSTALLMENT_FREQUENCY.map((o) => ({ k: o.value, l: o.label })
 const DEPOSIT_ITEMS = DEPOSIT_PERCENT_OPTIONS.map((p) => ({ k: String(p), l: `${p}%` }));
 
 export function Settings({ navigate }: { navigate: (r: Route) => void }) {
-  const { settings, updateSettings, workspace, renameWorkspace, projects, documents, noteAttachments } = useApp();
+  const { settings, updateSettings, workspace, renameWorkspace, workspaceId, projects, documents, noteAttachments } = useApp();
   const fileCount = documents.filter((d) => d.kind === "file").length + noteAttachments.length;
   const fileBytes = documents.reduce((n, d) => n + (d.sizeBytes ?? 0), 0) + noteAttachments.reduce((n, a) => n + (a.sizeBytes ?? 0), 0);
   const session = useSession();
-  const { showSuccess } = useToast();
+  const { showSuccess, showToast } = useToast();
+  const [backingUp, setBackingUp] = useState(false);
   const [field, setField] = useState<FieldSheet>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -49,6 +52,33 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
   function save<K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) {
     void updateSettings({ [key]: value });
     showSuccess("Guardado");
+  }
+
+  /* A copy, not a report: read from the server so a capped store can't
+     hand her a backup of a subset. */
+  async function downloadEverything() {
+    if (backingUp) return;
+    setBackingUp(true);
+    haptic.tap();
+    try {
+      const backup = await buildBackup(workspaceId, new Date().toISOString());
+      const broken = Object.keys(backup.failed);
+      if (broken.length === TABLE_COUNT) {
+        showToast("No se pudo leer tu información. Revisa tu conexión.", "error");
+        return;
+      }
+      if (!downloadJson(`angus-respaldo-${todayISO()}.json`, backup)) {
+        showToast("Tu navegador no permitió la descarga.", "error");
+        return;
+      }
+      if (broken.length > 0) {
+        showToast(`Respaldo incompleto: faltaron ${broken.length} tablas.`, "warning");
+      } else {
+        showSuccess(`Respaldo descargado · ${countRows(backup)} registros`);
+      }
+    } finally {
+      setBackingUp(false);
+    }
   }
 
   return (
@@ -217,6 +247,12 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
           label="Exportar a CSV"
           hint="Ventas, pagos y gastos por periodo, desde Reportes."
           onClick={() => navigate("reports")}
+        />
+        <Row
+          icon="download"
+          label={backingUp ? "Preparando tu respaldo…" : "Descargar todo"}
+          hint="Una copia completa de tu taller, en un archivo. Guárdala fuera del teléfono."
+          onClick={() => void downloadEverything()}
         />
         <Row icon="repeat" label="Recurrentes" hint="Ingresos y gastos fijos." onClick={() => navigate("recurring")} />
         <Row icon="target" label="Presupuestos" hint="Límites mensuales por categoría." onClick={() => navigate("budgets")} />

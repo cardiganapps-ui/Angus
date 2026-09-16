@@ -1,0 +1,56 @@
+name: Nightly backup
+
+# The project is on Supabase's free plan: no PITR, no managed backups.
+# This workflow is the disaster plan for the only copy of one artist's
+# business memory. RPO is up to 24h, accepted deliberately.
+on:
+  schedule:
+    # 09:10 UTC — ~03:10 in Mexico City, after her day and off the hour
+    # so it doesn't queue behind everyone else's midnight cron.
+    - cron: "10 9 * * *"
+  workflow_dispatch:
+
+# Two runs writing the same prefix would race the retention prune.
+concurrency:
+  group: nightly-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The runner's bundled pg_dump can be older than the server, and
+      # pg_dump refuses to dump a newer major version. Install the client
+      # matching the server rather than hoping they agree.
+      - name: Install pg_dump 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          pg_dump --version
+
+      - run: npm ci
+
+      - name: Dump to R2
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BACKUP_BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
+          BACKUP_RETENTION_DAYS: "30"
+        run: node scripts/backup-db.mjs

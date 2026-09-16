@@ -23,7 +23,7 @@ import { PeriodPicker } from "../components/PeriodPicker";
 import { BarChart } from "../components/charts/BarChart";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
-import { assignmentsCsv, downloadCsv, expensesCsv, paymentsCsv, salesCsv } from "../lib/exportCsv";
+import { assignmentsCsv, downloadCsv, expensesCsv, installmentsCsv, paymentsCsv, salesCsv } from "../lib/exportCsv";
 import { courseSpend } from "../utils/studies";
 import { haptic } from "../lib/haptics";
 
@@ -33,7 +33,7 @@ import { haptic } from "../lib/haptics";
    the year, who bought, how leads converted, and a CSV for whoever does
    her taxes. Everything here is read from utils/insights + accounting. */
 export function Reports() {
-  const { sales, payments, expenses, projects, contacts, events, courses, assignments } = useApp();
+  const { sales, payments, installments, expenses, projects, contacts, events, courses, assignments } = useApp();
   const { showSuccess, showToast } = useToast();
   const [period, setPeriod] = useState<Period>(() => currentPeriod("year", todayISO()));
   const range = periodRange(period);
@@ -59,12 +59,22 @@ export function Reports() {
     haptic.tap();
     const tag = `${range.from}_${range.to}`;
     const withTareas = assignments.length > 0;
-    const ok =
-      downloadCsv(`angus-ventas-${tag}.csv`, salesCsv(sales, payments, contacts, projects, range.from, range.to)) &&
-      downloadCsv(`angus-pagos-${tag}.csv`, paymentsCsv(payments, sales, contacts, range.from, range.to)) &&
-      downloadCsv(`angus-gastos-${tag}.csv`, expensesCsv(expenses, projects, events, range.from, range.to)) &&
-      (!withTareas || downloadCsv(`angus-tareas-${tag}.csv`, assignmentsCsv(assignments, courses, projects, range.from, range.to)));
-    if (ok) showSuccess(withTareas ? "Cuatro archivos CSV descargados" : "Tres archivos CSV descargados");
+    /* Every file is attempted. `&&` short-circuited here, so one refused
+       download silently cancelled the rest — she'd get "ventas" and
+       believe she had the set. */
+    const files: [string, string][] = [
+      [`angus-ventas-${tag}.csv`, salesCsv(sales, payments, contacts, projects, range.from, range.to)],
+      [`angus-pagos-${tag}.csv`, paymentsCsv(payments, sales, contacts, range.from, range.to)],
+      [`angus-gastos-${tag}.csv`, expensesCsv(expenses, projects, events, range.from, range.to)],
+      [`angus-cuotas-${tag}.csv`, installmentsCsv(installments, sales, payments, contacts, range.from, range.to)]
+    ];
+    if (withTareas) {
+      files.push([`angus-tareas-${tag}.csv`, assignmentsCsv(assignments, courses, projects, range.from, range.to)]);
+    }
+    const written = files.filter(([name, csv]) => downloadCsv(name, csv)).length;
+    const ok = written === files.length;
+    if (ok) showSuccess(`${written} archivos CSV descargados`);
+    else if (written > 0) showToast(`Solo se descargaron ${written} de ${files.length} archivos.`, "warning");
     else showToast("Tu navegador no permitió la descarga.", "error");
   }
 

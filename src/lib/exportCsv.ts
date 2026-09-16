@@ -1,4 +1,5 @@
-import type { Assignment, Contact, Course, Expense, Payment, Project, Sale, ScheduleEvent } from "../types";
+import type { Assignment, Contact, Course, Expense, Installment, Payment, Project, Sale, ScheduleEvent } from "../types";
+import { installmentPlan } from "../utils/accounting";
 import {
   ASSIGNMENT_STATUS,
   EXPENSE_CATEGORY,
@@ -68,6 +69,54 @@ export function paymentsCsv(payments: Payment[], sales: Sale[], contacts: Contac
       s?.title ?? "",
       s?.contactId ? (name.get(s.contactId) ?? "") : "",
       p.notes
+    ]);
+  }
+  return toCsv(rows);
+}
+
+/* The committed schedule behind every deposit_balance / installments
+   sale. It was the one thing the app showed her and could not hand over:
+   "paid" is never stored, it is allocated from the sale's payments in
+   due-date order, so an export has to run the same allocation rather
+   than read a flag.
+
+   Each state is "as of `to`", the end of the reported period — not as of
+   the real today. That is the right accounting semantic for a period
+   report (a Q1 export should say what was overdue at the close of Q1)
+   and it keeps this function pure and its output reproducible. */
+export function installmentsCsv(
+  installments: Installment[],
+  sales: Sale[],
+  payments: Payment[],
+  contacts: Contact[],
+  from: string,
+  to: string
+): string {
+  const name = new Map(contacts.map((c) => [c.id, c.name]));
+  const STATE: Record<string, string> = {
+    paid: "Pagada",
+    partial: "Parcial",
+    pending: "Pendiente",
+    overdue: "Vencida"
+  };
+  const rows: (string | number | null)[][] = [
+    ["Vence", "Monto", "Cubierto", "Falta", "Estado", "Venta", "Cliente"]
+  ];
+  const withPlans = sales.filter((s) => installments.some((i) => i.saleId === s.id));
+  const steps = withPlans.flatMap((s) =>
+    installmentPlan(s.id, installments, payments, to).map((step) => ({ sale: s, step }))
+  );
+  for (const { sale, step } of steps
+    .filter(({ step }) => inRange(step.installment.dueDate, from, to))
+    .sort((a, b) => a.step.installment.dueDate.localeCompare(b.step.installment.dueDate))) {
+    rows.push([
+      step.installment.dueDate,
+      step.installment.amount,
+      step.covered,
+      step.remaining,
+      STATE[step.state] ?? step.state,
+      sale.title,
+      sale.contactId ? (name.get(sale.contactId) ?? "") : ""
     ]);
   }
   return toCsv(rows);

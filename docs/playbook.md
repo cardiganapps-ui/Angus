@@ -206,6 +206,60 @@ Never write raw `cubic-bezier(...)` or `ms` literals — tokens only. Reduced mo
   `curl -X POST "https://<ref>.supabase.co/auth/v1/token?grant_type=password" -H "apikey: <publishable>" -H "Content-Type: application/json" -d '{"email":"…","password":"…"}'` → expect HTTP 200 with an `access_token`. pgcrypto lives in the `extensions` schema, so qualify `crypt` / `gen_salt`.
 - Changing a password needs no email: `supabase.auth.updateUser({ password })` on a live session — that's what `ChangePasswordSheet` (account sheet → Seguridad) uses. Password **reset** from the sign-in screen would need email, so it isn't offered yet.
 
+## 8b. Backups and restore
+
+The project is on Supabase's **free plan**: no point-in-time recovery, no
+managed backups. The app is the only copy of her business memory, so
+these two things are the whole disaster plan.
+
+**Nightly, automatic** — `.github/workflows/backup.yml` runs
+`scripts/backup-db.mjs` at 09:10 UTC (~03:10 CDMX): `pg_dump` of the
+`public` + `auth` schemas, gzipped, to `r2://angus-backups/pg/`, pruned
+to 30 days. RPO is up to 24h, accepted deliberately.
+
+Required GitHub repository secrets (**the workflow no-ops loudly until
+these exist**):
+
+| Secret | Where to get it |
+|---|---|
+| `SUPABASE_DB_URL` | Supabase → Project Settings → Database → Connection string (**session pooler**, with the password) |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | the same pair the `api/` routes use |
+| `R2_BACKUP_BUCKET` | optional; defaults to `angus-backups`. Create the bucket first — the script does not. |
+
+Two refusals are deliberate: a dump under 4 KiB is never uploaded (that
+is `pg_dump` "succeeding" against nothing and overwriting good history),
+and the prune never deletes its way down to only today's copy.
+
+Run it by hand with `npm run backup` (needs those vars in `.env.local`).
+
+**Restore** — into a scratch project first, always. A backup that has
+never been restored is a hypothesis, not a backup:
+
+```bash
+aws s3 cp s3://angus-backups/pg/angus-<stamp>.sql.gz . \
+  --endpoint-url https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com
+gunzip angus-<stamp>.sql.gz
+psql "<scratch-project-connection-string>" -f angus-<stamp>.sql
+```
+
+Then diff it against production before trusting it — row counts per
+table are the cheap check:
+
+```sql
+select relname, n_live_tup from pg_stat_user_tables
+where schemaname = 'public' order by relname;
+```
+
+**Her own copy** — Ajustes → Tus datos → **Descargar todo**
+(`src/lib/exportAll.ts`) writes every workspace-scoped table as one JSON
+file. It reads from the server, not from `AppContext`, because the stores
+are capped and a backup of a subset is the most dangerous kind. It
+records any table it could not read in `failed` and says so in the toast
+rather than handing her a quiet partial.
+
+The CSVs in `lib/exportCsv.ts` are *reports* (a period, resolved names,
+for an accountant), not backups. Don't confuse the two.
+
 ## 9. Gotchas (learned the hard way)
 
 - Supabase rejects `@example.com` addresses; use real domains (plus-aliases are fine) for test accounts, then confirm via SQL: `update auth.users set email_confirmed_at = now() where email = '…';`
