@@ -71,9 +71,14 @@ export interface CloudStore<T extends Entity> {
   addMany: (items: T[]) => Promise<boolean>;
   /** Resolves true once the server accepted the patch; false after a revert. */
   update: (id: string, patch: Partial<T>) => Promise<boolean>;
-  remove: (id: string) => Promise<void>;
+  /** Resolves true once the server accepted the delete; false after a revert.
+      Callers that mirror a server-side cascade with `dropLocal` MUST gate on
+      this — dropping children for a delete the server rejected leaves the
+      parent restored and its children missing locally, and every balance
+      derived from that truncated list is wrong. */
+  remove: (id: string) => Promise<boolean>;
   /** Delete several rows in ONE request. */
-  removeMany: (ids: string[]) => Promise<void>;
+  removeMany: (ids: string[]) => Promise<boolean>;
   /** Drop rows from local state only — mirrors a server-side cascade. */
   dropLocal: (predicate: (item: T) => boolean) => void;
 }
@@ -90,6 +95,27 @@ const PAGE = 1000;
 
 const MISSING_ROW = "Esa fila ya no está en el servidor.";
 
+/* No request in this app had a deadline. `loading` is the OR of all
+   nineteen stores, so a single socket that never answers — studio wifi
+   behind a captive portal that blackholes TCP instead of resetting it —
+   left the skeleton on screen forever, with no error and no retry, against
+   a product standard that promises "never a frozen spinner". A read that
+   has not answered by now is a failed read, which the UI already knows how
+   to report and offer a Recargar for.
+
+   READS ONLY, on purpose. A write has no safe deadline: aborting one the
+   server went on to commit would revert it locally and leave the app
+   disagreeing with Postgres about a row that exists — strictly worse than
+   waiting. Writes stay open and are reconciled by the next reload. */
+const READ_TIMEOUT_MS = 15_000;
+
+/** An abort signal that fires after `ms`, plus the cleanup that cancels it. */
+export function deadline(ms: number): { signal: AbortSignal; done: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, done: () => clearTimeout(timer) };
+}
+
 /** Does `coverage` include the whole range? A null coverage is everything. */
 export function covers(coverage: { from: string; to: string } | null, from: string, to: string): boolean {
   return coverage === null || (coverage.from <= from && coverage.to >= to);
@@ -102,11 +128,17 @@ export function covers(coverage: { from: string; to: string } | null, from: stri
    forever. Both ends matter: materialize.ts scans back to each rule's
    own startDate, series.ts forward to SERIES_HORIZON_DAYS. */
 export function canDiff(
-  reports: Pick<LoadReport, "truncated" | "coverage">[],
+  reports: Pick<LoadReport, "truncated" | "coverage" | "readError">[],
   from: string,
   to: string
 ): boolean {
-  return reports.every((r) => !r.truncated && covers(r.coverage, from, to));
+  /* A failed read is the most dangerous input of all: `reload` leaves the
+     PREVIOUS truncated/coverage in place and only stamps `readError`, so on
+     a first load that is EMPTY_LOAD — `truncated: false`, `coverage: null` —
+     and a store holding zero rows would otherwise report itself complete.
+     The generator would then diff its whole horizon against nothing and
+     insert a duplicate of every row the table already holds. Fail closed. */
+  return reports.every((r) => r.readError === null && !r.truncated && covers(r.coverage, from, to));
 }
 
 /** Rounds of generator writes allowed per session, then latched shut. */
@@ -269,7 +301,13 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       if (span && config.window) {
         q = q.gte(config.window.column, span.from).lte(config.window.column, span.to);
       }
-      const { data, error: readErr, count } = await q;
+      const { signal, done } = deadline(READ_TIMEOUT_MS);
+      let data, readErr, count;
+      try {
+        ({ data, error: readErr, count } = await q.abortSignal(signal));
+      } finally {
+        done();
+      }
       if (gen !== generation.current) return; // a newer read already won
       if (readErr) {
         readError = readErr.message;
@@ -320,6 +358,27 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
     [config.window, reload]
   );
 
+  /* Which of these ids does the server actually hold? A 23505 says SOME
+     unique index rejected the row, never which one, so it cannot be read as
+     "the row you wanted is already there" — a duplicate on an unrelated
+     constraint would hand the caller an id that was never persisted, and the
+     FK child it then writes under that id is rejected. null means the
+     question could not be answered; the caller converges via reload rather
+     than guessing. */
+  const landedIds = useCallback(
+    async (ids: string[]): Promise<Set<string> | null> => {
+      if (!workspaceId) return null;
+      const { data, error: checkErr } = await supabase
+        .from(config.table)
+        .select("id")
+        .in("id", ids)
+        .eq("workspace_id", workspaceId);
+      if (checkErr) return null;
+      return new Set((data ?? []).map((row) => (row as { id: string }).id));
+    },
+    [workspaceId, config]
+  );
+
   const insertRows = useCallback(
     async (next: T[]): Promise<boolean> => {
       if (!workspaceId || next.length === 0) return false;
@@ -341,28 +400,34 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
           const gone = new Set(ids);
           commit(listRef.current.filter((it) => !gone.has(it.id)));
           setError(insertErr.message);
-        } else if (rows.length === 1) {
-          ok = true;
-          converge = true;
         } else {
           // Postgres refuses the whole batch for one duplicate. Retry each
-          // row alone, and drop the optimistic copy of any row that did
-          // NOT land — a caller told `true` may insert an FK child under it.
-          const failed: string[] = [];
+          // row alone so one duplicate cannot mask its siblings.
           let firstMessage: string | null = null;
-          for (let i = 0; i < rows.length; i++) {
-            const { error: one } = await supabase.from(config.table).insert(rows[i]);
-            if (!one || one.code === UNIQUE_VIOLATION) continue;
-            failed.push(next[i].id);
-            firstMessage ??= one.message;
+          if (rows.length > 1) {
+            for (let i = 0; i < rows.length; i++) {
+              const { error: one } = await supabase.from(config.table).insert(rows[i]);
+              if (one && one.code !== UNIQUE_VIOLATION) firstMessage ??= one.message;
+            }
           }
-          if (failed.length === 0) {
-            ok = true;
+          /* Then let the server settle it. Anything still absent was refused
+             by a constraint other than the one the caller's generator is
+             keyed on, which is a real failed write, not a convergence. */
+          const present = await landedIds(ids);
+          if (present === null) {
+            // Could not confirm. Do not claim success — reload and let the
+            // server's copy decide what the list holds.
             converge = true;
           } else {
-            const gone = new Set(failed);
-            commit(listRef.current.filter((it) => !gone.has(it.id)));
-            setError(firstMessage);
+            const missing = next.filter((it) => !present.has(it.id));
+            if (missing.length === 0) {
+              ok = true;
+              converge = true;
+            } else {
+              const gone = new Set(missing.map((it) => it.id));
+              commit(listRef.current.filter((it) => !gone.has(it.id)));
+              setError(firstMessage ?? insertErr.message);
+            }
           }
         }
       } finally {
@@ -373,7 +438,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       if (converge) await reload();
       return ok;
     },
-    [workspaceId, config, reload, commit]
+    [workspaceId, config, reload, commit, landedIds]
   );
 
   const add = useCallback((item: T) => insertRows([item]), [insertRows]);
@@ -386,9 +451,6 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       if (keys.length === 0) return true;
       const before = listRef.current.find((it) => it.id === id);
       if (!before) return false;
-      // Revert restores ONLY the fields this write touched, so a sibling
-      // patch that succeeded meanwhile is not undone along with it.
-      const prior = Object.fromEntries(keys.map((k) => [k, before[k]])) as Partial<T>;
       commit(listRef.current.map((it) => (it.id === id ? { ...it, ...patch } : it)));
       ledger.current.hold([id], "write");
       setInflight((n) => n + 1);
@@ -407,7 +469,23 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
         if (!updateErr && (data?.length ?? 0) > 0) {
           ok = true;
         } else {
-          commit(listRef.current.map((it) => (it.id === id ? { ...it, ...prior } : it)));
+          /* Revert only the fields this write still OWNS. Restoring every
+             field it touched is safe against a sibling patch on DISJOINT
+             fields, but not against a later patch to the SAME field: if B
+             set `amount` after A did and B was accepted, A's revert would
+             put the pre-A value back and silently discard B's accepted
+             write. A field that no longer holds what A applied belongs to
+             someone else now, so A leaves it alone. */
+          commit(
+            listRef.current.map((it) => {
+              if (it.id !== id) return it;
+              const restored = { ...it };
+              for (const k of keys) {
+                if (Object.is(it[k], patch[k])) restored[k] = before[k];
+              }
+              return restored;
+            })
+          );
           setError(updateErr ? updateErr.message : MISSING_ROW);
         }
       } finally {
@@ -420,12 +498,14 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   );
 
   const deleteRows = useCallback(
-    async (ids: string[]) => {
-      if (!workspaceId || ids.length === 0) return;
+    async (ids: string[]): Promise<boolean> => {
+      if (!workspaceId || ids.length === 0) return false;
       const gone = new Set(ids);
       const before = listRef.current;
       const removed = before.filter((it) => gone.has(it.id));
-      if (removed.length === 0) return;
+      // Nothing local to remove: the rows are already absent, which is the
+      // caller's desired end state, so mirroring a cascade is still correct.
+      if (removed.length === 0) return true;
       const at = new Map(removed.map((it) => [it.id, before.indexOf(it)]));
       commit(before.filter((it) => !gone.has(it.id)));
       const held = [...gone];
@@ -460,6 +540,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       // not an error — but if RLS hid the row it still exists, and this
       // read brings it back visibly instead of diverging in silence.
       if (!failed) void reload();
+      return !failed;
     },
     [workspaceId, config, commit, reload]
   );

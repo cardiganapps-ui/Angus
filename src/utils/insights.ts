@@ -93,8 +93,11 @@ export function salesByMedium(
 ): RankedRow[] {
   const mediumOf = new Map(projects.map((p) => [p.id, p.medium.trim() || "Sin medio"]));
   const saleMedium = new Map<string, string>();
+  /* Every sale, not just the counting ones — same cash-basis rule as
+     accounting.incomeByCategory. Filtering by status here dropped payments
+     on a later-cancelled sale from the breakdown while periodSummary.income
+     still counted them, so the parts did not add up to the whole. */
   for (const s of sales) {
-    if (!saleCountsTowardRevenue(s)) continue;
     saleMedium.set(s.id, (s.projectId && mediumOf.get(s.projectId)) || "Sin pieza ligada");
   }
   const rows = new Map<string, { label: string; cents: number; count: number }>();
@@ -124,7 +127,9 @@ export function topClients(
 ): RankedRow[] {
   const nameOf = new Map(contacts.map((c) => [c.id, c.name]));
   const contactOf = new Map<string, string | null>();
-  for (const s of sales) if (saleCountsTowardRevenue(s)) contactOf.set(s.id, s.contactId);
+  // Cash basis: a payment counts for whoever made it, whatever the sale's
+  // status is today. See the note in salesByMedium.
+  for (const s of sales) contactOf.set(s.id, s.contactId);
   const rows = new Map<string, { label: string; cents: number; count: number }>();
   const seen = new Set<string>();
   for (const p of payments) {

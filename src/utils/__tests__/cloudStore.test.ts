@@ -13,7 +13,8 @@ import {
   mergeLoaded,
   truncationOf,
   type CloudStoreConfig,
-  type Entity
+  type Entity,
+  deadline
 } from "../../hooks/useCloudStore";
 
 interface Row {
@@ -105,19 +106,19 @@ describe("covers", () => {
 });
 
 describe("canDiff", () => {
-  const whole = { truncated: false, coverage: null };
+  const whole = { truncated: false, coverage: null, readError: null };
 
   it("passes when every store is whole", () => {
     expect(canDiff([whole, whole], "2026-01-01", "2026-12-31")).toBe(true);
   });
 
   it("is poisoned by a single truncated store", () => {
-    expect(canDiff([whole, { truncated: true, coverage: null }, whole], "2026-01-01", "2026-12-31")).toBe(false);
+    expect(canDiff([whole, { truncated: true, coverage: null, readError: null }, whole], "2026-01-01", "2026-12-31")).toBe(false);
   });
 
   it("rejects coverage short of the forward horizon", () => {
     // SERIES_HORIZON_DAYS is 84; a 60-day window cannot answer the diff.
-    const short = { truncated: false, coverage: { from: "2026-09-15", to: "2026-11-14" } };
+    const short = { truncated: false, coverage: { from: "2026-09-15", to: "2026-11-14" }, readError: null };
     expect(canDiff([short], "2026-09-15", "2026-12-08")).toBe(false);
   });
 
@@ -125,8 +126,18 @@ describe("canDiff", () => {
      rule's own startDate, so coverage that begins after it makes rows
      that DO exist look missing: insert -> 23505 -> reload -> same diff. */
   it("rejects coverage starting after the earliest active rule", () => {
-    const eighteenMonths = { truncated: false, coverage: { from: "2025-03-15", to: "2026-09-29" } };
+    const eighteenMonths = { truncated: false, coverage: { from: "2025-03-15", to: "2026-09-29" }, readError: null };
     expect(canDiff([eighteenMonths], "2023-01-01", "2026-09-29")).toBe(false);
+  });
+
+  /* A failed read keeps the PREVIOUS truncated/coverage and only stamps
+     readError, so on a first load it still looks like EMPTY_LOAD — whole
+     and complete — while the store holds zero rows. Diffing a horizon
+     against nothing asks the generator to insert the entire table. */
+  it("fails closed when a store's read errored, however whole it looks", () => {
+    const failed = { truncated: false, coverage: null, readError: "network" };
+    expect(canDiff([failed], "2026-01-01", "2026-12-31")).toBe(false);
+    expect(canDiff([whole, failed], "2026-01-01", "2026-12-31")).toBe(false);
   });
 });
 
@@ -211,5 +222,23 @@ describe("mergeLoaded", () => {
     const pending = new Map([["x", "write" as const]]);
     const out = mergeLoaded([thing("x")], [thing("c"), thing("b"), thing("a")], pending);
     expect(out.map((t) => t.id)).toEqual(["x", "c", "b", "a"]);
+  });
+});
+
+describe("deadline", () => {
+  /* Reads had no deadline at all, so a socket that never answered pinned
+     `loading` — the OR of nineteen stores — on forever. */
+  it("aborts once the time is up", async () => {
+    const { signal } = deadline(5);
+    expect(signal.aborted).toBe(false);
+    await new Promise((r) => setTimeout(r, 25));
+    expect(signal.aborted).toBe(true);
+  });
+
+  it("does not abort a request that finished in time", async () => {
+    const { signal, done } = deadline(5);
+    done();
+    await new Promise((r) => setTimeout(r, 25));
+    expect(signal.aborted).toBe(false);
   });
 });

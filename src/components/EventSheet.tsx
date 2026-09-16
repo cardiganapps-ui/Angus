@@ -82,7 +82,7 @@ export function EventSheet({
     contacts,
     courses
   } = useApp();
-  const { showSuccess } = useToast();
+  const { showSuccess, showToast } = useToast();
   const parent: EventSeries | null = event?.seriesId ? (allSeries.find((s) => s.id === event.seriesId) ?? null) : null;
 
   const [title, setTitle] = useState(event?.title ?? initialTitle ?? "");
@@ -178,8 +178,11 @@ export function EventSheet({
         // Moving an occurrence: its original slot stays as a cancelled
         // row (so the generator doesn't refill that date) and the moved
         // session becomes a one-off of its own.
-        void updateEvent(event.id, { cancelled: true });
-        void addEvent({
+        /* Same ordering rule as the split below: the moved session is
+           created first, so a rejected insert cannot leave her with the
+           original slot cancelled and no session anywhere. */
+        setSubmitting(true);
+        const moved = await addEvent({
           id: makeId(),
           createdAt: todayISO(),
           date,
@@ -189,6 +192,13 @@ export function EventSheet({
           detached: false,
           ...eventPatch
         });
+        if (!moved) {
+          setSubmitting(false);
+          showToast("No se pudo mover la sesión. Sigue en su fecha original.", "error", { persistent: true });
+          return;
+        }
+        await updateEvent(event.id, { cancelled: true });
+        setSubmitting(false);
       } else {
         void updateEvent(event.id, { ...eventPatch, date, ...(parent ? { detached: true } : {}) });
       }
@@ -211,33 +221,59 @@ export function EventSheet({
       return;
     }
 
-    // ── "Este y siguientes": split the series at this occurrence ──
+    /* ── "Este y siguientes": split the series at this occurrence ──
+       Order is the safety property. These three writes used to fire
+       unordered with `void` and report success unconditionally, so a
+       rejected addSeries left the old series already capped and its future
+       sessions already deleted — her class gone from that date on, with
+       nothing left to regenerate it and a green toast saying it worked.
+       Build the replacement FIRST: until it exists, nothing is destroyed. */
+    setSubmitting(true);
     const future = seriesFuture(parent, events, event.date);
-    void updateSeries(parent.id, { endDate: addDays(event.date, -1) });
-    void removeEvents(future.map((e) => e.id));
-    void addSeries({ id: makeId(), createdAt: todayISO(), ...seriesShape(date) });
+    const created = await addSeries({ id: makeId(), createdAt: todayISO(), ...seriesShape(date) });
+    if (!created) {
+      setSubmitting(false);
+      showToast("No se pudo dividir la serie. Nada se cambió.", "error", { persistent: true });
+      return;
+    }
+    // The replacement exists; retiring the old half is now safe to lose.
+    await updateSeries(parent.id, { endDate: addDays(event.date, -1) });
+    await removeEvents(future.map((e) => e.id));
+    setSubmitting(false);
     haptic.success();
     showSuccess("Serie dividida desde esta fecha");
     onClose();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!event) return;
+    setSubmitting(true);
+    let ok: boolean;
+    let done: string;
     if (!parent || scope === "one") {
       // A series slot stays as a cancelled row so regeneration skips it.
-      if (parent) void updateEvent(event.id, { cancelled: true });
-      else void removeEvent(event.id);
-      showSuccess("Evento eliminado");
+      ok = parent ? await updateEvent(event.id, { cancelled: true }) : await removeEvent(event.id);
+      done = "Evento eliminado";
     } else if (scope === "all") {
-      void removeSeries(parent.id);
-      showSuccess("Serie eliminada");
+      ok = await removeSeries(parent.id);
+      done = "Serie eliminada";
     } else {
+      /* Cap the series BEFORE deleting its occurrences. The other order lets
+         a rejected cap leave the sessions deleted and the rule still active,
+         so the generator simply refills the dates she just cleared. */
       const future = seriesFuture(parent, events, event.date);
-      void updateSeries(parent.id, { endDate: addDays(event.date, -1) });
-      void removeEvents(future.map((e) => e.id));
-      showSuccess("Sesiones siguientes eliminadas");
+      ok = await updateSeries(parent.id, { endDate: addDays(event.date, -1) });
+      if (ok) ok = await removeEvents(future.map((e) => e.id));
+      done = "Sesiones siguientes eliminadas";
+    }
+    setSubmitting(false);
+    if (!ok) {
+      // The store already put back whatever it had removed.
+      showToast("No se pudo eliminar. Nada se borró.", "error", { persistent: true });
+      return;
     }
     haptic.warn();
+    showSuccess(done);
     onClose();
   }
 
@@ -255,7 +291,7 @@ export function EventSheet({
           canSave={canSave}
           submitting={submitting}
           onSave={() => void handleSave()}
-          onDelete={event ? handleDelete : undefined}
+          onDelete={event ? () => void handleDelete() : undefined}
           confirmText={
             parent
               ? scope === "all"

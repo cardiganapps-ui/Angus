@@ -424,14 +424,26 @@ export function clientBalances(sales: Sale[], payments: Payment[]): ClientBalanc
 
 /* ── Income by category ──
    Cash basis, like profitLoss: a payment counts for the category of the
-   sale it settles, on the day it was received. */
+   sale it settles, on the day it was received.
+
+   The lookup is built from EVERY sale, not just the counting ones. It used
+   to filter by `saleCountsTowardRevenue`, which silently dropped payments
+   whose sale was later cancelled — while `profitLoss` (and therefore the
+   "Cobrado" headline directly above this breakdown in Reportes) counted
+   them. A $4 000 deposit on a commission cancelled in July made the KPI
+   read $4 000 and the bars beneath it sum to $0, on the same screen, with
+   nothing explaining the gap. Cash that arrived is cash that arrived; the
+   obligation to give it back is a liability, reported by totals().refundable.
+
+   INVARIANT: Σ(incomeByCategory) === profitLoss().income over the same
+   range. Pinned by a test — do not reintroduce a status filter here. */
 export function incomeByCategory(
   sales: Sale[],
   payments: Payment[],
   from: string,
   to: string
 ): CategoryShare[] {
-  const categoryOf = new Map(sales.filter(saleCountsTowardRevenue).map((s) => [s.id, s.category]));
+  const categoryOf = new Map(sales.map((s) => [s.id, s.category]));
   const buckets = new Map<string, number>();
   for (const p of payments) {
     const category = categoryOf.get(p.saleId);

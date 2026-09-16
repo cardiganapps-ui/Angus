@@ -434,10 +434,46 @@ describe("incomeByCategory", () => {
       payment("p3", "s3", 900, "2026-09-07"),
       payment("p4", "s1", 3000, "2026-10-01")
     ];
+    /* s3 is `quoted` and its 900 was received in the range. It counts.
+       This assertion used to read 1800 / 3800 — excluding it — because
+       the lookup filtered by saleCountsTowardRevenue. That made the
+       breakdown disagree with profitLoss (and with the "Cobrado" KPI
+       rendered directly above it in Reportes), which counts every payment
+       in the range whatever its sale's status. The old expectation pinned
+       that asymmetry as correct; it was the bug. */
     expect(incomeByCategory(sales, payments, "2026-09-01", "2026-09-30")).toEqual([
-      { category: "piece", amount: 2000, share: 2000 / 3800 },
-      { category: "class", amount: 1800, share: 1800 / 3800 }
+      { category: "class", amount: 2700, share: 2700 / 4700 },
+      { category: "piece", amount: 2000, share: 2000 / 4700 }
     ]);
+  });
+
+  /* The invariant that makes Reportes internally consistent: the parts add
+     up to the whole. Any status filter reintroduced into incomeByCategory
+     breaks this and the screen starts lying again. */
+  it("sums exactly to profitLoss income over the same range — headline ties to breakdown", () => {
+    const sales = [
+      { ...sale("s1", 12000, "confirmed"), category: "commission" as const },
+      { ...sale("s2", 1800, "cancelled"), category: "class" as const },
+      { ...sale("s3", 900, "quoted"), category: "workshop" as const },
+      { ...sale("s4", 4000, "delivered"), category: "piece" as const }
+    ];
+    const payments = [
+      payment("p1", "s1", 6000, "2026-09-05"),
+      payment("p2", "s2", 1800, "2026-09-06"),
+      payment("p3", "s3", 900, "2026-09-07"),
+      payment("p4", "s4", 4000, "2026-09-08"),
+      payment("p5", "s1", 6000, "2026-10-01")
+    ];
+    const from = "2026-09-01";
+    const to = "2026-09-30";
+    const breakdown = incomeByCategory(sales, payments, from, to);
+    const headline = profitLoss(payments, [], from, to).income;
+
+    expect(headline).toBe(12700);
+    expect(sumMoney(breakdown.map((r) => r.amount))).toBe(headline);
+    // ...including the deposit on the cancelled sale, which is real cash.
+    expect(breakdown.find((r) => r.category === "class")?.amount).toBe(1800);
+    expect(breakdown.reduce((n, r) => n + r.share, 0)).toBeCloseTo(1, 10);
   });
 });
 

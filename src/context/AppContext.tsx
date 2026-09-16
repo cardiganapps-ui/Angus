@@ -87,108 +87,108 @@ interface AppContextValue {
   projects: Project[];
   addProject: (p: Project) => Promise<boolean>;
   updateProject: (id: string, patch: Partial<Project>) => Promise<boolean>;
-  removeProject: (id: string) => Promise<void>;
+  removeProject: (id: string) => Promise<boolean>;
 
   contacts: Contact[];
   addContact: (c: Contact) => Promise<boolean>;
   updateContact: (id: string, patch: Partial<Contact>) => Promise<boolean>;
-  removeContact: (id: string) => Promise<void>;
+  removeContact: (id: string) => Promise<boolean>;
 
   events: ScheduleEvent[];
   addEvent: (e: ScheduleEvent) => Promise<boolean>;
   addEvents: (rows: ScheduleEvent[]) => Promise<boolean>;
   updateEvent: (id: string, patch: Partial<ScheduleEvent>) => Promise<boolean>;
-  removeEvent: (id: string) => Promise<void>;
-  removeEvents: (ids: string[]) => Promise<void>;
+  removeEvent: (id: string) => Promise<boolean>;
+  removeEvents: (ids: string[]) => Promise<boolean>;
 
   series: EventSeries[];
   addSeries: (s: EventSeries) => Promise<boolean>;
   updateSeries: (id: string, patch: Partial<EventSeries>) => Promise<boolean>;
   /** Deletes the series AND every occurrence (Postgres cascades; mirrored locally). */
-  removeSeries: (id: string) => Promise<void>;
+  removeSeries: (id: string) => Promise<boolean>;
 
   sales: Sale[];
   addSale: (s: Sale) => Promise<boolean>;
   addSales: (rows: Sale[]) => Promise<boolean>;
   updateSale: (id: string, patch: Partial<Sale>) => Promise<boolean>;
-  removeSale: (id: string) => Promise<void>;
+  removeSale: (id: string) => Promise<boolean>;
 
   payments: Payment[];
   addPayment: (p: Payment) => Promise<boolean>;
   updatePayment: (id: string, patch: Partial<Payment>) => Promise<boolean>;
-  removePayment: (id: string) => Promise<void>;
+  removePayment: (id: string) => Promise<boolean>;
 
   installments: Installment[];
   addInstallment: (i: Installment) => Promise<boolean>;
   /** A whole plan in one request. */
   addInstallments: (rows: Installment[]) => Promise<boolean>;
   updateInstallment: (id: string, patch: Partial<Installment>) => Promise<boolean>;
-  removeInstallment: (id: string) => Promise<void>;
-  removeInstallments: (ids: string[]) => Promise<void>;
+  removeInstallment: (id: string) => Promise<boolean>;
+  removeInstallments: (ids: string[]) => Promise<boolean>;
 
   expenses: Expense[];
   addExpense: (e: Expense) => Promise<boolean>;
   addExpenses: (rows: Expense[]) => Promise<boolean>;
   updateExpense: (id: string, patch: Partial<Expense>) => Promise<boolean>;
-  removeExpense: (id: string) => Promise<void>;
+  removeExpense: (id: string) => Promise<boolean>;
 
   rules: RecurringRule[];
   addRule: (r: RecurringRule) => Promise<boolean>;
   addRules: (rows: RecurringRule[]) => Promise<boolean>;
   updateRule: (id: string, patch: Partial<RecurringRule>) => Promise<boolean>;
-  removeRule: (id: string) => Promise<void>;
+  removeRule: (id: string) => Promise<boolean>;
 
   groups: ClassGroup[];
   addGroup: (g: ClassGroup) => Promise<boolean>;
   updateGroup: (id: string, patch: Partial<ClassGroup>) => Promise<boolean>;
   /** Deletes the group and its enrollments (cascade); its series and rules stay. */
-  removeGroup: (id: string) => Promise<void>;
+  removeGroup: (id: string) => Promise<boolean>;
 
   enrollments: ClassEnrollment[];
   addEnrollment: (e: ClassEnrollment) => Promise<boolean>;
   updateEnrollment: (id: string, patch: Partial<ClassEnrollment>) => Promise<boolean>;
-  removeEnrollment: (id: string) => Promise<void>;
+  removeEnrollment: (id: string) => Promise<boolean>;
 
   attendance: Attendance[];
   addAttendance: (rows: Attendance[]) => Promise<boolean>;
   updateAttendance: (id: string, patch: Partial<Attendance>) => Promise<boolean>;
-  removeAttendance: (ids: string[]) => Promise<void>;
+  removeAttendance: (ids: string[]) => Promise<boolean>;
 
   courses: Course[];
   addCourse: (c: Course) => Promise<boolean>;
   updateCourse: (id: string, patch: Partial<Course>) => Promise<boolean>;
   /** Deletes the course and its schedule (series + sessions) and tareas; expenses, rules, notes and pieces stay unlinked. */
-  removeCourse: (id: string) => Promise<void>;
+  removeCourse: (id: string) => Promise<boolean>;
 
   assignments: Assignment[];
   addAssignment: (a: Assignment) => Promise<boolean>;
   updateAssignment: (id: string, patch: Partial<Assignment>) => Promise<boolean>;
-  removeAssignment: (id: string) => Promise<void>;
+  removeAssignment: (id: string) => Promise<boolean>;
 
   notes: Note[];
   addNote: (n: Note) => Promise<boolean>;
   updateNote: (id: string, patch: Partial<Note>) => Promise<boolean>;
   /** Deletes the note; its tag links cascade (mirrored locally). */
-  removeNote: (id: string) => Promise<void>;
-  removeNotes: (ids: string[]) => Promise<void>;
+  removeNote: (id: string) => Promise<boolean>;
+  removeNotes: (ids: string[]) => Promise<boolean>;
 
   noteTags: NoteTag[];
   addNoteTag: (t: NoteTag) => Promise<boolean>;
   updateNoteTag: (id: string, patch: Partial<NoteTag>) => Promise<boolean>;
-  removeNoteTag: (id: string) => Promise<void>;
+  removeNoteTag: (id: string) => Promise<boolean>;
 
   noteTagLinks: NoteTagLink[];
   addNoteTagLink: (l: NoteTagLink) => Promise<boolean>;
-  removeNoteTagLink: (id: string) => Promise<void>;
+  removeNoteTagLink: (id: string) => Promise<boolean>;
 
   documents: Document[];
   addDocument: (d: Document) => Promise<boolean>;
   updateDocument: (id: string, patch: Partial<Document>) => Promise<boolean>;
-  removeDocument: (id: string) => Promise<void>;
+  removeDocument: (id: string) => Promise<boolean>;
 
   noteAttachments: NoteAttachment[];
   addNoteAttachment: (a: NoteAttachment) => Promise<boolean>;
-  removeNoteAttachment: (id: string) => Promise<void>;
+  removeNoteAttachment: (id: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -570,10 +570,14 @@ export function AppProvider({
             .filter((r) => r.contactId === id && r.active)
             .map((r) => rules.update(r.id, { active: false, endDate: today }))
         );
-        await contacts.remove(id);
-        const sessions = new Set(events.items.map((e) => e.id));
-        attendance.dropLocal((a) => a.contactId === id && sessions.has(a.eventId));
-        enrollments.dropLocal((e) => e.contactId === id);
+        const ok = await contacts.remove(id);
+        // Mirror the cascade only if the server actually performed one.
+        if (ok) {
+          const sessions = new Set(events.items.map((e) => e.id));
+          attendance.dropLocal((a) => a.contactId === id && sessions.has(a.eventId));
+          enrollments.dropLocal((e) => e.contactId === id);
+        }
+        return ok;
       },
       events: events.items,
       addEvent: events.add,
@@ -581,13 +585,17 @@ export function AppProvider({
       updateEvent: events.update,
       // Attendance rows cascade with their session; mirror it locally.
       removeEvent: async (id: string) => {
-        await events.remove(id);
-        attendance.dropLocal((a) => a.eventId === id);
+        const ok = await events.remove(id);
+        if (ok) attendance.dropLocal((a) => a.eventId === id);
+        return ok;
       },
       removeEvents: async (ids: string[]) => {
-        await events.removeMany(ids);
-        const gone = new Set(ids);
-        attendance.dropLocal((a) => gone.has(a.eventId));
+        const ok = await events.removeMany(ids);
+        if (ok) {
+          const gone = new Set(ids);
+          attendance.dropLocal((a) => gone.has(a.eventId));
+        }
+        return ok;
       },
       series: series.items,
       addSeries: series.add,
@@ -596,9 +604,12 @@ export function AppProvider({
       // mirror it locally.
       removeSeries: async (id: string) => {
         const sessionIds = new Set(events.items.filter((e) => e.seriesId === id).map((e) => e.id));
-        await series.remove(id);
-        events.dropLocal((e) => e.seriesId === id);
-        attendance.dropLocal((a) => sessionIds.has(a.eventId));
+        const ok = await series.remove(id);
+        if (ok) {
+          events.dropLocal((e) => e.seriesId === id);
+          attendance.dropLocal((a) => sessionIds.has(a.eventId));
+        }
+        return ok;
       },
       sales: sales.items,
       addSale: sales.add,
@@ -607,9 +618,15 @@ export function AppProvider({
       // Postgres cascades a sale's payments and installments; mirror that
       // locally so no balance is ever derived from orphaned rows.
       removeSale: async (id: string) => {
-        await sales.remove(id);
-        payments.dropLocal((p) => p.saleId === id);
-        installments.dropLocal((i) => i.saleId === id);
+        const ok = await sales.remove(id);
+        /* A rejected delete restores the sale. Dropping its payments and
+           cuotas anyway would leave the sale reading as fully unpaid and
+           inflate "Por cobrar" until the next reload. */
+        if (ok) {
+          payments.dropLocal((p) => p.saleId === id);
+          installments.dropLocal((i) => i.saleId === id);
+        }
+        return ok;
       },
       payments: payments.items,
       addPayment: payments.add,
@@ -643,8 +660,9 @@ export function AppProvider({
             .filter((r) => r.groupId === id && r.active)
             .map((r) => rules.update(r.id, { active: false, endDate: today }))
         );
-        await groups.remove(id);
-        enrollments.dropLocal((e) => e.groupId === id);
+        const ok = await groups.remove(id);
+        if (ok) enrollments.dropLocal((e) => e.groupId === id);
+        return ok;
       },
       enrollments: enrollments.items,
       addEnrollment: enrollments.add,
@@ -668,23 +686,43 @@ export function AppProvider({
             .filter((r) => r.courseId === id && r.active)
             .map((r) => rules.update(r.id, { active: false, endDate: today }))
         );
-        if (course?.seriesId) {
-          const seriesId = course.seriesId;
-          const sessionIds = new Set(events.items.filter((e) => e.seriesId === seriesId).map((e) => e.id));
-          await series.remove(seriesId);
-          events.dropLocal((e) => e.seriesId === seriesId);
-          attendance.dropLocal((a) => sessionIds.has(a.eventId));
-        }
-        // Its material (and its tareas' entregas) would otherwise survive
-        // as rows nothing lists; a piece's photos stay with the piece.
+        /* Its material (and its tareas' entregas) would otherwise survive as
+           rows nothing lists; a piece's photos stay with the piece. Resolved
+           BEFORE the delete, while the local lists still hold them. */
         const tareas = new Set(assignments.items.filter((a) => a.courseId === id).map((a) => a.id));
         const material = documents.items.filter(
           (d) => !d.projectId && (d.courseId === id || (d.assignmentId !== null && tareas.has(d.assignmentId)))
         );
-        await Promise.all(material.filter((d) => d.r2Path).map((d) => deleteFile(d.r2Path as string).catch(() => false)));
-        if (material.length) await documents.removeMany(material.map((d) => d.id));
-        await courses.remove(id);
+
+        /* Order is the whole safety property here. The course row is the one
+           revocable step — RLS or a lost connection can refuse it — so it
+           goes FIRST, and nothing irreversible happens until it is gone.
+           Purging the R2 bytes up front (as this did) meant a rejected
+           delete left a live course whose material had already been
+           destroyed, with no copy anywhere: the row delete reverts, the
+           bytes do not. */
+        if (course?.seriesId) {
+          const seriesId = course.seriesId;
+          const sessionIds = new Set(events.items.filter((e) => e.seriesId === seriesId).map((e) => e.id));
+          if (await series.remove(seriesId)) {
+            events.dropLocal((e) => e.seriesId === seriesId);
+            attendance.dropLocal((a) => sessionIds.has(a.eventId));
+          }
+        }
+        const ok = await courses.remove(id);
+        if (!ok) return false;
+
+        // Only now, with the course gone for good, discard what hung off it —
+        // rows first, then the bytes those rows pointed at.
+        if (material.length) {
+          if (await documents.removeMany(material.map((d) => d.id))) {
+            await Promise.all(
+              material.filter((d) => d.r2Path).map((d) => deleteFile(d.r2Path as string).catch(() => false))
+            );
+          }
+        }
         assignments.dropLocal((a) => a.courseId === id);
+        return true;
       },
       assignments: assignments.items,
       addAssignment: assignments.add,
@@ -696,22 +734,29 @@ export function AppProvider({
       // Tag links and attachments cascade with the note; the bytes in
       // R2 are purged by useNotes before this runs.
       removeNote: async (id: string) => {
-        await notes.remove(id);
-        noteTagLinks.dropLocal((l) => l.noteId === id);
-        noteAttachments.dropLocal((a) => a.noteId === id);
+        const ok = await notes.remove(id);
+        if (ok) {
+          noteTagLinks.dropLocal((l) => l.noteId === id);
+          noteAttachments.dropLocal((a) => a.noteId === id);
+        }
+        return ok;
       },
       removeNotes: async (ids: string[]) => {
-        await notes.removeMany(ids);
-        const gone = new Set(ids);
-        noteTagLinks.dropLocal((l) => gone.has(l.noteId));
-        noteAttachments.dropLocal((a) => gone.has(a.noteId));
+        const ok = await notes.removeMany(ids);
+        if (ok) {
+          const gone = new Set(ids);
+          noteTagLinks.dropLocal((l) => gone.has(l.noteId));
+          noteAttachments.dropLocal((a) => gone.has(a.noteId));
+        }
+        return ok;
       },
       noteTags: noteTags.items,
       addNoteTag: noteTags.add,
       updateNoteTag: noteTags.update,
       removeNoteTag: async (id: string) => {
-        await noteTags.remove(id);
-        noteTagLinks.dropLocal((l) => l.tagId === id);
+        const ok = await noteTags.remove(id);
+        if (ok) noteTagLinks.dropLocal((l) => l.tagId === id);
+        return ok;
       },
       noteTagLinks: noteTagLinks.items,
       addNoteTagLink: noteTagLinks.add,
