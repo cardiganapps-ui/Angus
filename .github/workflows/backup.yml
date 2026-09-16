@@ -3,6 +3,12 @@ name: Nightly backup
 # The project is on Supabase's free plan: no PITR, no managed backups.
 # This workflow is the disaster plan for the only copy of one artist's
 # business memory. RPO is up to 24h, accepted deliberately.
+#
+# It is deliberately NOT gated behind an "enabled" variable the way
+# e2e.yml is. Until its secrets exist it will fail red every night, and
+# that is the point: a backup that skips itself quietly is the exact
+# failure mode that loses the data. Set the secrets (docs/handoff.md §2)
+# — never silence the job.
 on:
   schedule:
     # 09:10 UTC — ~03:10 in Mexico City, after her day and off the hour
