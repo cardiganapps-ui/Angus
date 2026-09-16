@@ -5,6 +5,9 @@ import {
   attendanceRate,
   groupOccupancy,
   groupSessions,
+  isPerSessionTuitionSale,
+  perSessionTuitionSale,
+  planTuitionForRollCall,
   sessionsWithoutAttendance,
   summarizeTuition,
   tuitionStatus
@@ -84,5 +87,143 @@ describe("tuitionStatus", () => {
       ["c4", "pending", 1800]
     ]);
     expect(summarizeTuition(rows)).toEqual({ paid: 1, pending: 1, overdue: 1, none: 1, owed: 3600 });
+  });
+});
+
+/* ── Cobro por sesión: a roll call that can be corrected ──
+   A per-session group bills at roll call. Flipping a billed student to
+   absent used to leave that confirmed sale standing forever, with the
+   sheet telling her to go cancel it by hand in Dinero. It is cancelled
+   now — never deleted, because a Payment may already exist against it
+   and deleting the sale would cascade that record of real money away. */
+const perSessionSale = (id: string, eventId: string, contactId: string, over: Partial<Sale> = {}): Sale => ({
+  id,
+  title: "Óleo martes · sesión",
+  amount: 350,
+  date: "2026-09-08",
+  status: "confirmed",
+  category: "class",
+  paymentTerms: "single",
+  projectId: null,
+  contactId,
+  eventId,
+  recurringRuleId: null,
+  periodKey: eventId,
+  notes: "",
+  createdAt: "2026-09-08",
+  ...over
+});
+
+describe("identifying the sale a roll call created", () => {
+  it("matches on the session's id as period key, with no rule behind it", () => {
+    expect(isPerSessionTuitionSale(perSessionSale("x1", "s2", "c1"), "s2")).toBe(true);
+    expect(isPerSessionTuitionSale(perSessionSale("x1", "s2", "c1"), "s1")).toBe(false);
+  });
+
+  it("never matches a manual sale or a monthly tuition sale", () => {
+    // A sale she typed in herself carries no period key at all...
+    const manual = perSessionSale("x1", "s2", "c1", { periodKey: null });
+    expect(isPerSessionTuitionSale(manual, "s2")).toBe(false);
+    // ...and a monthly colegiatura is keyed to the month, by a rule.
+    const monthly = perSessionSale("x2", "s2", "c1", { recurringRuleId: "r-c1", periodKey: "2026-09" });
+    expect(isPerSessionTuitionSale(monthly, "s2")).toBe(false);
+    expect(perSessionTuitionSale([manual, monthly], "s2", "c1")).toBeNull();
+  });
+
+  it("refuses a sale a rule generated, whatever its period key says", () => {
+    /* The two unique indexes on sales.period_key stay disjoint only
+       because one requires recurring_rule_id to be null (migration 010).
+       A roll call owns the null side; a colegiatura mensual is not its
+       business even if the keys ever collided. */
+    const ruled = perSessionSale("x1", "s2", "c1", { recurringRuleId: "r-c1" });
+    expect(isPerSessionTuitionSale(ruled, "s2")).toBe(false);
+    // Same for a sale of another kind that happens to carry the key.
+    const piece = perSessionSale("x2", "s2", "c1", { category: "piece" });
+    expect(isPerSessionTuitionSale(piece, "s2")).toBe(false);
+    expect(planTuitionForRollCall("s2", [{ contactId: "c1", attending: false }], [ruled, piece], []).toCancel).toEqual([]);
+  });
+
+  it("keeps one student's sale apart from another's", () => {
+    const sales = [perSessionSale("x1", "s2", "c1"), perSessionSale("x2", "s2", "c2")];
+    expect(perSessionTuitionSale(sales, "s2", "c2")?.id).toBe("x2");
+    expect(perSessionTuitionSale(sales, "s2", "c3")).toBeNull();
+  });
+});
+
+describe("planTuitionForRollCall", () => {
+  const roll = (present: string[], away: string[] = []) => [
+    ...present.map((contactId) => ({ contactId, attending: true })),
+    ...away.map((contactId) => ({ contactId, attending: false }))
+  ];
+
+  it("bills whoever attended and has no sale for this session yet", () => {
+    const plan = planTuitionForRollCall("s2", roll(["c1", "c2"]), [], []);
+    expect(plan.toBill).toEqual(["c1", "c2"]);
+    expect(plan.toCancel).toEqual([]);
+    expect(plan.toRestore).toEqual([]);
+  });
+
+  it("never bills the same student twice for one session", () => {
+    const plan = planTuitionForRollCall("s2", roll(["c1"]), [perSessionSale("x1", "s2", "c1")], []);
+    expect(plan.toBill).toEqual([]);
+  });
+
+  it("cancels the sale of a student flipped to absent — it does not delete it", () => {
+    const existing = perSessionSale("x1", "s2", "c1");
+    const plan = planTuitionForRollCall("s2", roll([], ["c1"]), [existing], []);
+    expect(plan.toCancel.map((s) => s.id)).toEqual(["x1"]);
+    expect(plan.toBill).toEqual([]);
+  });
+
+  it("treats a justified absence the same way: the session was not taken", () => {
+    // "Avisó" is still an absence for a class billed per session.
+    const existing = perSessionSale("x1", "s2", "c1");
+    expect(planTuitionForRollCall("s2", roll([], ["c1"]), [existing], []).toCancel).toHaveLength(1);
+  });
+
+  it("reports cash already taken on a cancelled cobro as refundable", () => {
+    const existing = perSessionSale("x1", "s2", "c1");
+    const paid: Payment = { id: "p1", saleId: "x1", amount: 350, date: "2026-09-08", method: "cash", notes: "", createdAt: "2026-09-08" };
+    const plan = planTuitionForRollCall("s2", roll([], ["c1"]), [existing], [paid]);
+    // The money she took for a session that didn't happen is hers to
+    // give back — "Por devolver" — not a line that quietly vanishes.
+    expect(plan.refundable).toBe(350);
+  });
+
+  it("revives the cancelled sale instead of inserting a duplicate", () => {
+    // (period_key, contact_id) is unique, so a second insert would be
+    // rejected outright — and a rejected insert is not a bill.
+    const cancelled = perSessionSale("x1", "s2", "c1", { status: "cancelled" });
+    const plan = planTuitionForRollCall("s2", roll(["c1"]), [cancelled], []);
+    expect(plan.toRestore.map((s) => s.id)).toEqual(["x1"]);
+    expect(plan.toBill).toEqual([]);
+  });
+
+  it("leaves an already-cancelled sale alone when the student stays away", () => {
+    const cancelled = perSessionSale("x1", "s2", "c1", { status: "cancelled" });
+    const plan = planTuitionForRollCall("s2", roll([], ["c1"]), [cancelled], []);
+    expect(plan.toCancel).toEqual([]);
+    expect(plan.refundable).toBe(0);
+  });
+
+  it("never touches an unrelated manual sale to the same student", () => {
+    const manual = perSessionSale("x9", "s2", "c1", { periodKey: null, category: "piece" });
+    const plan = planTuitionForRollCall("s2", roll([], ["c1"]), [manual], []);
+    expect(plan.toCancel).toEqual([]);
+    // ...and she is still billed for the session, because that manual
+    // sale was never this session's cobro.
+    expect(planTuitionForRollCall("s2", roll(["c1"]), [manual], []).toBill).toEqual(["c1"]);
+  });
+
+  it("does the three things at once for one roll call", () => {
+    const sales = [
+      perSessionSale("x1", "s2", "c1"), // was present, now away  → cancel
+      perSessionSale("x2", "s2", "c2", { status: "cancelled" }), // back → restore
+      perSessionSale("x3", "s9", "c3") // another session entirely
+    ];
+    const plan = planTuitionForRollCall("s2", roll(["c2", "c3"], ["c1"]), sales, []);
+    expect(plan.toCancel.map((s) => s.id)).toEqual(["x1"]);
+    expect(plan.toRestore.map((s) => s.id)).toEqual(["x2"]);
+    expect(plan.toBill).toEqual(["c3"]);
   });
 });

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 
 /* ── SettingsFieldSheet ──
    One text or money field in a sheet: label, input, Guardar. Used by
@@ -26,6 +27,7 @@ export function SettingsFieldSheet({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState(value);
+  const dirty = useDirtyGuard({ draft });
   const trimmed = draft.trim();
   const canSave =
     kind === "money" ? trimmed === "" || Number(trimmed) >= 0 : trimmed !== value.trim();
@@ -40,6 +42,8 @@ export function SettingsFieldSheet({
     <Sheet
       title={title}
       onClose={onClose}
+      dirty={dirty}
+      discardText={`¿Descartar los cambios? «${label}» se queda como estaba.`}
       footer={<SheetActions canSave={canSave} submitting={false} onSave={save} confirmText="" />}
     >
       <div className="input-group">

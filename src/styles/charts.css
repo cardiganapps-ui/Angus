@@ -21,12 +21,12 @@
 /* Gridline values ride over the plot, so they wear a halo in the card's
    own color: legible across a bar, invisible against the surface. */
 .chart-gridtext {
-  font-family: var(--font); font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+  font-family: var(--font); font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.02em;
   fill: var(--charcoal-xl); font-variant-numeric: tabular-nums;
   paint-order: stroke fill; stroke: var(--white); stroke-width: 3px; stroke-linejoin: round;
 }
 .chart-captext {
-  font-family: var(--font-d); font-size: 11px; font-weight: 800; letter-spacing: -0.1px;
+  font-family: var(--font-d); font-size: var(--text-xs); font-weight: 800; letter-spacing: -0.1px;
   font-variant-numeric: tabular-nums;
   paint-order: stroke fill; stroke: var(--white); stroke-width: 3px; stroke-linejoin: round;
 }
@@ -89,7 +89,10 @@
 .forecast-hero { padding: 16px; }
 .forecast-hero-label { font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--charcoal-xl); }
 .forecast-hero-value {
-  font-family: var(--font-d); font-weight: 800; font-size: 34px; letter-spacing: -0.5px;
+  /* Ratio of the top scale step rather than the literal 34px it was:
+     nothing above --text-2xl exists, and a hero rounded down to 24px
+     stops being a hero. 34.1px at scale 1, and it scales now. */
+  font-family: var(--font-d); font-weight: 800; font-size: calc(var(--text-2xl) * 1.42); letter-spacing: -0.5px;
   line-height: 1.1; margin-top: 6px; color: var(--charcoal);
 }
 .forecast-hero-value--neg { color: var(--red); }

@@ -188,13 +188,16 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
               <div className="row-item" style={{ cursor: "default" }}>
                 <div className="row-content">
                   <div className="row-sub">Teléfono</div>
-                  <div className="row-title">{contact.phone || "—"}</div>
+                  {/* The app disables text selection globally; these two are
+                      exactly the strings she needs to long-press and paste
+                      into something else, so they opt back in. */}
+                  <div className="row-title selectable">{contact.phone || "—"}</div>
                 </div>
               </div>
               <div className="row-item" style={{ cursor: "default" }}>
                 <div className="row-content">
                   <div className="row-sub">Correo</div>
-                  <div className="row-title">{contact.email || "—"}</div>
+                  <div className="row-title selectable">{contact.email || "—"}</div>
                 </div>
               </div>
               {contact.notes && (

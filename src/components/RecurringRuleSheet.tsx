@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { RecurrenceCadence, RecurrenceKind, RecurringRule } from "../types";
@@ -14,7 +14,8 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
-import { makeId } from "../utils/id";
+import { domId, makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { formatShort, todayISO } from "../utils/dates";
 import { formatMXN } from "../utils/money";
 import { monthlyEquivalent, nextOccurrence, periodKeyFamily } from "../utils/recurrence";
@@ -62,6 +63,12 @@ export function RecurringRuleSheet({
   const [courseId, setCourseId] = useState(rule?.courseId ?? "");
   const [notes, setNotes] = useState(rule?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+
+  const uid = domId(useId());
+  const dirty = useDirtyGuard({
+    kind, title, amount, category, cadence, interval, startDate, endDate,
+    contactId, projectId, courseId, notes
+  });
 
   const safeClose = submitting ? null : onClose;
   const parsedAmount = Number(amount);
@@ -154,6 +161,12 @@ export function RecurringRuleSheet({
     <Sheet
       title={rule ? "Editar regla" : kind === "income" ? "Nuevo ingreso fijo" : "Nuevo gasto fijo"}
       onClose={safeClose}
+      dirty={dirty}
+      discardText={
+        rule
+          ? "¿Descartar los cambios? La regla se queda como estaba."
+          : "¿Descartar? Esta regla no se guarda y no generará movimientos."
+      }
       footer={
         <SheetActions
           canSave={canSave}
@@ -295,8 +308,9 @@ export function RecurringRuleSheet({
       </div>
 
       <div className="input-group">
-        <span className="input-label">{kind === "income" ? "Quién paga" : "A quién le pagas"}</span>
+        <span className="input-label" id={`${uid}-contact`}>{kind === "income" ? "Quién paga" : "A quién le pagas"}</span>
         <PickerField
+          labelId={`${uid}-contact`}
           title={kind === "income" ? "Quién paga" : "A quién le pagas"}
           options={contactOptions}
           value={contactId}
@@ -308,14 +322,15 @@ export function RecurringRuleSheet({
       </div>
 
       <div className="input-group">
-        <span className="input-label">Pieza relacionada</span>
-        <PickerField title="Pieza relacionada" options={projectOptions} value={projectId} onChange={setProjectId} />
+        <span className="input-label" id={`${uid}-project`}>Pieza relacionada</span>
+        <PickerField labelId={`${uid}-project`} title="Pieza relacionada" options={projectOptions} value={projectId} onChange={setProjectId} />
       </div>
 
       {kind === "expense" && courses.length > 0 && (
         <div className="input-group">
-          <span className="input-label">Curso que tomas</span>
+          <span className="input-label" id={`${uid}-course`}>Curso que tomas</span>
           <PickerField
+            labelId={`${uid}-course`}
             title="Curso"
             options={courses
               .filter((c) => c.status === "active" || c.status === "upcoming" || c.id === courseId)

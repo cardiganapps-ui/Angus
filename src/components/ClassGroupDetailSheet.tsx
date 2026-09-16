@@ -286,6 +286,15 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
           </div>
         )}
 
+        {tab === "tuition" && group.tuitionCadence === "per_session" && (
+          /* The roll call is the billing screen for this class, both
+             ways round — it creates the cobro and it cancels it. */
+          <div className="money-submeta" style={{ marginTop: 12 }}>
+            Esta clase se cobra por sesión: al pasar lista se crea un cobro por cada alumno presente, y
+            si después le marcas falta ese cobro se cancela solo.
+          </div>
+        )}
+
         {tab === "tuition" && (
           <div className="money-list" style={{ marginTop: 14 }}>
             {tuition.length === 0 ? (

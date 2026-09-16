@@ -54,7 +54,11 @@
 .drawer-avatar {
   width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
   background: var(--accent-pale); color: var(--accent-dark);
-  font-family: var(--font-d); font-weight: 800; font-size: 18px;
+  /* Avatar initial, was a literal 18px. --text-lg over --text-xl keeps
+     the glyph clear of the 44px circle at her largest text setting, and
+     follows the ramp the other avatars already sit on (40px circle →
+     --text-md, 48px → --text-xl). */
+  font-family: var(--font-d); font-weight: 800; font-size: var(--text-lg);
   display: flex; align-items: center; justify-content: center;
 }
 .drawer-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }

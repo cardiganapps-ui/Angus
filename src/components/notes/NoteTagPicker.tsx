@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import type { NoteTag, NoteTagLink } from "../../types";
 import { Icon } from "../Icon";
+import { domId } from "../../utils/id";
 import { haptic } from "../../lib/haptics";
 
 /* ── NoteTagPicker ──
@@ -24,6 +25,7 @@ export function NoteTagPicker({
 }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const inputId = `note-tag-input-${domId(useId())}`;
 
   const linkedIds = useMemo(() => {
     const s = new Set<string>();
@@ -58,7 +60,9 @@ export function NoteTagPicker({
 
   return (
     <div className="input-group">
-      <div className="input-label">Etiquetas</div>
+      {/* The caption used to be a bare <div> labelling nothing, with the
+          input naming itself out of band — two strings for one field. */}
+      <label className="input-label" htmlFor={inputId}>Etiquetas</label>
       {linked.length > 0 && (
         <div className="note-tag-row">
           {linked.map((tag) => (
@@ -80,6 +84,7 @@ export function NoteTagPicker({
         </div>
       )}
       <input
+        id={inputId}
         className="input"
         type="text"
         placeholder="Nueva etiqueta + Enter"
@@ -92,7 +97,6 @@ export function NoteTagPicker({
           }
         }}
         disabled={busy}
-        aria-label="Nueva etiqueta"
       />
       {suggestions.length > 0 && (
         <div className="note-tag-row" style={{ marginTop: 8 }}>

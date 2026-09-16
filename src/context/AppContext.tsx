@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type {
   Assignment,
   Attendance,
@@ -42,7 +42,8 @@ import {
   paymentStore,
   projectStore,
   recurringRuleStore,
-  saleStore
+  saleStore,
+  materializerSkipStore
 } from "../data/rows";
 import { importLocalData } from "../lib/importLocal";
 import { deleteFile } from "../lib/files";
@@ -213,6 +214,7 @@ export function AppProvider({
   const payments = useCloudStore(workspaceId, paymentStore);
   const installments = useCloudStore(workspaceId, installmentStore);
   const expenses = useCloudStore(workspaceId, expenseStore);
+  const skips = useCloudStore(workspaceId, materializerSkipStore);
   const rules = useCloudStore(workspaceId, recurringRuleStore);
   const series = useCloudStore(workspaceId, eventSeriesStore);
   const groups = useCloudStore(workspaceId, classGroupStore);
@@ -275,6 +277,8 @@ export function AppProvider({
   const rulesLoad = rules.load;
   const salesLoad = sales.load;
   const expensesLoad = expenses.load;
+  const skipsLoad = skips.load;
+  const skipItems = skips.items;
   useEffect(() => {
     // A rule that hasn't landed yet can't be referenced by its rows.
     if (loading || materializing.current || rulesInflight > 0) return;
@@ -285,9 +289,13 @@ export function AppProvider({
     const canMaterialize =
       canDiff([rulesLoad], today, today) &&
       canDiff([salesLoad], earliestRule ?? today, addDays(today, INCOME_LOOKAHEAD_DAYS)) &&
-      canDiff([expensesLoad], earliestRule ?? today, today);
+      canDiff([expensesLoad], earliestRule ?? today, today) &&
+      /* The skip list decides what must NOT be regenerated, so a
+         truncated or failed read of it is the one case where running
+         anyway resurrects rows she deleted. Gate on it like the rest. */
+      canDiff([skipsLoad], today, today);
     if (!canMaterialize) return;
-    const pending = pendingMaterializations(ruleItems, saleItems, expenseItems, today);
+    const pending = pendingMaterializations(ruleItems, saleItems, expenseItems, skipItems, today);
     if (pending.sales.length === 0 && pending.expenses.length === 0) return;
     const signature = [...pending.sales, ...pending.expenses]
       .map((r) => `${r.recurringRuleId}:${r.periodKey}`)
@@ -311,7 +319,7 @@ export function AppProvider({
       .finally(() => {
         materializing.current = false;
       });
-  }, [loading, rulesInflight, ruleItems, saleItems, expenseItems, addSales, addExpenses, rulesLoad, salesLoad, expensesLoad]);
+  }, [loading, rulesInflight, ruleItems, saleItems, expenseItems, skipItems, addSales, addExpenses, rulesLoad, salesLoad, expensesLoad, skipsLoad]);
 
   // Same idea for recurring sessions: keep ~12 weeks of occurrences on
   // the calendar. Waits for a just-created series to land (FK).
@@ -409,6 +417,25 @@ export function AppProvider({
 
   /* Table name, not variable name: this is read against the caps in
      data/rows.ts and against Postgres, both of which use the real name. */
+  /* A rule-generated row she deleted must not be regenerated. Recorded
+     HERE rather than in each sheet, so every delete path gets it for
+     free — and only after the server accepted the delete, so a refused
+     delete never leaves a tombstone for a row that still exists. The
+     insert is idempotent: re-deleting a row that already came back once
+     trips the unique index, which the store treats as convergence. */
+  const rememberSkip = useCallback(
+    async (row: { recurringRuleId: string | null; periodKey: string | null } | undefined) => {
+      if (!row?.recurringRuleId || !row.periodKey) return;
+      await skips.add({
+        id: makeId(),
+        createdAt: todayISO(),
+        recurringRuleId: row.recurringRuleId,
+        periodKey: row.periodKey
+      });
+    },
+    [skips]
+  );
+
   const loadReports = useMemo<{ table: string; report: LoadReport }[]>(
     () => [
     { table: "projects", report: projects.load },
@@ -618,6 +645,7 @@ export function AppProvider({
       // Postgres cascades a sale's payments and installments; mirror that
       // locally so no balance is ever derived from orphaned rows.
       removeSale: async (id: string) => {
+        const doomed = sales.items.find((s) => s.id === id);
         const ok = await sales.remove(id);
         /* A rejected delete restores the sale. Dropping its payments and
            cuotas anyway would leave the sale reading as fully unpaid and
@@ -625,6 +653,7 @@ export function AppProvider({
         if (ok) {
           payments.dropLocal((p) => p.saleId === id);
           installments.dropLocal((i) => i.saleId === id);
+          await rememberSkip(doomed);
         }
         return ok;
       },
@@ -642,7 +671,12 @@ export function AppProvider({
       addExpense: expenses.add,
       addExpenses: expenses.addMany,
       updateExpense: expenses.update,
-      removeExpense: expenses.remove,
+      removeExpense: async (id: string) => {
+        const doomed = expenses.items.find((e) => e.id === id);
+        const ok = await expenses.remove(id);
+        if (ok) await rememberSkip(doomed);
+        return ok;
+      },
       rules: rules.items,
       addRule: rules.add,
       addRules: rules.addMany,
@@ -794,7 +828,8 @@ export function AppProvider({
       noteTags,
       noteTagLinks,
       documents,
-      noteAttachments
+      noteAttachments,
+      rememberSkip
     ]
   );
 

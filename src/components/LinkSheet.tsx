@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { useDocuments, type DocumentLinks } from "../hooks/useDocuments";
 import { useToast } from "../context/ToastContext";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
+import { domId } from "../utils/id";
 import { haptic } from "../lib/haptics";
 
 /* ── LinkSheet ──
@@ -15,6 +17,9 @@ export function LinkSheet({ links, onClose }: { links: DocumentLinks; onClose: (
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const dirty = useDirtyGuard({ url, name });
+  const errorId = `link-url-error-${domId(useId())}`;
+
   const normalized = /^https?:\/\//i.test(url.trim()) ? url.trim() : url.trim() ? `https://${url.trim()}` : "";
   let valid = false;
   try {
@@ -22,6 +27,7 @@ export function LinkSheet({ links, onClose }: { links: DocumentLinks; onClose: (
   } catch {
     valid = false;
   }
+  const showError = !!url.trim() && !valid;
 
   async function save() {
     if (!valid) return;
@@ -39,11 +45,34 @@ export function LinkSheet({ links, onClose }: { links: DocumentLinks; onClose: (
   }
 
   return (
-    <Sheet title="Agregar enlace" onClose={submitting ? null : onClose} footer={<SheetActions canSave={valid} submitting={submitting} onSave={() => void save()} confirmText="" />}>
+    <Sheet
+      title="Agregar enlace"
+      onClose={submitting ? null : onClose}
+      dirty={dirty}
+      discardText="¿Descartar? El enlace no se guarda."
+      footer={<SheetActions canSave={valid} submitting={submitting} onSave={() => void save()} confirmText="" />}
+    >
       <div className="input-group">
         <label className="input-label" htmlFor="link-url">Dirección</label>
-        <input id="link-url" className="input" type="url" inputMode="url" autoCapitalize="none" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" autoFocus />
-        <div className={`input-error-msg ${url.trim() && !valid ? "is-visible" : ""}`}>Escribe una dirección completa, como youtube.com/…</div>
+        <input
+          id="link-url"
+          className={`input ${showError ? "input-error" : ""}`}
+          type="url"
+          inputMode="url"
+          autoCapitalize="none"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://…"
+          aria-invalid={showError || undefined}
+          aria-describedby={errorId}
+          autoFocus
+        />
+        {/* Rendered unconditionally: .input-error-msg reserves its own
+            line, and role=alert only announces text that APPEARS in a
+            live region that was already there. */}
+        <div className={`input-error-msg ${showError ? "is-visible" : ""}`} id={errorId} role="alert">
+          {showError ? "Escribe una dirección completa, como youtube.com/…" : ""}
+        </div>
       </div>
       <div className="input-group">
         <label className="input-label" htmlFor="link-name">Nombre (opcional)</label>

@@ -46,15 +46,27 @@
   --cream-deeper:#EFDAE5;
   --charcoal:    #2E2633;
   --charcoal-md: #5D5266;
-  --charcoal-lt: #7B6F84;
-  /* --charcoal-xl is the meta/eyebrow step. The first blush pass had it
-     at #9C90A4, which measured 3.03:1 on --white but only 2.76:1 on
-     --cream and 2.55:1 on --cream-dark — i.e. every eyebrow inside a
-     cream band (money-panel, badge-gray, the sale-detail stats) missed
-     even the 3:1 large/meta floor. Darkened one step so it clears 3:1
-     on all three surfaces (3.82 / 3.48 / 3.22) while staying clearly
-     lighter than --charcoal-lt. */
-  --charcoal-xl: #8B7E92;
+  /* --charcoal-lt (tertiary) and --charcoal-xl (meta/eyebrow/placeholder)
+     were tuned to a "3:1 large-text floor". That floor only exists for
+     text ≥18.66px bold or ≥24px — and neither token is ever used at
+     those sizes: --charcoal-xl carries the 10-12px eyebrows, hints and
+     ::placeholder, --charcoal-lt the 12-14px tertiary lines. At those
+     sizes the bar is 4.5:1, and the old pair (#7B6F84 / #8B7E92) missed
+     it on every ground: 4.72/3.98 and 3.82/3.22 on --white/--cream-dark.
+
+     Both are darkened to clear 4.5:1 on every surface they are ever set
+     on — --white, --cream, --cream-dark, --accent-pale, --accent-mist:
+       --charcoal-lt  6.24 / 5.68 / 5.26 / 5.35 / 5.82
+       --charcoal-xl  5.32 / 4.85 / 4.56 / 4.64 / 5.04
+     --cream-deeper is NOT in that list: it is a track/skeleton surface,
+     and its one text use (.btn-primary[disabled]) is an inactive control,
+     which 1.4.3 exempts. The pair sits at L* 40.9 / 45.3, keeping the
+     ramp ordered (16.5 / 36.6 / 40.9 / 45.3) — 4.5:1 on a blush ground
+     caps any compliant token near L* 45, so this is all the air the two
+     bottom steps can have. Hue is held at ~275/280 with the same ~8%
+     saturation: still plum, still not a grey. */
+  --charcoal-lt: #675D6E;
+  --charcoal-xl: #726678;
   --border:      #E7D0DC;
   --border-lt:   #F3E4EC;
   --white:       #FFFFFF;
@@ -82,6 +94,12 @@
      re-tone it away from ~335° first. */
   --rose:        #D98BA6;
   --rose-bg:     #FCF0F4;
+  /* How much of its own hue a .badge label keeps before the rest is
+     pulled toward --charcoal. Light needs 55% to clear 4.5:1 at 11px on
+     the palest tints (amber, rose); dark keeps 72% because --charcoal
+     inverts there and more of it would only wash the label out. Full
+     derivation on .badge in components.css. */
+  --badge-mix:   55%;
   --nav-bg:      #3A2A38;
   /* Modality dots (Agenda month view + future surfaces). Tokenized
      so dark mode + per-profession theme overrides flow uniformly
@@ -209,12 +227,24 @@
      in dark mode — every modal now shares one elevation language. */
   --shadow-overlay:  0 16px 48px color-mix(in srgb, var(--charcoal) 22%, transparent);
   --shadow-sheet-up: 0 -10px 40px color-mix(in srgb, var(--charcoal) 18%, transparent);
-  /* Input focus ring. Tokenized so it flips in dark mode — the literal
-     rgba(91,155,175,…) call sites it replaces were a fixed light-teal
-     that read wrong against dark inputs. dark.css overrides the color. */
-  --focus-ring: 0 0 0 3px rgba(201,98,143,0.25);
-  /* Danger variant for .input-error focus — matches --red (#D96B6B). */
-  --focus-ring-danger: 0 0 0 3px rgba(212,84,75,0.18);
+  /* Input focus ring. .input / .chip / .picker-field set `outline: none`
+     and substitute this, so it IS the focus indicator and has to carry
+     1.4.11's 3:1 on its own. A translucent rose can't: rgba(201,98,143,
+     0.25) composites to #F2D8E3 = 1.34:1 on --white, and even at alpha
+     0.95 it only reaches 3.47:1 on white / 2.96:1 on --cream-dark — the
+     ring had to go solid, not merely darker. The dark override was no
+     better (alpha 0.45 → 2.45:1).
+
+     So: a SOLID 2px --accent ring (3.73 white / 3.40 cream / 3.15
+     cream-dark; 7.15 in dark) doing the accessibility work, with the
+     old soft halo demoted to a decorative 2px outside it. Built from
+     var(--accent)/var(--red) rather than rgba literals so both themes
+     flip from the palette — dark.css no longer overrides these. */
+  --focus-ring: 0 0 0 2px var(--accent),
+                0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent);
+  /* Danger variant for .input-error focus — --red is 4.06:1 on --white. */
+  --focus-ring-danger: 0 0 0 2px var(--red),
+                       0 0 0 4px color-mix(in srgb, var(--red) 22%, transparent);
   /* ── Spacing scale ──
      The vertical/horizontal rhythm documented in CLAUDE.md, finally
      tokenized so new surfaces stop hand-coding padding/gap px. Use the
@@ -324,9 +354,7 @@
      52   fab
      200  drawer-overlay
      201  drawer
-     300  expediente-backdrop
-     301  expediente-card / admin-panel
-     350  sheets (payment, new patient/session/note/document)
+     350  sheets (venta, pago, obra, nota, documento…)
      400  note-editor (full takeover)
      500  doc-viewer-backdrop
      501  doc-viewer-panel
@@ -340,8 +368,6 @@
   --z-sheet:          350;
   --z-drawer-overlay: 200;
   --z-drawer:         201;
-  --z-expediente-bg:  300;
-  --z-expediente:     301;
   --z-note-editor:    400;
   --z-doc-viewer-bg:  500;
   --z-doc-viewer:     501;
@@ -495,8 +521,7 @@ a[href^="tel:"], a[href^="mailto:"] {
      :has() rule in components.css). */
   .app-chrome-top .status-bar { background: transparent; }
   .app-chrome-top .topbar { background: transparent; border-bottom: none; }
-  .app-chrome-top .topbar,
-  .app-chrome-top .app-banner {
+  .app-chrome-top .topbar {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

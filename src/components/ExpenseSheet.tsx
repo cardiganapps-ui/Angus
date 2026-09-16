@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { Expense, ExpenseCategory, PaymentMethod } from "../types";
@@ -7,7 +7,8 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
-import { makeId } from "../utils/id";
+import { domId, makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
 
@@ -41,6 +42,9 @@ export function ExpenseSheet({
   const [eventId, setEventId] = useState(expense?.eventId ?? initialEventId ?? "");
   const [notes, setNotes] = useState(expense?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+
+  const uid = domId(useId());
+  const dirty = useDirtyGuard({ title, amount, date, category, courseId, method, projectId, eventId, notes });
 
   const safeClose = submitting ? null : onClose;
   const parsedAmount = Number(amount);
@@ -107,6 +111,12 @@ export function ExpenseSheet({
     <Sheet
       title={expense ? "Editar gasto" : "Nuevo gasto"}
       onClose={safeClose}
+      dirty={dirty}
+      discardText={
+        expense
+          ? "¿Descartar los cambios? El gasto se queda como estaba."
+          : "¿Descartar? Este gasto no queda registrado."
+      }
       footer={
         <SheetActions
           canSave={canSave}
@@ -190,8 +200,9 @@ export function ExpenseSheet({
       </div>
 
       <div className="input-group">
-        <span className="input-label">Proyecto</span>
+        <span className="input-label" id={`${uid}-project`}>Proyecto</span>
         <PickerField
+          labelId={`${uid}-project`}
           title="Proyecto"
           options={projectOptions}
           value={projectId}
@@ -200,14 +211,14 @@ export function ExpenseSheet({
       </div>
 
       <div className="input-group">
-        <span className="input-label">Expo</span>
-        <PickerField title="Expo" options={expoOptions} value={eventId} onChange={setEventId} />
+        <span className="input-label" id={`${uid}-expo`}>Expo</span>
+        <PickerField labelId={`${uid}-expo`} title="Expo" options={expoOptions} value={eventId} onChange={setEventId} />
       </div>
 
       {courseOptions.length > 0 && (
         <div className="input-group">
-          <span className="input-label">Curso que tomas</span>
-          <PickerField title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
+          <span className="input-label" id={`${uid}-course`}>Curso que tomas</span>
+          <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
         </div>
       )}
 

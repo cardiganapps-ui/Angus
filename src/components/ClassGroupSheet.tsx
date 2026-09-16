@@ -8,6 +8,7 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { ScheduleFields, type ScheduleValue } from "./ScheduleFields";
 import { makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { parseISODate, todayISO } from "../utils/dates";
 import { reshapeFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
@@ -59,6 +60,14 @@ export function ClassGroupSheet({
   const [capacity, setCapacity] = useState(group?.capacity?.toString() ?? "");
   const [notes, setNotes] = useState(group?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+
+  const dirty = useDirtyGuard({
+    name, startDate, location, tuition, tuitionCadence, capacity, notes,
+    scheduleWeekdays: schedule.weekdays,
+    scheduleCadence: schedule.cadence,
+    scheduleStart: schedule.startTime,
+    scheduleEnd: schedule.endTime
+  });
 
   const safeClose = submitting ? null : onClose;
   const canSave = name.trim().length > 0 && startDate.length > 0;
@@ -140,6 +149,12 @@ export function ClassGroupSheet({
     <Sheet
       title={group ? "Editar clase" : "Nueva clase"}
       onClose={safeClose}
+      dirty={dirty}
+      discardText={
+        group
+          ? "¿Descartar los cambios? La clase se queda como estaba."
+          : "¿Descartar? Esta clase y sus sesiones no se guardan."
+      }
       footer={
         <SheetActions
           canSave={canSave}

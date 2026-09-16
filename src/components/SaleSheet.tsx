@@ -8,13 +8,19 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
-import { PlanBuilder } from "./PlanBuilder";
+import { PlanBuilder, PlanPreview } from "./PlanBuilder";
 import { planRows, type PlanDraft } from "../utils/plan";
 import { makeId } from "../utils/id";
 import { addMonths, formatShort, todayISO } from "../utils/dates";
-import { paidForSale } from "../utils/accounting";
-import { formatMXN } from "../utils/money";
+import { paidForSale, planMismatch, rebuildPlan } from "../utils/accounting";
+import { formatMXN, toCents } from "../utils/money";
 import { haptic } from "../lib/haptics";
+
+type PlanChoice = "rebuild" | "keep";
+const PLAN_CHOICE_ITEMS = [
+  { k: "rebuild", l: "Ajustar cuotas" },
+  { k: "keep", l: "Dejar el plan" }
+];
 
 const STATUS_ITEMS = SALE_STATUS.map((s) => ({ k: s.value, l: s.label }));
 const TERMS_ITEMS = PAYMENT_TERMS.map((t) => ({ k: t.value, l: t.short }));
@@ -44,6 +50,8 @@ export function SaleSheet({
     updateSale,
     removeSale,
     addInstallments,
+    updateInstallment,
+    removeInstallments,
     installments,
     payments,
     projects,
@@ -69,6 +77,7 @@ export function SaleSheet({
   const [contactId, setContactId] = useState(sale?.contactId ?? "");
   const [eventId, setEventId] = useState(sale?.eventId ?? initialEventId ?? "");
   const [notes, setNotes] = useState(sale?.notes ?? "");
+  const [planChoice, setPlanChoice] = useState<PlanChoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const safeClose = submitting ? null : onClose;
@@ -78,12 +87,27 @@ export function SaleSheet({
   const hasPlan = !!sale && installments.some((i) => i.saleId === sale.id);
   const buildsPlan = terms !== "single" && !hasPlan;
   const rows = buildsPlan ? planRows(terms, parsedAmount, date, plan) : null;
+
+  /* Changing the amount of a sale that already has cuotas used to write
+     `amount` alone: the plan stopped summing to the sale, forecast.ts
+     projected income that wasn't owed and Hoy showed phantom overdue
+     cuotas — all of it silent. Now she has to say which she meant, and
+     "dejar el plan" is a choice she makes on purpose, not one the app
+     makes for her. */
+  const amountEdited =
+    !!sale && amount.trim().length > 0 && parsedAmount > 0 && toCents(parsedAmount) !== toCents(sale.amount);
+  const pendingMismatch =
+    sale && hasPlan && amountEdited ? planMismatch({ ...sale, amount: parsedAmount }, installments) : null;
+  const rebuild =
+    sale && pendingMismatch ? rebuildPlan(sale.id, parsedAmount, installments, payments, todayISO()) : null;
+
   const canSave =
     title.trim().length > 0 &&
     amount.trim().length > 0 &&
     parsedAmount > 0 &&
     date.length > 0 &&
-    (!buildsPlan || rows !== null);
+    (!buildsPlan || rows !== null) &&
+    (!pendingMismatch || planChoice !== null);
 
   const projectOptions = [...projects]
     .sort((a, b) => a.title.localeCompare(b.title))
@@ -152,15 +176,54 @@ export function SaleSheet({
        so precisely — telling her the plan was created when only the sale
        exists is how a payment schedule silently goes missing. */
     const planned = cuotas ? await addInstallments(cuotas) : true;
+    /* Same rule for the repair: the new amount is already saved, so a
+       half-written plan has to be said out loud. It is recoverable —
+       the sale's detail sheet shows the mismatch until it's cuadrado. */
+    const rebuilt =
+      sale && pendingMismatch && planChoice === "rebuild" && rebuild && !rebuild.unchanged
+        ? await applyRebuild(sale.id, rebuild)
+        : true;
     haptic.success();
     if (!planned) {
       showToast("Guardamos la venta, pero no el plan de pagos. Ábrela para volver a intentarlo.", "error", {
         persistent: true
       });
+    } else if (!rebuilt) {
+      showToast(
+        "Guardamos el monto, pero no se pudieron ajustar todas las cuotas. Abre la venta para terminar de cuadrar el plan.",
+        "error",
+        { persistent: true }
+      );
+    } else if (pendingMismatch && planChoice === "rebuild") {
+      showSuccess(`Venta actualizada · plan ajustado a ${formatMXN(parsedAmount)}`);
+    } else if (pendingMismatch) {
+      showSuccess(`Venta actualizada · el plan sigue en ${formatMXN(pendingMismatch.planned)}`);
     } else {
       showSuccess(sale ? "Venta actualizada" : rows ? "Venta y plan de pagos creados" : "Venta creada");
     }
     onClose();
+  }
+
+  /** Every leg of a rebuild in one round; false if any of them was refused. */
+  async function applyRebuild(saleId: string, next: NonNullable<typeof rebuild>): Promise<boolean> {
+    const created = todayISO();
+    const done = await Promise.all([
+      ...next.updates.map((u) => updateInstallment(u.id, { amount: u.amount })),
+      next.removals.length ? removeInstallments(next.removals) : Promise.resolve(true),
+      next.additions.length
+        ? addInstallments(
+            next.additions.map((a) => ({
+              id: makeId(),
+              saleId,
+              amount: a.amount,
+              dueDate: a.dueDate,
+              notes: "",
+              createdAt: created
+            }))
+          )
+        : Promise.resolve(true)
+    ]);
+    return done.every(Boolean);
   }
 
   async function handleDelete() {
@@ -260,6 +323,51 @@ export function SaleSheet({
 
       {buildsPlan && (
         <PlanBuilder terms={terms} total={parsedAmount} saleDate={date} draft={plan} onChange={setPlan} />
+      )}
+
+      {pendingMismatch && (
+        <div className="money-panel" style={{ marginBottom: 14 }}>
+          <span className="badge badge-amber">Plan sin cuadrar</span>
+          <div className="input-help" style={{ marginTop: 8 }}>
+            Sus cuotas suman {formatMXN(pendingMismatch.planned)} y el nuevo monto es{" "}
+            {formatMXN(parsedAmount)} — {formatMXN(Math.abs(pendingMismatch.difference))} de{" "}
+            {pendingMismatch.kind === "over" ? "más" : "menos"}. Dime qué hacer con el plan.
+          </div>
+          <SegmentedControl
+            items={PLAN_CHOICE_ITEMS}
+            value={planChoice ?? ""}
+            onChange={(k) => setPlanChoice(k as PlanChoice)}
+            size="sm"
+            role="radiogroup"
+            ariaLabel="Qué hacer con el plan de pagos"
+            style={{ marginTop: 10 }}
+          />
+          {planChoice === "rebuild" && rebuild && (
+            <>
+              <div className="input-help" style={{ marginTop: 10 }}>
+                Lo que falta por cobrar se reparte en partes iguales entre las cuotas pendientes, en sus
+                mismas fechas. Lo que ya pagaron no se vuelve a repartir.
+              </div>
+              {rebuild.rows.length > 0 ? (
+                <PlanPreview
+                  rows={rebuild.rows}
+                  label={(i) => `Cuota ${i + 1}`}
+                  ariaLabel="Cómo quedaría el plan"
+                />
+              ) : (
+                <div className="money-submeta" style={{ marginTop: 8 }}>
+                  El plan se elimina: no queda nada por programar.
+                </div>
+              )}
+            </>
+          )}
+          {planChoice === "keep" && (
+            <div className="input-help" style={{ marginTop: 10 }}>
+              Las cuotas se quedan tal cual. La venta va a aparecer marcada como "Plan sin cuadrar"
+              hasta que lo ajustes.
+            </div>
+          )}
+        </div>
       )}
 
       <div className="input-group">

@@ -20,6 +20,49 @@ import { SegmentedControl } from "./SegmentedControl";
 const FREQ_ITEMS = INSTALLMENT_FREQUENCY.map((o) => ({ k: o.value, l: o.label }));
 const DEPOSIT_ITEMS = DEPOSIT_PERCENT_OPTIONS.map((p) => ({ k: String(p), l: `${p}%` }));
 
+export interface PlanPreviewRow {
+  amount: number;
+  dueDate: string;
+  /** Already covered by payments — shown so she can see what won't move. */
+  paid?: boolean;
+}
+
+/* The cuota list itself, shared by the builder below and by the two
+   sheets that repair an existing plan. Six rows then a tail line: a
+   36-cuota plan would otherwise push the sheet's buttons off screen. */
+export function PlanPreview({
+  rows,
+  label,
+  ariaLabel = "Vista previa del plan"
+}: {
+  rows: PlanPreviewRow[];
+  label: (index: number) => string;
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="plan-preview" aria-label={ariaLabel}>
+      {rows.slice(0, 6).map((row, i) => (
+        <div className="plan-preview-row" key={i}>
+          <span className="plan-preview-label">
+            {label(i)}
+            <span className="plan-preview-date">
+              {" · "}
+              {formatShort(row.dueDate)}
+              {row.paid ? " · pagada" : ""}
+            </span>
+          </span>
+          <span className="plan-preview-amount">{formatMXN(row.amount)}</span>
+        </div>
+      ))}
+      {rows.length > 6 && (
+        <div className="plan-preview-more">
+          … y {rows.length - 6} más, hasta {formatShort(rows[rows.length - 1].dueDate)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PlanBuilder({
   terms,
   total,
@@ -108,20 +151,12 @@ export function PlanBuilder({
       )}
 
       {rows ? (
-        <div className="plan-preview" aria-label="Vista previa del plan">
-          {rows.slice(0, 6).map((row, i) => (
-            <div className="plan-preview-row" key={i}>
-              <span className="plan-preview-label">
-                {terms === "deposit_balance" ? (i === 0 ? "Anticipo" : "Liquidación") : `Cuota ${i + 1}`}
-                <span className="plan-preview-date"> · {formatShort(row.dueDate)}</span>
-              </span>
-              <span className="plan-preview-amount">{formatMXN(row.amount)}</span>
-            </div>
-          ))}
-          {rows.length > 6 && (
-            <div className="plan-preview-more">… y {rows.length - 6} más, hasta {formatShort(rows[rows.length - 1].dueDate)}</div>
-          )}
-        </div>
+        <PlanPreview
+          rows={rows}
+          label={(i) =>
+            terms === "deposit_balance" ? (i === 0 ? "Anticipo" : "Liquidación") : `Cuota ${i + 1}`
+          }
+        />
       ) : (
         <div className="money-submeta">
           {terms === "installments" ? "Elige entre 2 y 36 cuotas y la fecha de la primera." : "Elige la fecha de liquidación."}

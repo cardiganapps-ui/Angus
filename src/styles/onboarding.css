@@ -51,7 +51,9 @@
   text-transform: uppercase; color: var(--accent-dark); margin-bottom: 10px;
 }
 .onb-title {
-  font-family: var(--font-d); font-weight: 800; font-size: 28px; line-height: 1.15;
+  /* Display headline above the top of the scale — a ratio of
+     --text-2xl keeps its 28px and makes it follow the size control. */
+  font-family: var(--font-d); font-weight: 800; font-size: calc(var(--text-2xl) * 1.17); line-height: 1.15;
   letter-spacing: -0.4px; color: var(--charcoal); margin: 0 0 8px;
 }
 .onb-lead { font-size: var(--text-md); color: var(--charcoal-md); line-height: 1.5; margin: 0 0 22px; }

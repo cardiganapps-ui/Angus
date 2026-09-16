@@ -15,7 +15,10 @@
 
 .auth-brand {
   font-family: var(--font-d);
-  font-size: 34px;
+  /* The wordmark is the largest type in the app and the scale tops out
+     at --text-2xl, so it rides a ratio of that step (34.1px at scale 1,
+     unchanged) instead of a literal px her text-size control can't reach. */
+  font-size: calc(var(--text-2xl) * 1.42);
   font-weight: 800;
   letter-spacing: -0.6px;
   color: var(--charcoal);

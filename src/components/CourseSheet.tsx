@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { Course, CourseKind, CourseModality, CoursePaymentPlan, CourseStatus, EventSeries } from "../types";
@@ -10,7 +10,8 @@ import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
 import { ContactSheet } from "./ContactSheet";
 import { ScheduleFields, type ScheduleValue } from "./ScheduleFields";
-import { makeId } from "../utils/id";
+import { domId, makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { parseISODate, todayISO } from "../utils/dates";
 import { reshapeFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
@@ -77,6 +78,16 @@ export function CourseSheet({
   const [plan, setPlan] = useState<CoursePaymentPlan>(course?.paymentPlan ?? "single");
   const [notes, setNotes] = useState(course?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+
+  const uid = domId(useId());
+  const dirty = useDirtyGuard({
+    name, kind, status, institution, teacherId, modality, location, url,
+    startDate, endDate, hasSchedule, cost, plan, notes,
+    scheduleWeekdays: schedule.weekdays,
+    scheduleCadence: schedule.cadence,
+    scheduleStart: schedule.startTime,
+    scheduleEnd: schedule.endTime
+  });
 
   const safeClose = submitting ? null : onClose;
   const canSave = name.trim().length > 0 && (!endDate || !startDate || endDate >= startDate);
@@ -206,6 +217,12 @@ export function CourseSheet({
       <Sheet
         title={course ? "Editar curso" : "Nuevo curso"}
         onClose={safeClose}
+        dirty={dirty}
+        discardText={
+          course
+            ? "¿Descartar los cambios? El curso se queda como estaba."
+            : "¿Descartar? Este curso y su horario no se guardan."
+        }
         footer={
           <SheetActions
             canSave={canSave}
@@ -246,8 +263,9 @@ export function CourseSheet({
         </div>
 
         <div className="input-group">
-          <span className="input-label">Maestro/a</span>
+          <span className="input-label" id={`${uid}-teacher`}>Maestro/a</span>
           <PickerField
+            labelId={`${uid}-teacher`}
             title="Maestro/a"
             options={[{ value: "__new__", label: "+ Nuevo contacto" }, ...teacherOptions]}
             value={teacherId}

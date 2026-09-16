@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { domId } from "../utils/id";
 
 /* ── SheetActions ──
    The shared sticky-footer content for the entity sheets: Guardar
@@ -35,9 +36,7 @@ export function SheetActions({
 }) {
   const [confirming, setConfirming] = useState(false);
   const canDelete = !!onDelete;
-  // Colons are legal in an id but awkward to live with; BarChart
-  // strips them the same way.
-  const questionId = `sheet-actions-q-${useId().replace(/:/g, "")}`;
+  const questionId = `sheet-actions-q-${domId(useId())}`;
   const confirmRef = useRef<HTMLButtonElement>(null);
   const deleteRef = useRef<HTMLButtonElement>(null);
   // Seeded from the initial state so mounting a sheet never steals

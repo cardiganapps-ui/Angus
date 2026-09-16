@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { Availability, Project, ProjectStatus } from "../types";
@@ -9,7 +9,8 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
-import { makeId } from "../utils/id";
+import { domId, makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
 import { projectMargins } from "../utils/accounting";
 import { formatMXNShort, formatMXNShortSigned } from "../utils/money";
@@ -61,6 +62,12 @@ export function ProjectSheet({
   const [docOpen, setDocOpen] = useState<Document | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const photos = project ? documentsFor({ projectId: project.id }) : [];
+
+  const uid = domId(useId());
+  const dirty = useDirtyGuard({
+    title, medium, status, startDate, dueDate, price, availability, cost,
+    dimensions, year, edition, location, contactId, courseId, notes
+  });
 
   const safeClose = submitting ? null : onClose;
   const canSave = title.trim().length > 0;
@@ -126,6 +133,12 @@ export function ProjectSheet({
     <Sheet
       title={project ? "Editar pieza" : "Nueva pieza"}
       onClose={safeClose}
+      dirty={dirty}
+      discardText={
+        project
+          ? "¿Descartar los cambios? La pieza se queda como estaba."
+          : "¿Descartar? Esta pieza no se guarda."
+      }
       footer={
         <SheetActions
           canSave={canSave}
@@ -271,8 +284,9 @@ export function ProjectSheet({
       )}
 
       <div className="input-group">
-        <span className="input-label">Cliente / galería</span>
+        <span className="input-label" id={`${uid}-contact`}>Cliente / galería</span>
         <PickerField
+          labelId={`${uid}-contact`}
           title="Cliente / galería"
           options={contactOptions}
           value={contactId}
@@ -282,8 +296,8 @@ export function ProjectSheet({
 
       {courseOptions.length > 0 && (
         <div className="input-group">
-          <span className="input-label">Para el curso</span>
-          <PickerField title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
+          <span className="input-label" id={`${uid}-course`}>Para el curso</span>
+          <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
         </div>
       )}
 

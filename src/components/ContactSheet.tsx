@@ -7,6 +7,7 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { ChipSelect } from "./ChipSelect";
 import { makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
 
@@ -33,6 +34,8 @@ export function ContactSheet({
   const [followUpDate, setFollowUpDate] = useState(contact?.followUpDate ?? "");
   const [notes, setNotes] = useState(contact?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+
+  const dirty = useDirtyGuard({ name, relationship, email, phone, leadStage, followUpDate, notes });
 
   const safeClose = submitting ? null : onClose;
   const canSave = name.trim().length > 0;
@@ -79,6 +82,12 @@ export function ContactSheet({
     <Sheet
       title={contact ? "Editar contacto" : "Nuevo contacto"}
       onClose={safeClose}
+      dirty={dirty}
+      discardText={
+        contact
+          ? "¿Descartar los cambios? El contacto se queda como estaba."
+          : "¿Descartar? Este contacto no se guarda."
+      }
       footer={
         <SheetActions
           canSave={canSave}

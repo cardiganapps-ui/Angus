@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Sheet } from "./Sheet";
 import { useToast } from "../context/ToastContext";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
+import { domId } from "../utils/id";
 import { haptic } from "../lib/haptics";
 
 const MIN = 8;
@@ -18,6 +20,8 @@ export function ChangePasswordSheet({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const dirty = useDirtyGuard({ password, confirm });
+  const errorId = `password-error-${domId(useId())}`;
   const mismatch = confirm.length > 0 && confirm !== password;
   const canSave = password.length >= MIN && confirm === password && !submitting;
 
@@ -40,6 +44,8 @@ export function ChangePasswordSheet({
     <Sheet
       title="Cambiar contraseña"
       onClose={submitting ? null : onClose}
+      dirty={dirty}
+      discardText="¿Descartar? Tu contraseña no cambia."
       footer={
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave}>
           {submitting ? "Guardando…" : "Guardar"}
@@ -57,6 +63,7 @@ export function ChangePasswordSheet({
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          aria-describedby={error ? errorId : undefined}
           autoFocus
         />
         <div className="input-help">Mínimo {MIN} caracteres.</div>
@@ -73,10 +80,15 @@ export function ChangePasswordSheet({
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
+          aria-invalid={mismatch || undefined}
+          aria-describedby={errorId}
         />
       </div>
 
-      <div className={`input-error-msg ${error || mismatch ? "is-visible" : ""}`} role="alert">
+      {/* One live region for both the mismatch and whatever the server
+          said, described by BOTH fields so the reason is reachable
+          from the input it belongs to, not only announced once. */}
+      <div className={`input-error-msg ${error || mismatch ? "is-visible" : ""}`} id={errorId} role="alert">
         {error ?? (mismatch ? "Las contraseñas no coinciden." : "")}
       </div>
     </Sheet>

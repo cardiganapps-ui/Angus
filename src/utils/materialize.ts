@@ -1,4 +1,4 @@
-import type { Expense, ExpenseCategory, IncomeCategory, RecurringRule, Sale } from "../types";
+import type { Expense, ExpenseCategory, IncomeCategory, MaterializerSkip, RecurringRule, Sale } from "../types";
 import { occurrencesBetween } from "./recurrence";
 import { addDays } from "./dates";
 
@@ -35,6 +35,10 @@ export function pendingMaterializations(
   rules: RecurringRule[],
   sales: Sale[],
   expenses: Expense[],
+  /* Periods she deleted. Required rather than defaulted: a caller that
+     forgets them regenerates rows she threw away, and the failure is
+     silent, so it should be a compile error instead. */
+  skips: MaterializerSkip[],
   today: string,
   incomeLookaheadDays = INCOME_LOOKAHEAD_DAYS,
   maxBackfill = MAX_BACKFILL_PERIODS
@@ -42,6 +46,11 @@ export function pendingMaterializations(
   const have = new Set<string>();
   for (const s of sales) if (s.recurringRuleId && s.periodKey) have.add(`${s.recurringRuleId}:${s.periodKey}`);
   for (const e of expenses) if (e.recurringRuleId && e.periodKey) have.add(`${e.recurringRuleId}:${e.periodKey}`);
+  /* A skipped period is seeded as though the row were already there, so
+     it drops out of `missing` before the backfill cap is applied and can
+     never be re-inserted — deleting is what she asked for, and this is
+     what makes it stick. */
+  for (const k of skips) have.add(`${k.recurringRuleId}:${k.periodKey}`);
 
   const out: Pending = { sales: [], expenses: [], deferred: [] };
   for (const rule of rules) {

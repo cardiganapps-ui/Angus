@@ -14,7 +14,13 @@
   outline: none;
   caret-color: var(--accent-dark);
   font-family: var(--font);
-  font-size: 15px;
+  /* Was a literal 15px, which --text-scale-user could not reach — and
+     text-size-adjust: none means the OS control can't either, so the
+     writing surface was the one place in the app her text-size setting
+     did nothing. --text-lg (16px) rather than --text-md: this is
+     long-form reading, and rounding the other way would have made the
+     editor smaller than it was. */
+  font-size: var(--text-lg);
   line-height: 1.7;
   color: var(--charcoal);
   padding: 4px 0 120px;
@@ -41,7 +47,7 @@
    with the caret. Off-caret, we collapse them to zero width so they
    stop occupying space. Using font-size:0 over display:none so the
    nodes remain in the DOM and caret math works. */
-.mde-syntax, .md-syntax {
+.md-syntax {
   color: var(--accent-light);
   opacity: 0.6;
   font-weight: 400;
@@ -116,9 +122,15 @@
 .mde-line--h2:first-child,
 .mde-line--h3:first-child { margin-top: 0; }
 
-.mde-line--h1 .md-heading { font-size: 22px; line-height: 1.3; }
-.mde-line--h2 .md-heading { font-size: 18px; line-height: 1.35; }
-.mde-line--h3 .md-heading { font-size: 15.5px; line-height: 1.4; }
+/* Heading sizes are em, not scale tokens: they belong to the note's own
+   typographic ratio, and .mde-reading-mode re-bases the same three rules
+   by changing one font-size on .mde-line. Against the 16px root they
+   render 22.4 / 18.4 / 16px — the 22 / 18 / 15.5px literals they replace,
+   inside half a pixel, but now carried by --text-lg so the size control
+   moves the whole document at once. */
+.mde-line--h1 .md-heading { font-size: 1.4em; line-height: 1.3; }
+.mde-line--h2 .md-heading { font-size: 1.15em; line-height: 1.35; }
+.mde-line--h3 .md-heading { font-size: 1em; line-height: 1.4; }
 .mde-line--h1.has-caret .md-heading,
 .mde-line--h2.has-caret .md-heading,
 .mde-line--h3.has-caret .md-heading { /* same size, just keeps syntax visible alongside */ }
@@ -424,7 +436,7 @@
   background: var(--red-bg);
   color: var(--red);
   font-weight: 800;
-  font-size: 18px;
+  font-size: var(--text-lg);
 }
 /* min-height: 0 is load-bearing, not tidying. components.css sets a
    global `button { min-height: 44px }`, and min-height clamps height,
@@ -568,7 +580,7 @@
   transform: translateX(-50%);
   background: var(--charcoal);
   color: var(--white);
-  font-size: 10px;
+  font-size: var(--text-eyebrow);
   font-weight: 600;
   padding: 4px 7px;
   border-radius: 6px;
@@ -644,12 +656,8 @@
   border-bottom-color: var(--border-lt);
   box-shadow: 0 1px 0 rgba(46, 46, 46, 0.03);
 }
-.note-editor-inline .mde-header {
-  padding-top: 10px;
-}
-
 .mde-back {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--accent-dark);
   background: none;
@@ -670,7 +678,7 @@
 }
 
 .mde-save-indicator {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--charcoal-xl);
   margin-right: 4px;
   transition: color var(--dur-base) ease, opacity var(--dur-base) ease;
@@ -724,7 +732,7 @@
   background: var(--cream);
   border: 1px solid var(--border-lt);
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--charcoal-md);
   cursor: pointer;
@@ -738,7 +746,6 @@
 }
 .mde-context-chip:active { transform: scale(0.97); }
 .mde-context-chip.is-linked { color: var(--accent-dark); border-color: var(--accent-light); background: var(--accent-mist); }
-.mde-context-chip.is-linked .mde-context-sep { color: var(--accent-light); }
 .mde-context-chip .mde-context-icon { color: var(--charcoal-xl); flex-shrink: 0; }
 .mde-context-chip.is-linked .mde-context-icon { color: var(--accent); }
 .mde-context-chip .mde-context-label {
@@ -770,7 +777,7 @@
   padding: 0;
   margin-bottom: 10px;
   font-family: var(--font-d);
-  font-size: 22px;
+  font-size: var(--text-2xl);
   font-weight: 800;
   color: var(--charcoal);
   background: transparent;
@@ -780,7 +787,7 @@
 .mde-title::placeholder { color: var(--charcoal-xl); font-weight: 700; }
 
 .mde-date {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--charcoal-xl);
   text-align: center;
   margin-bottom: 10px;
@@ -791,7 +798,7 @@
   padding: 8px 20px calc(var(--sab, 0px) + 6px);
   border-top: 1px solid var(--border-lt);
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--charcoal-xl);
   text-align: right;
   display: flex;
@@ -835,7 +842,7 @@
   .mde-templates { transition: none; }
 }
 .mde-templates-label {
-  font-size: 10px;
+  font-size: var(--text-eyebrow);
   font-weight: 700;
   color: var(--charcoal-xl);
   text-transform: uppercase;
@@ -849,7 +856,7 @@
 }
 .mde-template-pill {
   padding: 8px 14px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   border-radius: var(--radius-pill);
   border: 1.5px solid var(--border);
@@ -867,12 +874,6 @@
   .mde-template-pill:hover { border-color: var(--accent-light); background: var(--accent-mist); color: var(--accent-dark); }
 }
 .mde-template-pill:active { transform: scale(0.96); }
-
-/* ── Context sheet (patient/session editor) ────────────────────────── */
-.mde-context-sheet {
-  padding: 0 20px 22px;
-}
-.mde-context-sheet .input-group + .input-group { margin-top: 6px; }
 
 /* ── Overflow menu (⋯) dropdown ────────────────────────────────────── */
 .mde-menu {
@@ -893,7 +894,7 @@
   align-items: center;
   gap: 10px;
   padding: 11px 14px;
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--charcoal);
   background: none;
@@ -955,7 +956,11 @@
   flex: 1;
   border: none;
   outline: none;
-  font-size: 13px;
+  /* A real text input, so it needs the same iOS floor every other field
+     in the app has: below 16px, focusing it zooms the whole page — and
+     Buscar en la nota is reached mid-read, which makes the zoom
+     especially disorienting. Matches `.input` in components.css. */
+  font-size: max(16px, calc(16px * var(--text-scale-user, 1)));
   font-family: var(--font);
   color: var(--charcoal);
   background: transparent;
@@ -963,7 +968,7 @@
   min-width: 0;
 }
 .mde-find-counter {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--charcoal-xl);
   min-width: 48px;
@@ -1013,7 +1018,7 @@
   -webkit-overflow-scrolling: touch;
 }
 .mde-outline-title {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1021,7 +1026,7 @@
   margin-bottom: 10px;
 }
 .mde-outline-empty {
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--charcoal-xl);
   padding: 20px 0;
   text-align: center;
@@ -1058,18 +1063,18 @@
   flex-shrink: 0;
 }
 .mde-outline-text {
-  font-size: 14px;
+  font-size: var(--text-md);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.mde-outline-lvl-1 .mde-outline-text { font-weight: 800; font-family: var(--font-d); font-size: 15px; }
+.mde-outline-lvl-1 .mde-outline-text { font-weight: 800; font-family: var(--font-d); font-size: var(--text-lg); }
 .mde-outline-lvl-2 { padding-left: 22px; }
 .mde-outline-lvl-2 .mde-outline-dot { background: var(--accent-light); }
-.mde-outline-lvl-2 .mde-outline-text { font-weight: 700; font-size: 13.5px; }
+.mde-outline-lvl-2 .mde-outline-text { font-weight: 700; font-size: var(--text-md); }
 .mde-outline-lvl-3 { padding-left: 34px; }
 .mde-outline-lvl-3 .mde-outline-dot { background: var(--accent-pale); width: 5px; height: 5px; }
-.mde-outline-lvl-3 .mde-outline-text { font-weight: 600; font-size: 13px; color: var(--charcoal-md); }
+.mde-outline-lvl-3 .mde-outline-text { font-weight: 600; font-size: var(--text-sm); color: var(--charcoal-md); }
 
 .mde-icon-btn.is-active { background: var(--accent-pale); color: var(--accent-dark); }
 
@@ -1077,7 +1082,7 @@
    Section dividers in the notes list ("Hoy", "Ayer", "Esta semana",
    monthly). Matches the .section-title typography vocabulary. */
 .notes-group-header {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1162,7 +1167,7 @@
   border: 1px solid var(--border-lt);
   background: var(--white);
   color: var(--charcoal-md);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
   font-family: var(--font);
@@ -1327,9 +1332,10 @@
 /* ── Phase D: outline drawer active-heading highlight ──────────────
    IntersectionObserver in NoteEditor identifies the topmost-visible
    heading; the outline drawer marks the matching entry with .is-
-   active. Soft teal tint so it reads as "you are here" without
-   shouting. */
-.note-outline-entry.is-active {
+   active. Soft accent tint so it reads as "you are here" without
+   shouting. Selector was .note-outline-entry, a class NoteOutline has
+   never rendered — the highlight simply never painted. */
+.mde-outline-item.is-active {
   background: var(--accent-pale);
   color: var(--accent-dark);
   border-radius: var(--radius-sm);
@@ -1404,7 +1410,7 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-size: 28px;
+  font-size: var(--text-2xl);
   color: var(--red);
   font-weight: 700;
 }
@@ -1469,11 +1475,15 @@
   line-height: 1.75;
 }
 .mde-reading-mode .mde-title {
-  font-size: clamp(26px, 4vw, 32px);
+  /* Ratios of the top scale step in place of the literal
+     clamp(26px, 4vw, 32px) — same 25.9-31.9px range, now scaled. */
+  font-size: clamp(calc(var(--text-2xl) * 1.08), 4vw, calc(var(--text-2xl) * 1.33));
 }
-.mde-reading-mode .mde-line--h1 .md-heading { font-size: 28px; }
-.mde-reading-mode .mde-line--h2 .md-heading { font-size: 22px; }
-.mde-reading-mode .mde-line--h3 .md-heading { font-size: 18px; }
+/* Reading mode's larger heading ratios, em against the --text-lg set on
+   .mde-line above: 28 / 22 / 18px at scale 1, the literals they replace. */
+.mde-reading-mode .mde-line--h1 .md-heading { font-size: 1.75em; }
+.mde-reading-mode .mde-line--h2 .md-heading { font-size: 1.375em; }
+.mde-reading-mode .mde-line--h3 .md-heading { font-size: 1.125em; }
 /* Suppress syntax dimming so raw markdown stays hidden even on the
    "focused" line — reading-mode shows OUTPUT only. Off-caret is
    already handled by the base `.mde-line:not(.has-caret) .md-syntax`
@@ -1502,7 +1512,7 @@
    with monospace, tinted background, no inline tokenising. */
 .mde-line--code-fence {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  font-size: 13px;
+  font-size: var(--text-md);
   line-height: 1.5;
   background: var(--cream);
   color: var(--charcoal);
@@ -1532,7 +1542,7 @@
    "this is the boundary" without taking up the spotlight. */
 .mde-line--code-fence-marker {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--charcoal-xl);
   background: var(--cream);
   padding: 2px 12px;

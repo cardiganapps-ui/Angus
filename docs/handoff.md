@@ -337,7 +337,46 @@ pilot is what re-ranks them against hers.
 
 ---
 
-## 7 — Apply migration 021 (written, committed, NOT applied)
+## 7 — Apply migrations 021 and 022 (written, committed, NOT applied)
+
+**Two files, both unapplied. Apply 021 first, then 022** — they are
+independent, but keeping the numbers in order keeps the ledger honest.
+
+### 022 — `materializer_skips`
+
+**What it fixes.** Deleting a rule-generated sale or expense did not
+work. The materializers compute what is MISSING and insert it, so a row
+she deleted became missing and came straight back; from her side the app
+simply refused to let her delete September's rent. The new table records
+"this rule, this period, leave it alone", and `utils/materialize.ts` is
+its only reader.
+
+**Why a table and not a `voided` column on sales/expenses.** Every money
+derivation in `src/utils/` would have had to learn to filter that column,
+and the one that got missed would report a wrong total in silence. Under
+the Prime Directive a wrong number is worse than the bug being fixed.
+Nothing derives from `materializer_skips`; nothing sums it.
+
+**Apply it** in the Supabase SQL editor, then verify the table is really
+there and really protected — not that the statement returned:
+
+```sql
+select relrowsecurity from pg_class where relname = 'materializer_skips';
+-- expect: t
+select count(*) from pg_policies where tablename = 'materializer_skips';
+-- expect: 1
+```
+
+**Until it is applied** the client will get a PostgREST error on every
+read of that table, which surfaces as a persistent "no se pudo cargar"
+warning and — because the skip store is inside the `canDiff` gate — stops
+the materializers running at all. That is the safe direction (nothing is
+generated wrongly), but it does mean the app is degraded until you run
+it. Apply it in the same sitting as the deploy.
+
+---
+
+## 7a — Apply migration 021 (written, committed, NOT applied)
 
 **Status:** every migration up to 020 is live. `021_session_tuition_index.sql`
 is the first one in this repo that exists only as a file. It was written

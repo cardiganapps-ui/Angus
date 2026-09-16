@@ -97,7 +97,14 @@
 .dash-pulse { padding: 16px; }
 .dash-pulse-net {
   font-family: var(--font-d);
-  font-size: 32px;
+  /* The scale stops at --text-2xl (24px) and this was a literal 32px,
+     so rounding to the nearest token would shrink the home screen's
+     hero figure by a quarter. Expressed as a ratio of the top step
+     instead: still 31.9px at scale 1, but it finally moves with
+     --text-scale-user, which a literal px could not (the app sets
+     text-size-adjust: none, so an unscaled px is unreachable by BOTH
+     her in-app control and the OS one). */
+  font-size: calc(var(--text-2xl) * 1.33);
   font-weight: 800;
   letter-spacing: -0.8px;
   line-height: 1.1;
@@ -121,7 +128,7 @@
   color: var(--charcoal-md);
   font-variant-numeric: tabular-nums;
 }
-.dash-pulse-delta-arrow { font-size: 9px; line-height: 1; }
+.dash-pulse-delta-arrow { font-size: var(--text-eyebrow); line-height: 1; }
 .dash-pulse-delta--up   .dash-pulse-delta-arrow { color: var(--green); }
 .dash-pulse-delta--down .dash-pulse-delta-arrow { color: var(--red); }
 .dash-pulse-delta--flat .dash-pulse-delta-arrow { color: var(--charcoal-xl); }
@@ -207,7 +214,8 @@
    the room rather than truncating a number. */
 @media (max-width: 360px) {
   .dash-figure { padding: 12px 9px; }
-  .dash-pulse-net { font-size: 29px; }
+  /* Same ratio trick as the base rule — 28.8px at scale 1, was 29px. */
+  .dash-pulse-net { font-size: calc(var(--text-2xl) * 1.2); }
 }
 
 /* ── Progress ring (goal / budget) ── */

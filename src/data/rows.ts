@@ -17,7 +17,8 @@ import type {
   Project,
   RecurringRule,
   Sale,
-  ScheduleEvent
+  ScheduleEvent,
+  MaterializerSkip
 } from "../types";
 import type { CloudStoreConfig } from "../hooks/useCloudStore";
 
@@ -904,6 +905,34 @@ export const recurringRuleStore: CloudStoreConfig<RecurringRule, RecurringRuleRo
     if (x.courseId !== undefined) row.course_id = x.courseId;
     if (x.active !== undefined) row.active = x.active;
     if (x.notes !== undefined) row.notes = x.notes;
+    return row;
+  }
+};
+
+interface MaterializerSkipRow {
+  id: string;
+  recurring_rule_id: string;
+  period_key: string;
+  created_at: string;
+}
+
+/* Small by construction — one row per period she deleted — but capped
+   like everything else, because a store nobody sized is a bug detector
+   nobody armed. */
+export const materializerSkipStore: CloudStoreConfig<MaterializerSkip, MaterializerSkipRow> = {
+  table: "materializer_skips",
+  cap: 5_000,
+  fromRow: (r) => ({
+    id: r.id,
+    recurringRuleId: r.recurring_rule_id,
+    periodKey: r.period_key,
+    createdAt: r.created_at.slice(0, 10)
+  }),
+  toRow: (x) => {
+    const row: Partial<MaterializerSkipRow> = {};
+    if (x.id !== undefined) row.id = x.id;
+    if (x.recurringRuleId !== undefined) row.recurring_rule_id = x.recurringRuleId;
+    if (x.periodKey !== undefined) row.period_key = x.periodKey;
     return row;
   }
 };

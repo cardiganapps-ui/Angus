@@ -1,8 +1,10 @@
+import { useId } from "react";
 import { useApp } from "../../context/AppContext";
 import type { NoteLinks } from "../../hooks/useNotes";
 import { PickerField } from "../PickerField";
 import { courseSessions, sortAssignments } from "../../utils/studies";
 import { formatWithWeekday } from "../../utils/dates";
+import { domId } from "../../utils/id";
 
 /* ── NoteLinkFields ──
    Where a note belongs: a course, one of its sessions, one of its
@@ -11,6 +13,7 @@ import { formatWithWeekday } from "../../utils/dates";
    the list's properties sheet. */
 export function NoteLinkFields({ value, onChange }: { value: NoteLinks; onChange: (next: NoteLinks) => void }) {
   const { courses, events, assignments, projects } = useApp();
+  const uid = domId(useId());
   const courseId = value.courseId ?? "";
   const course = courses.find((c) => c.id === courseId) ?? null;
 
@@ -32,9 +35,10 @@ export function NoteLinkFields({ value, onChange }: { value: NoteLinks; onChange
   return (
     <>
       <div className="input-group">
-        <span className="input-label">Curso</span>
+        <span className="input-label" id={`${uid}-course`}>Curso</span>
         {courseOptions.length > 0 ? (
           <PickerField
+            labelId={`${uid}-course`}
             title="Curso"
             options={courseOptions}
             value={courseId}
@@ -46,20 +50,20 @@ export function NoteLinkFields({ value, onChange }: { value: NoteLinks; onChange
       </div>
       {course && sessionOptions.length > 0 && (
         <div className="input-group">
-          <span className="input-label">Sesión</span>
-          <PickerField title="Sesión" options={sessionOptions} value={value.eventId ?? ""} onChange={(v) => onChange({ ...value, eventId: v || null })} />
+          <span className="input-label" id={`${uid}-session`}>Sesión</span>
+          <PickerField labelId={`${uid}-session`} title="Sesión" options={sessionOptions} value={value.eventId ?? ""} onChange={(v) => onChange({ ...value, eventId: v || null })} />
         </div>
       )}
       {course && tareaOptions.length > 0 && (
         <div className="input-group">
-          <span className="input-label">Tarea</span>
-          <PickerField title="Tarea" options={tareaOptions} value={value.assignmentId ?? ""} onChange={(v) => onChange({ ...value, assignmentId: v || null })} />
+          <span className="input-label" id={`${uid}-tarea`}>Tarea</span>
+          <PickerField labelId={`${uid}-tarea`} title="Tarea" options={tareaOptions} value={value.assignmentId ?? ""} onChange={(v) => onChange({ ...value, assignmentId: v || null })} />
         </div>
       )}
       {projectOptions.length > 0 && (
         <div className="input-group">
-          <span className="input-label">Pieza</span>
-          <PickerField title="Pieza" options={projectOptions} value={value.projectId ?? ""} onChange={(v) => onChange({ ...value, projectId: v || null })} />
+          <span className="input-label" id={`${uid}-project`}>Pieza</span>
+          <PickerField labelId={`${uid}-project`} title="Pieza" options={projectOptions} value={value.projectId ?? ""} onChange={(v) => onChange({ ...value, projectId: v || null })} />
         </div>
       )}
     </>

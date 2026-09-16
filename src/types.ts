@@ -149,6 +149,18 @@ export interface Expense {
 export type RecurrenceKind = "income" | "expense";
 export type RecurrenceCadence = "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
 
+/* A period of a rule she deleted, so the materializer leaves it alone.
+   Deliberately not a flag on the Sale/Expense: every money derivation
+   would have to learn to filter it, and the one that got missed would
+   report a wrong total in silence. Nothing derives from this — the
+   materializer is its only reader. */
+export interface MaterializerSkip {
+  id: string;
+  createdAt: string;
+  recurringRuleId: string;
+  periodKey: string;
+}
+
 export interface RecurringRule {
   id: string;
   kind: RecurrenceKind;

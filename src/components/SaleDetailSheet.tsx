@@ -12,10 +12,16 @@ import {
   SALE_STATUS_BADGE,
   labelFor
 } from "../data/constants";
-import { PlanBuilder } from "./PlanBuilder";
+import { PlanBuilder, PlanPreview } from "./PlanBuilder";
 import { planRows, type PlanDraft } from "../utils/plan";
 import { Icon } from "./Icon";
-import { installmentPlan, paymentsForSale, saleBalance } from "../utils/accounting";
+import {
+  installmentPlan,
+  paymentsForSale,
+  planMismatch,
+  rebuildPlan,
+  saleBalance
+} from "../utils/accounting";
 import { formatMXN } from "../utils/money";
 import { addMonths, formatShort, todayISO } from "../utils/dates";
 import { makeId } from "../utils/id";
@@ -64,16 +70,18 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
     rules,
     settings,
     addInstallments,
+    updateInstallment,
     removeInstallments,
     addPayment,
     updateSale
   } = useApp();
-  const { showSuccess } = useToast();
+  const { showSuccess, showToast } = useToast();
 
   const [editing, setEditing] = useState(false);
   const [paying, setPaying] = useState<Payment | "new" | null>(null);
   const [planForm, setPlanForm] = useState(false);
   const [confirmingPlan, setConfirmingPlan] = useState(false);
+  const [fixingPlan, setFixingPlan] = useState(false);
   const [planTerms, setPlanTerms] = useState<PaymentTerms>("installments");
   const [draft, setDraft] = useState<PlanDraft>({
     depositPercent: settings.defaultDepositPercent,
@@ -113,6 +121,13 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
   const rule = sale.recurringRuleId ? rules.find((r) => r.id === sale.recurringRuleId) : null;
   const planPreview = planRows(planTerms, sale.amount, sale.date, draft);
   const canGenerate = planPreview !== null;
+
+  /* The standing reconciliation surface. A plan can stop matching its
+     sale from anywhere — an older build wrote the amount without
+     touching the cuotas, a cuota was edited by hand — so this reads the
+     rows every time the sheet opens instead of trusting a flag. */
+  const mismatch = planMismatch(sale, installments);
+  const fix = mismatch ? rebuildPlan(sale.id, sale.amount, installments, payments, todayISO()) : null;
 
   async function generatePlan() {
     if (!sale || !planPreview || working) return;
@@ -156,6 +171,41 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
     haptic.success();
     showSuccess("Cobro registrado");
     setWorking(false);
+  }
+
+  /* Make the cuotas add back up to the sale. Every leg is awaited and
+     the toast is gated on all of them: a plan left half-rewritten is
+     exactly the state this surface exists to catch, so claiming it was
+     cuadrado when one write bounced would hide the problem again. */
+  async function fixPlan() {
+    if (!sale || !fix || working) return;
+    setWorking(true);
+    const created = todayISO();
+    const done = await Promise.all([
+      ...fix.updates.map((u) => updateInstallment(u.id, { amount: u.amount })),
+      fix.removals.length ? removeInstallments(fix.removals) : Promise.resolve(true),
+      fix.additions.length
+        ? addInstallments(
+            fix.additions.map((a) => ({
+              id: makeId(),
+              saleId: sale.id,
+              amount: a.amount,
+              dueDate: a.dueDate,
+              notes: "",
+              createdAt: created
+            }))
+          )
+        : Promise.resolve(true)
+    ]);
+    setWorking(false);
+    if (!done.every(Boolean)) {
+      haptic.warn();
+      showToast("No se pudieron ajustar todas las cuotas. El plan sigue sin cuadrar.", "error");
+      return;
+    }
+    haptic.success();
+    showSuccess(`Plan ajustado a ${formatMXN(sale.amount)}`);
+    setFixingPlan(false);
   }
 
   async function deletePlan() {
@@ -311,6 +361,61 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
             </button>
           )}
         </div>
+
+        {/* Amber, with a label: this is a warning about her own books,
+            not money a client owes her (that is the red one). */}
+        {mismatch && (
+          <div className="money-panel" style={{ marginBottom: 10 }}>
+            <span className="badge badge-amber">Plan sin cuadrar</span>
+            <div className="input-help" style={{ marginTop: 8 }}>
+              Las cuotas suman {formatMXN(mismatch.planned)} y la venta vale {formatMXN(sale.amount)} —{" "}
+              {formatMXN(Math.abs(mismatch.difference))} de {mismatch.kind === "over" ? "más" : "menos"}.
+            </div>
+            {fixingPlan && fix ? (
+              <div>
+                {fix.rows.length > 0 ? (
+                  <PlanPreview
+                    rows={fix.rows}
+                    label={(i) => `Cuota ${i + 1}`}
+                    ariaLabel="Cómo quedaría el plan"
+                  />
+                ) : (
+                  <div className="money-submeta" style={{ marginTop: 8 }}>
+                    El plan se elimina: no queda nada por programar.
+                  </div>
+                )}
+                <div className="money-confirm" style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-mini"
+                    onClick={() => void fixPlan()}
+                    disabled={working}
+                  >
+                    {working ? "Ajustando…" : "Sí, ajustar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-mini"
+                    onClick={() => setFixingPlan(false)}
+                    disabled={working}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-secondary btn-mini"
+                style={{ marginTop: 10 }}
+                onClick={() => setFixingPlan(true)}
+                disabled={working}
+              >
+                Ajustar cuotas a {formatMXN(sale.amount)}
+              </button>
+            )}
+          </div>
+        )}
 
         {plan.length > 0 ? (
           <>

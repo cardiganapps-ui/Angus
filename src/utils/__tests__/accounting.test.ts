@@ -14,7 +14,9 @@ import {
   installmentPlan,
   overdueInstallments,
   paidForSale,
+  planMismatch,
   profitLoss,
+  rebuildPlan,
   refundableInRange,
   projectEconomics,
   projectMargins,
@@ -600,5 +602,222 @@ describe("a cancelled sale's money is a liability, not a disappearance", () => {
   it("drops a client with neither a counting sale nor a refund", () => {
     const withContact: Sale = { ...cancelled, contactId: "c1" };
     expect(clientBalances([withContact], [])).toHaveLength(0);
+  });
+});
+
+/* ── The plan that stopped matching its sale ──
+   Editing the amount of a sale that already had cuotas wrote `amount`
+   alone: the plan kept promising the old total, forecast.ts projected
+   income that wasn't owed and Hoy showed overdue cuotas for money
+   nobody had agreed to. planMismatch is the detector; rebuildPlan is
+   the repair. */
+describe("planMismatch", () => {
+  it("is null when there is no plan at all", () => {
+    expect(planMismatch(sale("s1", 8500, "confirmed"), [])).toBeNull();
+  });
+
+  it("is null when the cuotas add back up to the sale, to the cent", () => {
+    const plan = generateInstallmentSchedule(8500, 3, "2026-10-01", "monthly").map((row, i) =>
+      installment(`i${i}`, "s1", row.amount, row.dueDate)
+    );
+    // 2833.34 + 2833.33 + 2833.33 — a float sum lands on 8499.999999999999.
+    expect(planMismatch(sale("s1", 8500, "confirmed"), plan)).toBeNull();
+  });
+
+  it("reports a plan that asks for more than the sale", () => {
+    const plan = [installment("i1", "s1", 5000, "2026-10-01"), installment("i2", "s1", 5000, "2026-11-01")];
+    expect(planMismatch(sale("s1", 8500, "confirmed"), plan)).toEqual({
+      planned: 10000,
+      amount: 8500,
+      difference: 1500,
+      kind: "over"
+    });
+  });
+
+  it("reports a plan that falls short of the sale", () => {
+    const plan = [installment("i1", "s1", 4000, "2026-10-01")];
+    expect(planMismatch(sale("s1", 8500, "confirmed"), plan)).toMatchObject({
+      planned: 4000,
+      difference: -4500,
+      kind: "short"
+    });
+  });
+
+  it("ignores another sale's cuotas", () => {
+    const plan = [installment("i1", "s2", 9999, "2026-10-01")];
+    expect(planMismatch(sale("s1", 8500, "confirmed"), plan)).toBeNull();
+  });
+
+  it("adds the cuotas in cents, so the figure it reports is exact", () => {
+    // 0.1 + 0.2 is 0.30000000000000004 in floating point, and a number
+    // she reads on screen has to be the number, not almost the number.
+    const plan = [installment("i1", "s1", 0.1, "2026-10-01"), installment("i2", "s1", 0.2, "2026-11-01")];
+    expect(planMismatch(sale("s1", 0.5, "confirmed"), plan)).toEqual({
+      planned: 0.3,
+      amount: 0.5,
+      difference: -0.2,
+      kind: "short"
+    });
+  });
+});
+
+describe("rebuildPlan", () => {
+  const dates = ["2026-08-01", "2026-09-01", "2026-10-01"];
+  const threeOf = (...amounts: number[]) =>
+    amounts.map((amount, i) => installment(`i${i + 1}`, "s1", amount, dates[i]));
+
+  it("respreads an untouched plan over the new amount, keeping the due dates", () => {
+    const plan = threeOf(2833.34, 2833.33, 2833.33);
+    const next = rebuildPlan("s1", 10000, plan, [], TODAY);
+    expect(next.rows.map((r) => [r.id, r.amount, r.dueDate])).toEqual([
+      ["i1", 3333.35, "2026-08-01"],
+      ["i2", 3333.33, "2026-09-01"],
+      ["i3", 3333.32, "2026-10-01"]
+    ]);
+    expect(sumMoney(next.rows.map((r) => r.amount))).toBe(10000);
+    expect(next.updates).toHaveLength(3);
+    expect(next.removals).toEqual([]);
+    expect(next.additions).toEqual([]);
+  });
+
+  it("leaves money already received where it is and respreads only the rest", () => {
+    // 3000 received: i1 is covered in full, i2 partially.
+    const plan = threeOf(3000, 3000, 2500);
+    const next = rebuildPlan("s1", 12000, plan, [payment("p1", "s1", 3000)], TODAY);
+    // The open pair keeps its 3000:2500 ratio across the new 9000.
+    expect(next.rows.map((r) => [r.id, r.amount, r.paid])).toEqual([
+      ["i1", 3000, true],
+      ["i2", 4909.1, false],
+      ["i3", 4090.9, false]
+    ]);
+    expect(next.updates).toEqual([
+      { id: "i2", amount: 4909.1 },
+      { id: "i3", amount: 4090.9 }
+    ]);
+    expect(sumMoney(next.rows.map((r) => r.amount))).toBe(12000);
+  });
+
+  it("writes nothing when every cuota is paid and the plan already lands on the amount", () => {
+    const plan = [installment("i1", "s1", 3000, "2026-08-01"), installment("i2", "s1", 3000, "2026-09-01")];
+    const next = rebuildPlan("s1", 6000, plan, [payment("p1", "s1", 6000)], TODAY);
+    expect(next.unchanged).toBe(true);
+    expect(next.updates).toEqual([]);
+    expect(next.removals).toEqual([]);
+  });
+
+  /* A rebuild repairs the total; it must not redesign the plan. An
+     anticipo/liquidación split is a decision she made, and spreading
+     evenly would silently overwrite it with one nobody chose. */
+  it("keeps a 30/70 shape instead of flattening it", () => {
+    const plan = [installment("i1", "s1", 2550, "2026-09-01"), installment("i2", "s1", 5950, "2026-10-01")];
+    const next = rebuildPlan("s1", 10000, plan, [], TODAY);
+    expect(next.rows.map((r) => r.amount)).toEqual([3000, 7000]);
+    expect(sumMoney(next.rows.map((r) => r.amount))).toBe(10000);
+  });
+
+  /* The property proportional scaling buys: rebuilding a plan that is
+     already correct writes nothing at all. Under an even split every
+     uneven plan produced three updates on every pass, and every write is
+     a chance for the server to say no. */
+  it("writes nothing when the plan already sums to the amount", () => {
+    const plan = threeOf(3000, 2000, 4000);
+    const next = rebuildPlan("s1", 9000, plan, [], TODAY);
+    expect(next.rows.map((r) => r.amount)).toEqual([3000, 2000, 4000]);
+    expect(next.updates).toEqual([]);
+    expect(next.unchanged).toBe(true);
+  });
+
+  it("asks to write only the cuotas whose amount actually moves", () => {
+    // i1's share of the new total is unchanged, so re-sending it would be
+    // a write that changes nothing.
+    const plan = threeOf(3000, 3000, 3000);
+    const next = rebuildPlan("s1", 12000, plan, [], TODAY);
+    expect(next.rows.map((r) => r.amount)).toEqual([4000, 4000, 4000]);
+    expect(next.updates).toEqual([
+      { id: "i1", amount: 4000 },
+      { id: "i2", amount: 4000 },
+      { id: "i3", amount: 4000 }
+    ]);
+  });
+
+  it("leaves a sale with no plan alone rather than inventing one", () => {
+    expect(rebuildPlan("s1", 8500, [], [], TODAY)).toEqual({
+      rows: [],
+      updates: [],
+      removals: [],
+      additions: [],
+      unchanged: true
+    });
+  });
+
+  it("adds a cuota when every one is paid and the sale grew", () => {
+    const plan = [installment("i1", "s1", 3000, "2026-08-01"), installment("i2", "s1", 3000, "2026-09-01")];
+    const next = rebuildPlan("s1", 8000, plan, [payment("p1", "s1", 6000)], TODAY);
+    // Nothing left to spread onto: the difference becomes its own cuota,
+    // due today because the plan no longer reaches into the future.
+    expect(next.additions).toEqual([{ amount: 2000, dueDate: TODAY }]);
+    expect(next.updates).toEqual([]);
+    expect(next.rows.map((r) => r.amount)).toEqual([3000, 3000, 2000]);
+    expect(sumMoney(next.rows.map((r) => r.amount))).toBe(8000);
+  });
+
+  it("dates that extra cuota with the plan's own tail when it is still ahead", () => {
+    const plan = [installment("i1", "s1", 3000, "2026-10-01"), installment("i2", "s1", 3000, "2026-11-01")];
+    const next = rebuildPlan("s1", 7000, plan, [payment("p1", "s1", 6000)], TODAY);
+    expect(next.additions).toEqual([{ amount: 1000, dueDate: "2026-11-01" }]);
+  });
+
+  it("drops the pending cuotas when the new amount is already covered", () => {
+    const plan = threeOf(3000, 3000, 2500);
+    const next = rebuildPlan("s1", 3000, plan, [payment("p1", "s1", 3000)], TODAY);
+    expect(next.removals).toEqual(["i2", "i3"]);
+    expect(next.rows.map((r) => [r.id, r.amount])).toEqual([["i1", 3000]]);
+    expect(sumMoney(next.rows.map((r) => r.amount))).toBe(3000);
+  });
+
+  it("trims the plan when she reduces the amount below what is already paid", () => {
+    const plan = threeOf(3000, 3000, 2500);
+    const next = rebuildPlan("s1", 4000, plan, [payment("p1", "s1", 8500)], TODAY);
+    // Every cuota was paid; the total drops to 4000, so the plan keeps
+    // i1 whole, trims i2 to what is left and drops i3. The payments are
+    // untouched — the surplus is the sale's `credit`, not a rewrite.
+    expect(next.rows.map((r) => [r.id, r.amount])).toEqual([
+      ["i1", 3000],
+      ["i2", 1000]
+    ]);
+    expect(next.updates).toEqual([{ id: "i2", amount: 1000 }]);
+    expect(next.removals).toEqual(["i3"]);
+    expect(sumMoney(next.rows.map((r) => r.amount))).toBe(4000);
+    expect(saleBalance(sale("s1", 4000, "confirmed"), [payment("p1", "s1", 8500)]).credit).toBe(4500);
+  });
+
+  it("clears the plan for a zero amount instead of leaving orphan cuotas", () => {
+    const next = rebuildPlan("s1", 0, threeOf(3000, 3000, 2500), [], TODAY);
+    expect(next.rows).toEqual([]);
+    expect(next.removals).toEqual(["i1", "i2", "i3"]);
+  });
+
+  /* The whole point of the rebuild: whatever the shape of the plan and
+     of the money already received, the cuotas add back up to the sale
+     EXACTLY — in cents, not to within a rounding error. */
+  it("always lands on the sale amount, to the cent", () => {
+    const shapes: { plan: Installment[]; payments: Payment[] }[] = [
+      { plan: threeOf(2833.34, 2833.33, 2833.33), payments: [] },
+      { plan: threeOf(3000, 3000, 2500), payments: [payment("p1", "s1", 3000)] },
+      { plan: threeOf(3000, 3000, 2500), payments: [payment("p1", "s1", 8500)] },
+      { plan: threeOf(0.01, 0.01, 0.01), payments: [payment("p1", "s1", 0.01)] },
+      { plan: [installment("i1", "s1", 100, "2026-08-01")], payments: [payment("p1", "s1", 100)] }
+    ];
+    for (const { plan, payments } of shapes) {
+      for (const amount of [0.03, 100, 1000.01, 8500, 33333.33]) {
+        const next = rebuildPlan("s1", amount, plan, payments, TODAY);
+        expect(sumMoney(next.rows.map((r) => r.amount))).toBe(amount);
+        // And what it says to write reproduces exactly those rows.
+        const written = new Map(plan.map((i) => [i.id, i.amount]));
+        for (const u of next.updates) written.set(u.id, u.amount);
+        for (const id of next.removals) written.delete(id);
+        expect(sumMoney([...written.values(), ...next.additions.map((a) => a.amount)])).toBe(amount);
+      }
+    }
   });
 });

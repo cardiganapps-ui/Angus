@@ -32,8 +32,18 @@ html[data-theme="dark"] {
   /* ── Text ── */
   --charcoal:    #F2EAF0;
   --charcoal-md: #C6B8C9;
-  --charcoal-lt: #9C8FA3;
-  --charcoal-xl: #8A7D91;
+  /* Lightened for the same reason base.css darkens them: these two carry
+     10-14px meta/tertiary text, so the bar is 4.5:1, not 3:1. The old
+     pair failed on the raised surfaces — #9C8FA3 gave 4.79 on
+     --cream-dark but only 4.36 on --accent-pale, and #8A7D91 gave
+     3.78 / 3.44. New ratios on --white / --cream / --cream-dark /
+     --accent-pale:
+       --charcoal-lt  6.97 / 6.40 / 5.73 / 5.22
+       --charcoal-xl  6.09 / 5.60 / 5.01 / 4.56
+     L* 66.6 / 62.5 under --charcoal-md's 76.4, so the ramp keeps its
+     order and its plum cast. */
+  --charcoal-lt: #A99EAF;
+  --charcoal-xl: #9E93A4;
 
   /* ── Borders ── */
   --border:      #3C3145;
@@ -62,6 +72,10 @@ html[data-theme="dark"] {
      purple/blue/amber so the dark-mode contrast stays readable. */
   --rose:        #E5A8BE;
   --rose-bg:     rgba(217,139,166,0.15);
+  /* Badge labels keep more of their hue here: against the dark tints
+     the 72% mix already measures 6.5–8.5:1, and light's 55% would drag
+     every label toward the near-white --charcoal and flatten the lanes. */
+  --badge-mix:   72%;
 
   /* ── Navigation ── */
   --nav-bg:      #221827;
@@ -72,12 +86,11 @@ html[data-theme="dark"] {
   --shadow-lg:   0 8px 28px rgba(0,0,0,0.5);
   --shadow-overlay:  0 16px 48px rgba(0,0,0,0.6);
   --shadow-sheet-up: 0 -10px 40px rgba(0,0,0,0.6);
-  /* Brighter rose + higher alpha so the focus ring stays visible on
-     dark inputs (the light-mode value washed out against the dark page). */
-  --focus-ring: 0 0 0 3px rgba(224,138,176,0.45);
-  /* Danger ring follows dark --red (#E57777); alpha bumped like the
-     accent ring so it stays visible against dark inputs. */
-  --focus-ring-danger: 0 0 0 3px rgba(236,111,98,0.4);
+  /* --focus-ring / --focus-ring-danger are deliberately NOT overridden
+     here any more. base.css builds them from var(--accent) / var(--red),
+     which this block already flips, so the dark ring comes out solid
+     #E08AB0 at 7.15:1 on --white — where the old rgba(224,138,176,0.45)
+     override composited to 2.45:1 and missed 1.4.11's 3:1 bar. */
 
   /* ── Liquid Glass material tokens, dark ──
      The frosted chrome inverts to semi-opaque charcoal so the bars
@@ -115,24 +128,6 @@ html[data-theme="dark"] {
    hardcoded #EAEAEA / #1A1A1A pair was a COLD grey sitting on a blush
    palette, which is exactly the "greyish" read the repalette set out to
    remove. Don't reintroduce it. */
-/* Teal surfaces keep their brand color in dark mode — the `color:
-   var(--white)` rule in components.css would otherwise flip to dark
-   text (because --white inverts to #1A1A1A), showing as muddy black
-   on teal. Hard-code literal #FFFFFF for every teal-backgrounded
-   control so the look matches light mode and text stays legible.
-   Icons inside these controls use currentColor, so they inherit. */
-html[data-theme="dark"] .btn-primary-teal,
-html[data-theme="dark"] .btn-teal {
-  color: #FFFFFF;
-}
-html[data-theme="dark"] .app-banner--demo .app-banner-text,
-html[data-theme="dark"] .app-banner--demo .app-banner-text--muted,
-html[data-theme="dark"] .app-banner--demo .app-banner-action {
-  color: #FFFFFF;
-}
-html[data-theme="dark"] .app-banner--demo .app-banner-text--muted {
-  color: rgba(255, 255, 255, 0.7);
-}
 /* ── Overlays: slightly stronger for dark backgrounds ── */
 html[data-theme="dark"] .drawer-overlay {
   background: rgba(0,0,0,0.6);
@@ -153,10 +148,6 @@ html[data-theme="dark"] .page::-webkit-scrollbar-thumb {
 html[data-theme="dark"] .page::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
-
-/* ── Avatar text: keep white on colored backgrounds ── */
-html[data-theme="dark"] .row-avatar { color: #FFFFFF; }
-html[data-theme="dark"] .avatar-sm { color: #FFFFFF; }
 
 /* .chip.active needs no dark override: it fills with --accent-dark and
    labels with var(--white), both of which flip on their own. */
@@ -205,18 +196,6 @@ html[data-theme="dark"] {
     filter: brightness(1.1);
   }
 }
-
-/* ── Desktop primitives (tooltip, context menu, split view) ── */
-html[data-theme="dark"] .tooltip { background: #2A2A2A; color: #EAEAEA; border: 1px solid #3A3A3A; }
-html[data-theme="dark"] .tooltip-kbd { background: rgba(255,255,255,0.08); }
-html[data-theme="dark"] .context-menu { background: #242424; border-color: #3A3A3A; }
-html[data-theme="dark"] .split-view-list { background: #1F1F1F; }
-html[data-theme="dark"] .split-view-detail { background: #1A1A1A; }
-html[data-theme="dark"] .topbar-search-btn { background: #242424; border-color: #3A3A3A; color: #BFBFBF; }
-html[data-theme="dark"] .topbar-search-mobile { background: #242424; border-color: #3A3A3A; color: #BFBFBF; }
-html[data-theme="dark"] .topbar-new-menu { background: #242424; border-color: #3A3A3A; }
-html[data-theme="dark"] .topbar-new-btn { background: #EAEAEA; color: #1A1A1A; }
-html[data-theme="dark"] .topbar-new-btn:hover { background: #FFFFFF; }
 
 /* Liquid Glass — dark mode. Backgrounds/edges/shadows flip via the
    --glass-* token overrides in the block at the top of this file;
@@ -305,7 +284,7 @@ html[data-theme="dark"] .fab {
    tokens and text via `color: var(--charcoal)` (→ #EAEAEA). The old
    rule here forced `color: var(--white)` — which INVERTS to #1A1A1A in
    dark mode, i.e. near-black toast text on dark glass. Classic token
-   trap (see the .btn-primary-teal comment above); don't reintroduce. */
+   trap; don't reintroduce. */
 /* The default stripe + icon chip are --accent / --accent-dark now, both
    of which lift on their own in this theme, so the old white patches
    (which made every neutral toast read as unstyled chrome) are gone. */
@@ -317,17 +296,6 @@ html[data-theme="dark"] .toast-action:active { background: rgba(255, 255, 255, 0
 html[data-theme="dark"] .toast-close { color: rgba(255, 255, 255, 0.55); }
 html[data-theme="dark"] .toast-close:active { color: var(--white); }
 
-/* Liquid Glass HelpTip — charcoal-tinted glass keeps tip text legible
-   on dark page surfaces without flattening into the background. */
-html[data-theme="dark"] .help-tip {
-  background: rgba(28, 28, 30, 0.78);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 12px 28px -6px rgba(0, 0, 0, 0.5),
-    0 3px 10px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
 /* Sheet drag handle — dark mode flips the two-tone gradient to use
    lighter neutrals so the pill stays visible against a dark sheet
    panel. The inset highlight reads as a subtle gloss at the top. */
@@ -338,27 +306,3 @@ html[data-theme="dark"] .sheet-handle {
     0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
-/* App banners — dark mode tunes alphas slightly for inset edge
-   visibility on the darker page background. Color tints already
-   carry their own opacity. */
-html[data-theme="dark"] .app-banner {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-html[data-theme="dark"] .app-banner--trial {
-  background: rgba(60, 50, 30, 0.86);
-  border-bottom-color: rgba(255, 255, 255, 0.06);
-}
-html[data-theme="dark"] .app-banner--trial .app-banner-text { color: rgba(255, 240, 200, 0.92); }
-html[data-theme="dark"] .app-banner--trial .app-banner-action {
-  background: var(--white);
-  color: var(--charcoal);
-}
-
-/* ── Admin dashboard dark overrides ──
-   Superseded by `admin-tokens.css`, which owns the entire admin
-   palette via scoped --admin-* tokens (cool-gray dark in
-   `html[data-theme="dark"] .admin-shell` + `@media prefers-color-scheme`).
-   Leaving these legacy hardcoded #1E1E1E / #161616 rules here would
-   beat admin-tokens.css's overrides on specificity (0,2,1 vs 0,2,0)
-   and create the dark-card-on-light-page mismatch we observed in
-   prod May 2026. */

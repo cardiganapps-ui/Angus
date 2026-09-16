@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { Assignment, AssignmentStatus } from "../types";
@@ -8,7 +8,8 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
 import { ProjectSheet } from "./ProjectSheet";
-import { makeId } from "../utils/id";
+import { domId, makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
 import { taskProgress } from "../utils/studies";
 import { useNotes } from "../hooks/useNotes";
@@ -62,6 +63,9 @@ export function AssignmentSheet({
   const [uploadOpen, setUploadOpen] = useState(false);
   const entregas = assignment ? documentsFor({ assignmentId: assignment.id }) : [];
   const linkedNotes = assignment ? notes.filter((n) => n.assignmentId === assignment.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : [];
+
+  const uid = domId(useId());
+  const dirty = useDirtyGuard({ title, courseId, dueDate, dueTime, status, description, projectId, grade, feedback });
 
   const safeClose = submitting ? null : onClose;
   const courseOptions = courses
@@ -118,6 +122,12 @@ export function AssignmentSheet({
       <Sheet
         title={assignment ? "Editar tarea" : "Nueva tarea"}
         onClose={safeClose}
+        dirty={dirty}
+        discardText={
+          assignment
+            ? "¿Descartar los cambios? La tarea se queda como estaba."
+            : "¿Descartar? Esta tarea no se guarda."
+        }
         footer={
           <SheetActions
             canSave={canSave}
@@ -141,9 +151,9 @@ export function AssignmentSheet({
         </div>
 
         <div className="input-group">
-          <span className="input-label">Curso</span>
+          <span className="input-label" id={`${uid}-course`}>Curso</span>
           {courseOptions.length > 0 ? (
-            <PickerField title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
+            <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
           ) : (
             <div className="input-help">Primero agrega el curso en Estudios; las tareas viven dentro de él.</div>
           )}
@@ -190,8 +200,9 @@ export function AssignmentSheet({
         </div>
 
         <div className="input-group">
-          <span className="input-label">Pieza para esta tarea</span>
+          <span className="input-label" id={`${uid}-project`}>Pieza para esta tarea</span>
           <PickerField
+            labelId={`${uid}-project`}
             title="Pieza"
             options={projectOptions}
             value={projectId}

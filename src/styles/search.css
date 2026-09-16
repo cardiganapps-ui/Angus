@@ -1,0 +1,157 @@
+/* ── Global search ───────────────────────────────────────────────────
+   The magnifier in the top bar (on every screen) and the sheet it
+   opens. Tokens only — nothing here knows a hex value, so dark mode
+   follows from dark.css like everything else.
+
+   Layout note: the results are full-bleed inside `.sheet-body`, which
+   carries 20px of horizontal padding — hence the -20px margins and the
+   20px padding restored on the rows, so every gutter still lines up
+   with the sheet title above them. */
+
+/* The topbar's own hit target, 44px like the hamburger opposite it.
+   NOT `.topbar-menu`: the persistent rail hides that class at ≥1024px,
+   and search has to survive there too. */
+.topbar-search {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--charcoal);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
+}
+.topbar-search:active {
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+  transform: scale(0.9);
+}
+.topbar-search:focus { outline: none; }
+.topbar-search:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* The brand is absolutely centred and clips itself against the two
+   clusters; the right one just grew by a button, so give it the room
+   rather than letting a long studio name run under the magnifier. */
+.topbar:has(.topbar-search) .topbar-brand {
+  /* 44 (search) + 6 + 32 (avatar) + 14 (the bar's own padding) = 96px
+     the cluster owns, doubled because the brand is centred. */
+  max-width: calc(100% - 200px);
+}
+
+/* A tall, stable body: results appearing and disappearing under her
+   thumb must not resize the panel on every keystroke. */
+.gsearch {
+  display: flex;
+  flex-direction: column;
+  min-height: 58svh;
+  padding-bottom: 8px;
+}
+
+/* The panel is the scroll container, so scrolling a highlighted result
+   into view has to clear the sticky field above it. */
+.sheet-panel:has(.gsearch) { scroll-padding-top: 76px; }
+
+.gsearch-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 -20px;
+  padding: 2px 20px 10px;
+  background: var(--white);
+}
+
+/* Same pill as `.search-field`, without the screen-level margins. */
+.gsearch-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 14px;
+  background: var(--cream);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--charcoal-lt);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.gsearch-field:focus-within {
+  border-color: var(--accent);
+  background: var(--white);
+}
+.gsearch-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  /* The 16px floor is the iOS zoom-on-focus line — never read a token
+     that could resolve below it. */
+  font-family: var(--font);
+  font-size: max(16px, calc(16px * var(--text-scale-user, 1)));
+  color: var(--charcoal);
+}
+.gsearch-field input::placeholder { color: var(--charcoal-lt); }
+.gsearch-field input::-webkit-search-cancel-button { display: none; }
+
+.gsearch-count {
+  min-height: 15px;
+  margin-top: 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--charcoal-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The panel is deliberately tall and stable, so an empty state floats in
+   the middle of it rather than clinging under the field. */
+.gsearch .empty-state { margin-block: auto; }
+
+.gsearch-results { margin: 0 -20px; }
+.gsearch-group + .gsearch-group { border-top: 1px solid var(--border-lt); }
+.gsearch-group-title {
+  padding: 14px 20px 6px;
+  color: var(--charcoal-xl);
+}
+
+.gsearch-row { padding: 12px 20px; }
+/* Keyboard highlight: the accent bar carries it as well as the tint, so
+   it reads without relying on colour alone (aria-selected carries it
+   for anything that isn't looking). */
+.gsearch-row--active {
+  background: var(--accent-pale);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.gsearch-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cream-dark);
+  color: var(--charcoal-md);
+}
+.gsearch-amount {
+  flex-shrink: 0;
+  font-family: var(--font-d);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--charcoal-md);
+  font-variant-numeric: tabular-nums;
+}
+.gsearch-more {
+  padding: 14px 20px 4px;
+  font-size: var(--text-xs);
+  color: var(--charcoal-xl);
+  line-height: 1.5;
+}

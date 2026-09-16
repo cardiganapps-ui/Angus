@@ -45,9 +45,71 @@ function expenseRow(ruleId: string, date: string): Expense {
   };
 }
 
+describe("materializer skips", () => {
+  /* Deleting a rule-generated row used to be impossible: the row became
+     "missing", so the next round put it straight back. These pin that a
+     skip makes a deletion stick — the whole point of migration 022. */
+  const monthly = () => rule({ startDate: "2026-07-01" });
+  const skip = (periodKey: string, ruleId = "r1") => ({
+    id: `k-${ruleId}-${periodKey}`,
+    createdAt: "2026-09-16",
+    recurringRuleId: ruleId,
+    periodKey
+  });
+
+  it("does not regenerate a period she deleted", () => {
+    const withoutSkip = pendingMaterializations([monthly()], [], [], [], TODAY).expenses;
+    const august = withoutSkip.find((e) => e.periodKey === "2026-08");
+    expect(august).toBeDefined();
+
+    const withSkip = pendingMaterializations([monthly()], [], [], [skip("2026-08")], TODAY).expenses;
+    expect(withSkip.map((e) => e.periodKey)).not.toContain("2026-08");
+    // Every other period is untouched — a skip is surgical, not a pause.
+    expect(withSkip.length).toBe(withoutSkip.length - 1);
+  });
+
+  it("skips only the rule it names, not the same period of another rule", () => {
+    const other = rule({ id: "r2", startDate: "2026-07-01" });
+    const pending = pendingMaterializations([monthly(), other], [], [], [skip("2026-08", "r1")], TODAY).expenses;
+    expect(pending.filter((e) => e.periodKey === "2026-08").map((e) => e.recurringRuleId)).toEqual(["r2"]);
+  });
+
+  it("is idempotent — repeated skips for one period behave like one", () => {
+    const once = pendingMaterializations([monthly()], [], [], [skip("2026-08")], TODAY).expenses;
+    const twice = pendingMaterializations(
+      [monthly()],
+      [],
+      [],
+      [skip("2026-08"), { ...skip("2026-08"), id: "k-dup" }],
+      TODAY
+    ).expenses;
+    expect(twice).toEqual(once);
+  });
+
+  it("a skip frees a slot under the backfill cap instead of consuming one", () => {
+    /* The skip is seeded before the cap is applied, so a deleted period
+       does not spend one of the 24 a rule may backfill. */
+    const old = rule({ startDate: "2020-01-01" });
+    const capped = pendingMaterializations([old], [], [], [], "2026-09-16", INCOME_LOOKAHEAD_DAYS, 3);
+    const first = capped.expenses[0].periodKey;
+    expect(first).not.toBeNull();
+    const withSkip = pendingMaterializations(
+      [old],
+      [],
+      [],
+      [skip(first as string)],
+      "2026-09-16",
+      INCOME_LOOKAHEAD_DAYS,
+      3
+    );
+    expect(withSkip.expenses.length).toBe(3);
+    expect(withSkip.expenses.map((e) => e.periodKey)).not.toContain(first);
+  });
+});
+
 describe("pendingMaterializations", () => {
   it("creates every due period that has no row yet, and nothing twice", () => {
-    const pending = pendingMaterializations([rule()], [], [expenseRow("r1", "2026-07-01")], TODAY);
+    const pending = pendingMaterializations([rule()], [], [expenseRow("r1", "2026-07-01")], [], TODAY);
     expect(pending.sales).toEqual([]);
     expect(pending.expenses.map((e) => e.periodKey)).toEqual(["2026-08", "2026-09"]);
     expect(pending.expenses[0]).toMatchObject({
@@ -62,12 +124,12 @@ describe("pendingMaterializations", () => {
   it("does not duplicate a period when the rule's day of the month changes", () => {
     const have = [expenseRow("r1", "2026-07-01"), expenseRow("r1", "2026-08-01"), expenseRow("r1", "2026-09-01")];
     const moved = rule({ startDate: "2026-07-05" });
-    expect(pendingMaterializations([moved], [], have, TODAY).expenses).toEqual([]);
+    expect(pendingMaterializations([moved], [], have, [], TODAY).expenses).toEqual([]);
   });
 
   it("skips paused rules and never reaches past today for expenses", () => {
-    expect(pendingMaterializations([rule({ active: false })], [], [], TODAY).expenses).toEqual([]);
-    const soon = pendingMaterializations([rule({ startDate: "2026-09-16" })], [], [], TODAY);
+    expect(pendingMaterializations([rule({ active: false })], [], [], [], TODAY).expenses).toEqual([]);
+    const soon = pendingMaterializations([rule({ startDate: "2026-09-16" })], [], [], [], TODAY);
     expect(soon.expenses).toEqual([]);
   });
 
@@ -81,7 +143,7 @@ describe("pendingMaterializations", () => {
       startDate: "2026-09-25",
       contactId: "c1"
     });
-    const pending = pendingMaterializations([tuition], [], [], TODAY);
+    const pending = pendingMaterializations([tuition], [], [], [], TODAY);
     expect(pending.sales).toHaveLength(1);
     expect(pending.sales[0]).toMatchObject({
       title: "Colegiatura Sofía",
@@ -95,7 +157,7 @@ describe("pendingMaterializations", () => {
       date: "2026-09-25"
     });
     // Beyond the look-ahead: not yet.
-    expect(pendingMaterializations([tuition], [], [], TODAY, 5).sales).toEqual([]);
+    expect(pendingMaterializations([tuition], [], [], [], TODAY, 5).sales).toEqual([]);
   });
 
   it("recognizes an existing materialized sale by rule + period", () => {
@@ -116,7 +178,7 @@ describe("pendingMaterializations", () => {
       notes: "",
       createdAt: "2026-09-01"
     };
-    expect(pendingMaterializations([tuition], [existing], [], TODAY).sales).toEqual([]);
+    expect(pendingMaterializations([tuition], [existing], [], [], TODAY).sales).toEqual([]);
   });
 });
 
@@ -143,20 +205,20 @@ describe("backfill cap", () => {
   /* A monthly rule dated 2015 used to insert ~130 expenses the moment
      the app loaded, rewriting a decade of months she never entered. */
   it("never inserts more than the cap for one rule", () => {
-    const pending = pendingMaterializations([oldRule], [], [], "2026-09-16");
+    const pending = pendingMaterializations([oldRule], [], [], [], "2026-09-16");
     expect(pending.expenses.length).toBeLessThanOrEqual(24);
     expect(pending.expenses).toHaveLength(24);
   });
 
   it("keeps the most recent periods, not the rule's first year", () => {
-    const pending = pendingMaterializations([oldRule], [], [], "2026-09-16");
+    const pending = pendingMaterializations([oldRule], [], [], [], "2026-09-16");
     const dates = pending.expenses.map((e) => e.date).sort();
     expect(dates[dates.length - 1]).toBe("2026-09-01");
     expect(dates[0]).toBe("2024-10-01");
   });
 
   it("reports what it held back, so the UI can offer it instead of hiding it", () => {
-    const pending = pendingMaterializations([oldRule], [], [], "2026-09-16");
+    const pending = pendingMaterializations([oldRule], [], [], [], "2026-09-16");
     expect(pending.deferred).toHaveLength(1);
     expect(pending.deferred[0]).toMatchObject({ ruleId: "r-old", oldest: "2015-01-01" });
     expect(pending.deferred[0].skipped).toBeGreaterThan(100);
@@ -164,13 +226,13 @@ describe("backfill cap", () => {
 
   it("defers nothing for a rule that started inside the window", () => {
     const recent = { ...oldRule, id: "r-new", startDate: "2026-07-01" };
-    const pending = pendingMaterializations([recent], [], [], "2026-09-16");
+    const pending = pendingMaterializations([recent], [], [], [], "2026-09-16");
     expect(pending.deferred).toEqual([]);
     expect(pending.expenses).toHaveLength(3);
   });
 
   it("honours a caller-supplied cap", () => {
-    const pending = pendingMaterializations([oldRule], [], [], "2026-09-16", INCOME_LOOKAHEAD_DAYS, 3);
+    const pending = pendingMaterializations([oldRule], [], [], [], "2026-09-16", INCOME_LOOKAHEAD_DAYS, 3);
     expect(pending.expenses).toHaveLength(3);
     expect(pending.expenses.map((e) => e.date).sort()).toEqual(["2026-07-01", "2026-08-01", "2026-09-01"]);
   });

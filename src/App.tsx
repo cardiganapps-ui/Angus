@@ -39,6 +39,12 @@ const Classes = lazy(() => import("./screens/Classes").then((m) => ({ default: m
 const Studies = lazy(() => import("./screens/Studies").then((m) => ({ default: m.Studies })));
 const Notes = lazy(() => import("./screens/Notes").then((m) => ({ default: m.Notes })));
 const Onboarding = lazy(() => import("./screens/Onboarding").then((m) => ({ default: m.Onboarding })));
+/* Global search reaches into every entity, so it pulls in every detail
+   sheet — it stays off the entry chunk and loads the first time she taps
+   the magnifier. */
+const GlobalSearchSheet = lazy(() =>
+  import("./components/GlobalSearchSheet").then((m) => ({ default: m.GlobalSearchSheet }))
+);
 
 import { applyTextScale } from "./lib/appearance";
 import { haptic } from "./lib/haptics";
@@ -257,6 +263,7 @@ export default function App() {
   const ws = useWorkspaces(auth.user?.id ?? null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const theme = useTheme();
   const wide = useMediaQuery("(min-width: 1024px)");
 
@@ -398,6 +405,24 @@ export default function App() {
   const topbarRight = signedIn ? (
     <>
       {viewingShared && <span className="badge badge-teal">Compartido</span>}
+      {/* One tap to everything she has ever written down, from wherever
+          she is — the top bar is the only chrome present on all fourteen
+          destinations, tabs and drawer routes alike. */}
+      {active?.onboardedAt && (
+        <button
+          type="button"
+          className="topbar-search"
+          aria-label="Buscar"
+          aria-haspopup="dialog"
+          aria-expanded={searchOpen}
+          onClick={() => {
+            haptic.tap();
+            setSearchOpen(true);
+          }}
+        >
+          <Icon name="search" size={20} strokeWidth={2.2} />
+        </button>
+      )}
       <button
         type="button"
         className="topbar-avatar btn-tap"
@@ -462,6 +487,14 @@ export default function App() {
           {body}
           {drawerOpen && !rail && (
             <Drawer route={route} navigate={navigate} onClose={() => setDrawerOpen(false)} />
+          )}
+          {/* Inside AppProvider — it reads every store. No fallback: the
+              sheet is the feedback, and a skeleton behind the scrim for
+              one chunk fetch would be noise. */}
+          {searchOpen && (
+            <Suspense fallback={null}>
+              <GlobalSearchSheet onClose={() => setSearchOpen(false)} />
+            </Suspense>
           )}
           {overlays}
         </Shell>

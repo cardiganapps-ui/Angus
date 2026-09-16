@@ -7,6 +7,7 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { ChipSelect } from "./ChipSelect";
 import { makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
 import { formatMXN } from "../utils/money";
 import { haptic } from "../lib/haptics";
@@ -30,6 +31,8 @@ export function PaymentSheet({
   const [method, setMethod] = useState<PaymentMethod>(payment?.method ?? settings.defaultPaymentMethod);
   const [notes, setNotes] = useState(payment?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
+
+  const dirty = useDirtyGuard({ amount, date, method, notes });
 
   const safeClose = submitting ? null : onClose;
   const parsedAmount = Number(amount);
@@ -87,6 +90,12 @@ export function PaymentSheet({
     <Sheet
       title={payment ? "Editar pago" : "Registrar pago"}
       onClose={safeClose}
+      dirty={dirty}
+      discardText={
+        payment
+          ? "¿Descartar los cambios? El pago se queda como estaba."
+          : "¿Descartar? Este pago no queda registrado."
+      }
       footer={
         <SheetActions
           canSave={canSave}

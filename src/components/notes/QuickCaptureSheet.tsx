@@ -3,6 +3,7 @@ import type { Note } from "../../types";
 import { Sheet } from "../Sheet";
 import { useNotes, type NoteLinks } from "../../hooks/useNotes";
 import { useToast } from "../../context/ToastContext";
+import { useDirtyGuard } from "../../hooks/useDirtyGuard";
 import { haptic } from "../../lib/haptics";
 
 /* ── QuickCaptureSheet ──
@@ -31,6 +32,7 @@ export function QuickCaptureSheet({
   }, []);
 
   const isEmpty = !title.trim() && !content.trim();
+  const dirty = useDirtyGuard({ title, content });
   const safeClose = busy ? null : onClose;
 
   async function save(openInEditor = false) {
@@ -64,6 +66,8 @@ export function QuickCaptureSheet({
     <Sheet
       title="Nota rápida"
       onClose={safeClose}
+      dirty={dirty}
+      discardText="¿Descartar la nota? Lo que escribiste no se guarda."
       footer={
         <div className="sheet-actions">
           <div className="sheet-actions-state">

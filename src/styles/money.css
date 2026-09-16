@@ -22,7 +22,7 @@
   gap: 4px;
 }
 .money-submeta {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--charcoal-xl);
   font-variant-numeric: tabular-nums;
 }
@@ -63,7 +63,7 @@
 }
 .money-stat-value {
   font-family: var(--font-d);
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 800;
   letter-spacing: -0.2px;
   color: var(--charcoal);
@@ -112,7 +112,7 @@
 }
 .money-list-empty {
   padding: 14px;
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--charcoal-md);
   line-height: 1.5;
 }
@@ -181,7 +181,7 @@
 /* Trailing total in a month section header. */
 .money-section-total {
   font-family: var(--font-d);
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 700;
   color: var(--charcoal-md);
   font-variant-numeric: tabular-nums;

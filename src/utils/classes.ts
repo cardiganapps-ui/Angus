@@ -7,9 +7,9 @@ import type {
   Sale,
   ScheduleEvent
 } from "../types";
-import { saleBalance, saleCountsTowardRevenue } from "./accounting";
+import { paidForSale, saleBalance, saleCountsTowardRevenue } from "./accounting";
 import { monthRange } from "./dates";
-import { fromCents, toCents } from "./money";
+import { fromCents, sumMoney, toCents } from "./money";
 
 /* ── Clases ──
    Derived facts about a class group: who is enrolled today, how full it
@@ -144,4 +144,72 @@ export function summarizeTuition(rows: StudentTuition[]): TuitionSummary {
   }
   out.owed = fromCents(owedCents);
   return out;
+}
+
+/* ── Cobro por sesión ──
+   A `per_session` group bills at roll call: one confirmed Sale per
+   student who attended, keyed on the SESSION's own id (migration 010's
+   third period_key shape) with no recurring rule behind it. Those facts
+   together identify a sale a roll call generated — a manual sale to the
+   same student on the same day carries `periodKey: null` and must never
+   be touched by the attendance sheet. */
+export function isPerSessionTuitionSale(sale: Sale, eventId: string): boolean {
+  return sale.periodKey === eventId && sale.recurringRuleId === null && sale.category === "class";
+}
+
+/** The sale this session's roll call created for one student, if any. */
+export function perSessionTuitionSale(sales: Sale[], eventId: string, contactId: string): Sale | null {
+  return sales.find((s) => isPerSessionTuitionSale(s, eventId) && s.contactId === contactId) ?? null;
+}
+
+export interface RollCallEntry {
+  contactId: string;
+  /** Present. Absent and justified alike mean the session wasn't taken. */
+  attending: boolean;
+}
+
+export interface TuitionBillingPlan {
+  /** Students to bill: present, with no sale for this session yet. */
+  toBill: string[];
+  /** Billed, now marked away — their sale gets CANCELLED, never deleted. */
+  toCancel: Sale[];
+  /** Back to present after a cancellation — the same sale is revived. */
+  toRestore: Sale[];
+  /** Cash already received on the sales being cancelled: hers to give back. */
+  refundable: number;
+}
+
+/* What saving a roll call owes the money side, for a per-session group.
+
+   A student flipped to absent gets their sale CANCELLED rather than
+   deleted, and this is the reason: a Payment may already exist against
+   it. Deleting the sale cascades those payments away and destroys the
+   record of money that really was received. Cancelling keeps the row,
+   and accounting.ts already reports cash taken against a cancelled sale
+   as `refundable` — "Por devolver" — which is exactly what money
+   collected for a session that did not happen is. It is also reversible
+   and it leaves an honest audit trail.
+
+   Flipping back to present revives that same row instead of inserting a
+   second one: the unique index on (period_key, contact_id) would reject
+   the duplicate anyway, and a rejected insert is not a bill. */
+export function planTuitionForRollCall(
+  eventId: string,
+  roll: RollCallEntry[],
+  sales: Sale[],
+  payments: Payment[]
+): TuitionBillingPlan {
+  const toBill: string[] = [];
+  const toCancel: Sale[] = [];
+  const toRestore: Sale[] = [];
+  for (const { contactId, attending } of roll) {
+    const existing = perSessionTuitionSale(sales, eventId, contactId);
+    if (attending) {
+      if (!existing) toBill.push(contactId);
+      else if (existing.status === "cancelled") toRestore.push(existing);
+    } else if (existing && existing.status !== "cancelled") {
+      toCancel.push(existing);
+    }
+  }
+  return { toBill, toCancel, toRestore, refundable: sumMoney(toCancel.map((s) => paidForSale(payments, s.id))) };
 }

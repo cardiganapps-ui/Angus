@@ -8,8 +8,7 @@ import {
   splitEvenly,
   subtractMoney,
   sumMoney,
-  toCents
-} from "../money";
+  toCents, splitProportionally } from "../money";
 
 describe("money", () => {
   it("sums without float drift", () => {
@@ -55,5 +54,46 @@ describe("money", () => {
     expect(formatMXNShortSigned(3300)).toBe("$3,300");
     expect(formatMXNShortSigned(0)).toBe("$0");
     expect(formatMXNShortSigned(-0.4)).toBe("$0");
+  });
+});
+
+describe("splitProportionally", () => {
+  const cents = (xs: number[]) => xs.map(toCents);
+
+  it("keeps the shape and still lands exactly on the total", () => {
+    expect(splitProportionally(10000, [2550, 5950])).toEqual([3000, 7000]);
+    expect(sumMoney(splitProportionally(10000, [2550, 5950]))).toBe(10000);
+  });
+
+  it("is a no-op on weights that already sum to the total", () => {
+    expect(splitProportionally(9000, [3000, 2000, 4000])).toEqual([3000, 2000, 4000]);
+  });
+
+  /* The invariant that matters: whatever the shape and whatever the
+     rounding, the parts add back up to the whole to the cent. */
+  it("always sums to the total, across awkward ratios and totals", () => {
+    const shapes = [[1, 2], [1, 1, 1], [2833.34, 2833.33, 2833.33], [0.01, 9999.99], [7, 11, 13]];
+    for (const shape of shapes) {
+      for (const total of [0.03, 1, 33.33, 10000, 12345.67]) {
+        const out = splitProportionally(total, shape);
+        expect(out).toHaveLength(shape.length);
+        expect(sumMoney(out)).toBe(total);
+        expect(cents(out).every((c) => c >= 0)).toBe(true);
+      }
+    }
+  });
+
+  it("puts leftover cents on the earliest entries, like splitEvenly", () => {
+    // 100.00 over three equal weights: 33.34 / 33.33 / 33.33.
+    expect(splitProportionally(100, [1, 1, 1])).toEqual([33.34, 33.33, 33.33]);
+    expect(splitProportionally(100, [1, 1, 1])).toEqual(splitEvenly(100, 3));
+  });
+
+  it("falls back to an even split when the weights carry no shape", () => {
+    expect(splitProportionally(90, [0, 0, 0])).toEqual(splitEvenly(90, 3));
+  });
+
+  it("returns nothing for no weights", () => {
+    expect(splitProportionally(100, [])).toEqual([]);
   });
 });

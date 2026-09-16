@@ -56,3 +56,23 @@ export function formatMXNShortSigned(value: number): string {
   const rounded = Math.round(value) + 0;
   return rounded < 0 ? `-${formatMXNShort(-rounded)}` : formatMXNShort(rounded);
 }
+
+/* Split `total` across `weights`, keeping their proportions and adding
+   back up to exactly `total`.
+
+   `splitEvenly` is right when a plan is being created — there is no shape
+   yet. It is wrong when one is being REBUILT: a 30/70 anticipo-and-
+   liquidación came back 50/50, silently discarding a split she chose, and
+   rebuilding an already-correct plan was not even a no-op. Leftover cents
+   go to the EARLIEST entries, same as splitEvenly, so the two agree at
+   the boundary. Zero weights have no shape to preserve, so they fall back. */
+export function splitProportionally(total: number, weights: number[]): number[] {
+  if (weights.length === 0) return [];
+  const totalCents = toCents(total);
+  const w = weights.map(toCents);
+  const sum = w.reduce((a, b) => a + b, 0);
+  if (sum <= 0) return splitEvenly(total, weights.length);
+  const base = w.map((x) => Math.floor((totalCents * x) / sum));
+  const leftover = totalCents - base.reduce((a, b) => a + b, 0);
+  return base.map((c, i) => fromCents(c + (i < leftover ? 1 : 0)));
+}

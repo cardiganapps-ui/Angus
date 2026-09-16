@@ -25,8 +25,22 @@ interface DragStart {
    gesture instead of going through React state — every touchmove would
    otherwise schedule a re-render, which on a phone ends up trailing
    the finger and jittering. Only the close/open transitions touch
-   React at all. */
-export function useSheetDrag(onClose: () => void, { threshold = 92, isOpen = true }: { threshold?: number; isOpen?: boolean } = {}) {
+   React at all.
+
+   `beforeDismiss` is the owner's veto, consulted at release and BEFORE
+   the exit animation starts: once the panel is sliding off screen there
+   is no honest way to bring it back. Returning false snaps it home
+   instead, which is how a sheet with unsaved edits turns a flick into a
+   question rather than a loss. */
+
+// Snap-home spring, shared by the veto and the below-threshold release.
+// The old 0.8s glide is what read as "heavy"; ~0.34s feels tethered.
+const SNAP_BACK = "transform 0.34s cubic-bezier(0.22, 1, 0.36, 1)";
+
+export function useSheetDrag(
+  onClose: () => void,
+  { threshold = 92, isOpen = true, beforeDismiss }: { threshold?: number; isOpen?: boolean; beforeDismiss?: () => boolean } = {}
+) {
   const scrollRef = useRef<HTMLElement | null>(null);
   const panelElRef = useRef<HTMLElement | null>(null);
   const startRef = useRef<DragStart | null>(null);
@@ -190,6 +204,10 @@ export function useSheetDrag(onClose: () => void, { threshold = 92, isOpen = tru
     const draggedFar = currentY > threshold;
 
     if (s.dir === 1 && (draggedFar || flickDown)) {
+      if (beforeDismiss && !beforeDismiss()) {
+        writeTransform(panel, 0, SNAP_BACK);
+        return;
+      }
       // Continue the finger's momentum: a fast flick finishes quickly,
       // a slow drag-past-threshold eases out. Clamp so it never snaps
       // jarringly or drags. Curve has a steep start (picks up the
@@ -204,12 +222,9 @@ export function useSheetDrag(onClose: () => void, { threshold = 92, isOpen = tru
         onClose();
       }, durSec * 1000);
     } else {
-      // Snap back fast with a soft settle — the old 0.8s glide is what
-      // read as "heavy". A ~0.34s ease-out feels like the sheet is light
-      // and tethered, not dragging an anchor back into place.
-      writeTransform(panel, 0, "transform 0.34s cubic-bezier(0.22, 1, 0.36, 1)");
+      writeTransform(panel, 0, SNAP_BACK);
     }
-  }, [threshold, onClose]);
+  }, [threshold, onClose, beforeDismiss]);
 
   // Callback ref: capture the panel DOM node for direct mutation.
   const setPanelEl = useCallback((el: HTMLElement | null) => {

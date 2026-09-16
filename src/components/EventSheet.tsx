@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { EventKind, EventSeries, ScheduleEvent, SeriesCadence } from "../types";
@@ -8,7 +8,8 @@ import { SheetActions } from "./SheetActions";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
 import { SegmentedControl } from "./SegmentedControl";
-import { makeId } from "../utils/id";
+import { domId, makeId } from "../utils/id";
+import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { addDays, parseISODate, todayISO } from "../utils/dates";
 import { describeSeries, reshapeFuture, seriesFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
@@ -101,6 +102,14 @@ export function EventSheet({
   const [until, setUntil] = useState(parent?.endDate ?? "");
   const [scope, setScope] = useState<Scope>("one");
   const [submitting, setSubmitting] = useState(false);
+
+  const uid = domId(useId());
+  /* `scope` is left out on purpose: it changes what Guardar does, not
+     what she typed, so moving it alone loses nothing. */
+  const dirty = useDirtyGuard({
+    title, courseId, kind, budget, date, startTime, endTime, location,
+    projectId, contactId, notes, repeat, weekdays, until
+  });
 
   const safeClose = submitting ? null : onClose;
   const canSave = title.trim().length > 0 && date.length > 0 && (!until || until >= date);
@@ -286,6 +295,12 @@ export function EventSheet({
     <Sheet
       title={event ? (parent ? "Editar sesión" : "Editar evento") : "Nuevo evento"}
       onClose={safeClose}
+      dirty={dirty}
+      discardText={
+        event
+          ? "¿Descartar los cambios? El evento se queda como estaba."
+          : "¿Descartar? Este evento no se agenda."
+      }
       footer={
         <SheetActions
           canSave={canSave}
@@ -333,8 +348,8 @@ export function EventSheet({
 
       {(kind === "class" || kind === "other") && courseOptions.length > 0 && (
         <div className="input-group">
-          <span className="input-label">Curso que tomas</span>
-          <PickerField title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} placeholder="Ninguno" />
+          <span className="input-label" id={`${uid}-course`}>Curso que tomas</span>
+          <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} placeholder="Ninguno" />
         </div>
       )}
 
@@ -418,13 +433,13 @@ export function EventSheet({
       </div>
 
       <div className="input-group">
-        <span className="input-label">Pieza relacionada</span>
-        <PickerField title="Pieza relacionada" options={projectOptions} value={projectId} onChange={setProjectId} />
+        <span className="input-label" id={`${uid}-project`}>Pieza relacionada</span>
+        <PickerField labelId={`${uid}-project`} title="Pieza relacionada" options={projectOptions} value={projectId} onChange={setProjectId} />
       </div>
 
       <div className="input-group">
-        <span className="input-label">Contacto relacionado</span>
-        <PickerField title="Contacto relacionado" options={contactOptions} value={contactId} onChange={setContactId} />
+        <span className="input-label" id={`${uid}-contact`}>Contacto relacionado</span>
+        <PickerField labelId={`${uid}-contact`} title="Contacto relacionado" options={contactOptions} value={contactId} onChange={setContactId} />
       </div>
 
       <div className="input-group">

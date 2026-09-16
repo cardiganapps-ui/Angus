@@ -3,7 +3,7 @@ import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { Attendance, AttendanceStatus, ClassGroup, Sale, ScheduleEvent } from "../types";
 import { ATTENDANCE_STATUS } from "../data/constants";
-import { activeEnrollments } from "../utils/classes";
+import { activeEnrollments, planTuitionForRollCall } from "../utils/classes";
 import { formatWithWeekday, todayISO } from "../utils/dates";
 import { formatMXN } from "../utils/money";
 import { makeId } from "../utils/id";
@@ -21,7 +21,12 @@ import { haptic } from "../lib/haptics";
    This sheet used to fire three `void` promises and announce "Lista
    guardada" over all of them — for a per-session group that meant a
    rejected insert silently lost the session's billing while the screen
-   said it was saved. */
+   said it was saved.
+
+   Flipping a billed student to absent CANCELS their sale (it used to
+   leave a confirmed cobro standing forever and tell her to go undo it
+   by hand in Dinero). Never deletes it: see planTuitionForRollCall in
+   utils/classes.ts for why cancelling is the only safe verb here. */
 
 const STATUS_ITEMS = ATTENDANCE_STATUS.map((s) => ({ k: s.value, l: s.short }));
 
@@ -29,7 +34,17 @@ const STATUS_ITEMS = ATTENDANCE_STATUS.map((s) => ({ k: s.value, l: s.short }));
 const WARN_TEXT: CSSProperties = { color: "var(--amber)" };
 
 export function AttendanceSheet({ group, session, onClose }: { group: ClassGroup; session: ScheduleEvent; onClose: () => void }) {
-  const { contacts, enrollments, attendance, addAttendance, updateAttendance, addSales, sales } = useApp();
+  const {
+    contacts,
+    enrollments,
+    attendance,
+    addAttendance,
+    updateAttendance,
+    addSales,
+    updateSale,
+    sales,
+    payments
+  } = useApp();
   const { showSuccess, showToast } = useToast();
   const students = activeEnrollments(enrollments, group.id, session.date)
     .map((e) => contacts.find((c) => c.id === e.contactId))
@@ -43,21 +58,17 @@ export function AttendanceSheet({ group, session, onClose }: { group: ClassGroup
 
   const tuition = group.tuitionAmount;
   const perSession = group.tuitionCadence === "per_session" && !!tuition;
-  /* Who already has a tuition sale for this session. The key is the
-     session's own id (migration 010's per-session shape), so one student
-     can only be billed once for it however many times this sheet saves. */
-  const billed = new Set(
-    sales
-      .filter((x) => x.periodKey === session.id && x.recurringRuleId === null && x.category === "class")
-      .map((x) => x.contactId)
+  /* What this roll call owes the money side. Keyed on the session's own
+     id (migration 010's per-session shape), so a student can only ever
+     hold one cobro for it however many times this sheet saves. */
+  const billing = planTuitionForRollCall(
+    session.id,
+    perSession ? students.map((s) => ({ contactId: s.id, attending: draft[s.id] === "present" })) : [],
+    sales,
+    payments
   );
-  const toBill = perSession
-    ? students.filter((s) => draft[s.id] === "present" && !billed.has(s.id))
-    : [];
-  // Already charged, now being marked absent: the sale does NOT follow.
-  const billedNowAway = perSession
-    ? students.filter((s) => draft[s.id] !== "present" && billed.has(s.id))
-    : [];
+  const nameOf = (id: string | null) => students.find((s) => s.id === id)?.name ?? "Alumno";
+  const namesOf = (rows: { contactId: string | null }[]) => rows.map((r) => nameOf(r.contactId)).join(", ");
 
   function fail(message: string) {
     setSubmitting(false);
@@ -88,12 +99,12 @@ export function AttendanceSheet({ group, session, onClose }: { group: ClassGroup
     ]);
     if (written.some((ok) => !ok)) {
       fail(
-        "No se pudo guardar toda la lista, así que no se creó ningún cobro. La dejamos abierta tal como la marcaste: vuelve a intentar."
+        "No se pudo guardar toda la lista, así que no se tocó ningún cobro. La dejamos abierta tal como la marcaste: vuelve a intentar."
       );
       return;
     }
 
-    const newSales: Sale[] = toBill.map((s) => ({
+    const newSales: Sale[] = billing.toBill.map((contactId) => ({
       id: makeId(),
       title: `${group.name} · ${formatWithWeekday(session.date)}`,
       amount: tuition as number,
@@ -102,7 +113,7 @@ export function AttendanceSheet({ group, session, onClose }: { group: ClassGroup
       category: "class" as const,
       paymentTerms: "single" as const,
       projectId: null,
-      contactId: s.id,
+      contactId,
       eventId: session.id,
       recurringRuleId: null,
       periodKey: session.id,
@@ -121,12 +132,51 @@ export function AttendanceSheet({ group, session, onClose }: { group: ClassGroup
       }
     }
 
+    /* Cancelled, never deleted: the sale may already have a payment
+       against it, and deleting it would cascade that payment away —
+       losing the record of money she really received. Cancelling leaves
+       the row, moves any cash taken to "Por devolver", and is undone by
+       marking the student present again. */
+    if (billing.toCancel.length) {
+      const done = await Promise.all(
+        billing.toCancel.map((s) => updateSale(s.id, { status: "cancelled" as const }))
+      );
+      if (done.some((ok) => !ok)) {
+        fail(
+          `Guardamos la asistencia, pero el cobro de ${namesOf(billing.toCancel)} sigue activo. Toca Guardar otra vez para cancelarlo.`
+        );
+        return;
+      }
+    }
+    if (billing.toRestore.length) {
+      const done = await Promise.all(
+        billing.toRestore.map((s) => updateSale(s.id, { status: "confirmed" as const }))
+      );
+      if (done.some((ok) => !ok)) {
+        fail(
+          `Guardamos la asistencia, pero el cobro de ${namesOf(billing.toRestore)} sigue cancelado. Toca Guardar otra vez para reactivarlo.`
+        );
+        return;
+      }
+    }
+
     haptic.success();
-    showSuccess(
-      newSales.length
-        ? `Lista guardada · ${newSales.length} ${newSales.length === 1 ? "cobro creado" : "cobros creados"}`
-        : "Lista guardada"
-    );
+    const parts: string[] = [];
+    if (newSales.length) {
+      parts.push(`${newSales.length} ${newSales.length === 1 ? "cobro creado" : "cobros creados"}`);
+    }
+    if (billing.toCancel.length) {
+      const n = billing.toCancel.length;
+      parts.push(`${n} ${n === 1 ? "cobro cancelado" : "cobros cancelados"}`);
+    }
+    if (billing.toRestore.length) {
+      const n = billing.toRestore.length;
+      parts.push(`${n} ${n === 1 ? "cobro reactivado" : "cobros reactivados"}`);
+    }
+    // Name the money: a cancelled cobro that already took cash is a
+    // refund she owes, not a line that quietly disappears.
+    const refund = billing.refundable > 0 ? ` · ${formatMXN(billing.refundable)} por devolver` : "";
+    showSuccess(parts.length ? `Lista guardada · ${parts.join(" · ")}${refund}` : "Lista guardada");
     onClose();
   }
 
@@ -152,16 +202,23 @@ export function AttendanceSheet({ group, session, onClose }: { group: ClassGroup
       </div>
       {/* Per-session tuition turns a roll call into money. Say so before
           she taps Guardar, not after. */}
-      {toBill.length > 0 && (
+      {billing.toBill.length > 0 && (
         <div className="input-help" style={{ marginTop: 0, marginBottom: 12 }}>
-          Al guardar se {toBill.length === 1 ? "crea 1 cobro" : `crean ${toBill.length} cobros`} de{" "}
+          Al guardar se {billing.toBill.length === 1 ? "crea 1 cobro" : `crean ${billing.toBill.length} cobros`} de{" "}
           {formatMXN(tuition as number)}, uno por alumno presente.
         </div>
       )}
-      {billedNowAway.length > 0 && (
+      {billing.toCancel.length > 0 && (
         <div className="input-help" style={{ ...WARN_TEXT, marginTop: 0, marginBottom: 12 }}>
-          Esta sesión ya se le cobró a {billedNowAway.map((s) => s.name).join(", ")}. Marcar la falta
-          no cancela ese cobro: si no aplica, cancélalo en Dinero.
+          Al guardar se cancela el cobro de {namesOf(billing.toCancel)}: no tomó la sesión. La venta
+          queda registrada como cancelada, no se borra, y vuelve si la marcas presente otra vez.
+          {billing.refundable > 0 &&
+            ` Ya recibiste ${formatMXN(billing.refundable)} de esos cobros: ese dinero pasa a "Por devolver".`}
+        </div>
+      )}
+      {billing.toRestore.length > 0 && (
+        <div className="input-help" style={{ marginTop: 0, marginBottom: 12 }}>
+          Al guardar se reactiva el cobro de {namesOf(billing.toRestore)}, que estaba cancelado.
         </div>
       )}
       {students.length === 0 ? (

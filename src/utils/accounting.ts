@@ -1,6 +1,6 @@
 import type { Expense, ExpenseCategory, Installment, Payment, Sale } from "../types";
 import { addDays, addMonths } from "./dates";
-import { remainder, splitEvenly, subtractMoney, sumMoney, toCents } from "./money";
+import { fromCents, remainder, splitEvenly, splitProportionally, subtractMoney, sumMoney, toCents } from "./money";
 
 /* ── Canonical money formulas ──
    These are the only place balances are derived. Nothing is stored
@@ -182,6 +182,152 @@ export function generateInstallmentSchedule(
     amount,
     dueDate: frequency === "monthly" ? addMonths(firstDueDate, i) : addDays(firstDueDate, i * 15)
   }));
+}
+
+/* ── Plan reconciliation ──
+   A plan is generated from the sale's total and then stored as rows, so
+   the two can drift apart: editing the amount of a sale that already has
+   cuotas used to write `amount` alone and leave the plan untouched. The
+   cuotas then promised money that was not owed — forecast.ts projected
+   it and Hoy surfaced the phantom overdue ones — and nothing on any
+   screen said the plan no longer matched the sale.
+
+   This is the detector. It reads the rows rather than a stored flag, so
+   a plan broken by an older build is caught the first time she opens
+   the sale. */
+
+export interface PlanMismatch {
+  /** Σ of the sale's cuotas. */
+  planned: number;
+  /** What the sale is actually worth. */
+  amount: number;
+  /** planned − amount. Positive: the plan asks for more than the sale. */
+  difference: number;
+  kind: "over" | "short";
+}
+
+/** Null when the sale has no plan, or its cuotas add up to it exactly. */
+export function planMismatch(sale: Sale, installments: Installment[]): PlanMismatch | null {
+  const rows = installments.filter((i) => i.saleId === sale.id);
+  if (rows.length === 0) return null;
+  const planned = sumMoney(rows.map((i) => i.amount));
+  const difference = subtractMoney(planned, sale.amount);
+  const differenceCents = toCents(difference);
+  if (differenceCents === 0) return null;
+  return { planned, amount: sale.amount, difference, kind: differenceCents > 0 ? "over" : "short" };
+}
+
+export interface RebuiltInstallment {
+  /** The existing cuota this replaces, or null when one must be created. */
+  id: string | null;
+  amount: number;
+  dueDate: string;
+  /** Already covered by payments, so its amount is left where it is. */
+  paid: boolean;
+}
+
+export interface PlanRebuild {
+  /** The plan as it will stand, in due-date order. Sums to `amount`. */
+  rows: RebuiltInstallment[];
+  updates: { id: string; amount: number }[];
+  removals: string[];
+  additions: PlannedInstallment[];
+  /** Nothing to write — the plan already lands on the new amount. */
+  unchanged: boolean;
+}
+
+/* What it takes to make a sale's plan sum to `amount` again.
+
+   Money already received is never re-planned: the cuotas payments cover
+   IN FULL (a leading run, since installmentPlan allocates oldest-first)
+   keep their amount, and only what is still an expectation is respread —
+   over the cuotas that are left, on the due dates they already have.
+
+   Two degenerate shapes:
+     • nothing left to spread onto (every cuota already paid, and the
+       total went up) → the difference becomes one more cuota;
+     • the new total is at or below what she has already paid into the
+       plan → the open cuotas go and the paid ones are trimmed to land
+       exactly on the total. The payment rows are NOT touched; the
+       surplus surfaces as `credit` on the sale, which is what an
+       overpayment is.
+
+   A non-positive amount clears the plan, and a sale with no plan is
+   left alone — this repairs a plan, it never invents one. */
+export function rebuildPlan(
+  saleId: string,
+  amount: number,
+  installments: Installment[],
+  payments: Payment[],
+  today: string
+): PlanRebuild {
+  const empty: PlanRebuild = { rows: [], updates: [], removals: [], additions: [], unchanged: true };
+  const statuses = installmentPlan(saleId, installments, payments, today);
+  if (statuses.length === 0) return empty;
+
+  const targetCents = toCents(amount);
+  // Split at the first cuota payments do not cover in full.
+  const openFrom = statuses.findIndex((s) => toCents(s.remaining) > 0);
+  const split = openFrom < 0 ? statuses.length : openFrom;
+  const paidRows = statuses.slice(0, split).map((s) => s.installment);
+  const openRows = statuses.slice(split).map((s) => s.installment);
+  const paidCents = paidRows.reduce((n, i) => n + toCents(i.amount), 0);
+  const openTargetCents = targetCents - paidCents;
+
+  const rows: RebuiltInstallment[] = [];
+  const updates: { id: string; amount: number }[] = [];
+  const removals: string[] = [];
+  const additions: PlannedInstallment[] = [];
+
+  if (openTargetCents > 0) {
+    for (const i of paidRows) rows.push({ id: i.id, amount: i.amount, dueDate: i.dueDate, paid: true });
+    if (openRows.length > 0) {
+      /* Proportional, not even: the open cuotas already carry a shape she
+         chose (a 30/70 anticipo, a front-loaded plan), and splitting the
+         new total evenly would throw it away. splitProportionally keeps
+         Σ cuotas === amount exact to the cent just the same, and makes
+         rebuilding an already-correct plan a true no-op. */
+      const amounts = splitProportionally(
+        fromCents(openTargetCents),
+        openRows.map((i) => i.amount)
+      );
+      openRows.forEach((i, n) => {
+        rows.push({ id: i.id, amount: amounts[n], dueDate: i.dueDate, paid: false });
+        if (toCents(i.amount) !== toCents(amounts[n])) updates.push({ id: i.id, amount: amounts[n] });
+      });
+    } else {
+      /* Every cuota is paid and the sale grew: there is no expectation
+         left to carry the difference, so it becomes one. Due today
+         unless the plan still reaches into the future. */
+      const last = paidRows[paidRows.length - 1]?.dueDate;
+      const dueDate = last && last > today ? last : today;
+      const row = { amount: fromCents(openTargetCents), dueDate };
+      additions.push(row);
+      rows.push({ id: null, ...row, paid: false });
+    }
+  } else {
+    for (const i of openRows) removals.push(i.id);
+    let usedCents = 0;
+    for (const i of paidRows) {
+      const fitsCents = Math.min(toCents(i.amount), targetCents - usedCents);
+      if (fitsCents <= 0) {
+        removals.push(i.id);
+        continue;
+      }
+      usedCents += fitsCents;
+      const next = fromCents(fitsCents);
+      rows.push({ id: i.id, amount: next, dueDate: i.dueDate, paid: true });
+      if (fitsCents !== toCents(i.amount)) updates.push({ id: i.id, amount: next });
+    }
+  }
+
+  return {
+    rows,
+    updates,
+    removals,
+    additions,
+    unchanged: updates.length === 0 && removals.length === 0 && additions.length === 0
+  };
 }
 
 /** Installments already due and not fully covered, oldest first. */
