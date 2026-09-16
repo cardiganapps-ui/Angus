@@ -405,7 +405,11 @@ export type Practice =
 
 export type QuickAction = "sale" | "expense" | "event" | "project" | "contact" | "assignment" | "note";
 export type ThemePreference = "light" | "dark" | "system";
-export type TextScale = "sm" | "md" | "lg";
+/* The app opts out of OS text scaling (text-size-adjust: none — see
+   the html rule in styles/base.css and the reasoning there), so this is
+   the ONLY way she can make the app bigger. It used to stop at 1.1x,
+   which is not an accessibility control, it is a nudge. */
+export type TextScale = "sm" | "md" | "lg" | "xl" | "xxl";
 
 export interface WorkspaceSettings {
   artistName: string; // "Andrea" → "Buenos días, Andrea"

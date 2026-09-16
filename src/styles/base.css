@@ -245,7 +245,11 @@
      This is the accessibility path for larger text — the app opts out
      of OS text scaling (text-size-adjust: none, see html rule). */
   --text-scale-user: 1;
-  --text-eyebrow: 10px;  /* uppercase tracked labels */
+  /* Scales with the rest now. It used to be a bare 10px, which made the
+     SMALLEST text in the app the one thing her size setting could not
+     touch — exactly backwards. Floored at 10px so the tracking still
+     reads at the "Chica" step. */
+  --text-eyebrow: max(10px, calc(10px * var(--text-scale) * var(--text-scale-user)));
   --text-xs:      calc(11px * var(--text-scale) * var(--text-scale-user));  /* meta, sub rows, badges */
   --text-sm:      calc(12px * var(--text-scale) * var(--text-scale-user));  /* secondary labels, chips */
   --text-md:      calc(14px * var(--text-scale) * var(--text-scale-user));  /* body default, row titles */
@@ -349,8 +353,10 @@
    Attribute set on <html> by hooks/useFontScale.ts; composes with the
    responsive --text-scale via the --text-* token calc. "default" sets
    no attribute → multiplier stays 1. */
-html[data-font-scale="sm"] { --text-scale-user: 0.92; }
-html[data-font-scale="lg"] { --text-scale-user: 1.1; }
+html[data-font-scale="sm"]  { --text-scale-user: 0.92; }
+html[data-font-scale="lg"]  { --text-scale-user: 1.15; }
+html[data-font-scale="xl"]  { --text-scale-user: 1.3; }
+html[data-font-scale="xxl"] { --text-scale-user: 1.45; }
 html[data-font-scale="xl"] { --text-scale-user: 1.22; }
 
 /* color-scheme — must MATCH the active theme, not advertise both.

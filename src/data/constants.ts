@@ -282,7 +282,9 @@ export const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 export const TEXT_SCALE_OPTIONS: { value: TextScale; label: string }[] = [
   { value: "sm", label: "Chica" },
   { value: "md", label: "Normal" },
-  { value: "lg", label: "Grande" }
+  { value: "lg", label: "Grande" },
+  { value: "xl", label: "Más grande" },
+  { value: "xxl", label: "Máxima" }
 ];
 
 export const DEPOSIT_PERCENT_OPTIONS = [25, 30, 40, 50];

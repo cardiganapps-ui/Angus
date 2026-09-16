@@ -33,7 +33,7 @@ export const QUICK_ACTIONS: QuickAction[] = ["sale", "expense", "event", "projec
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "transfer", "card", "other"];
 const FREQUENCIES: InstallmentFrequency[] = ["monthly", "biweekly"];
 const THEMES: ThemePreference[] = ["light", "dark", "system"];
-const TEXT_SCALES: TextScale[] = ["sm", "md", "lg"];
+const TEXT_SCALES: TextScale[] = ["sm", "md", "lg", "xl", "xxl"];
 const EXPENSE_CATEGORIES: ExpenseCategory[] = EXPENSE_CATEGORY.map((c) => c.value);
 
 export const DEFAULT_SETTINGS: WorkspaceSettings = {

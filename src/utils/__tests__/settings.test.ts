@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TEXT_SCALE_OPTIONS } from "../../data/constants";
 import { DEFAULT_SETTINGS, firstName, mergeSettings, suggestMediums } from "../settings";
 
 describe("mergeSettings", () => {
@@ -32,7 +33,7 @@ describe("mergeSettings", () => {
       monthlyIncomeGoal: -5,
       defaultDepositPercent: 150,
       defaultPaymentMethod: "crypto",
-      textScale: "xl",
+      textScale: "gigantic",
       quickActions: ["sale", "nonsense"]
     });
     expect(merged.practice).toEqual(["classes"]);
@@ -73,5 +74,28 @@ describe("suggestMediums", () => {
       { medium: "acuarela" }
     ];
     expect(suggestMediums(projects)).toEqual(["Óleo", "Acuarela", "Cerámica"]);
+  });
+});
+
+describe("text scale", () => {
+  /* mergeSettings validates against an allowlist, so a new step that
+     isn't listed there is silently reset to "md" on every load — the
+     setting would appear to save and then not stick. */
+  it("keeps every step the UI offers", () => {
+    for (const scale of ["sm", "md", "lg", "xl", "xxl"] as const) {
+      expect(mergeSettings({ textScale: scale }).textScale).toBe(scale);
+    }
+  });
+
+  it("falls back to md for anything else", () => {
+    expect(mergeSettings({ textScale: "enormous" }).textScale).toBe("md");
+    expect(mergeSettings({ textScale: null }).textScale).toBe("md");
+  });
+
+  it("offers the same steps in the UI as the validator accepts", () => {
+    const offered = TEXT_SCALE_OPTIONS.map((o) => o.value);
+    for (const value of offered) {
+      expect(mergeSettings({ textScale: value }).textScale).toBe(value);
+    }
   });
 });

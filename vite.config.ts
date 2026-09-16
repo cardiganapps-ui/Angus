@@ -27,9 +27,16 @@ export default defineConfig({
         display: "standalone",
         start_url: "/",
         icons: [
-          { src: "icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+          { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }
+          /* No maskable entry. The same icon-512.png was declared both
+             plain AND maskable, which is wrong: a maskable icon needs
+             ~20% safe-area padding because the platform crops it to the
+             device's mask, so reusing an edge-to-edge icon gets its
+             edges cut off on Android. Declaring none means the launcher
+             adds its own background instead of cropping ours — worse
+             looking than a real maskable asset, better than a clipped
+             one. Ship a padded 512 and add it back. */
         ]
       },
       workbox: {
