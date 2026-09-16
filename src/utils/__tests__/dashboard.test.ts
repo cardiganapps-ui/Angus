@@ -141,7 +141,6 @@ describe("attentionItems", () => {
 });
 
 describe("monthlyTrend", () => {
-  const sales = [sale("s1", 10000)];
   const payments = [
     payment("p1", "s1", 3000, "2026-07-05"),
     payment("p2", "s1", 2000, "2026-09-02")
@@ -149,12 +148,12 @@ describe("monthlyTrend", () => {
   const expenses = [expense("e1", 1000, "2026-08-20"), expense("e2", 500, "2026-09-03")];
 
   it("returns one point per month, oldest first, spanning the year boundary", () => {
-    const points = monthlyTrend(sales, payments, expenses, "2026-02-15", 4);
+    const points = monthlyTrend(payments, expenses, "2026-02-15", 4);
     expect(points.map((p) => p.month)).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
   });
 
   it("splits income and expenses into the right months", () => {
-    const points = monthlyTrend(sales, payments, expenses, TODAY, 3);
+    const points = monthlyTrend(payments, expenses, TODAY, 3);
     expect(points).toEqual([
       { month: "2026-07", income: 3000, expenses: 0, net: 3000 },
       { month: "2026-08", income: 0, expenses: 1000, net: -1000 },
@@ -163,7 +162,7 @@ describe("monthlyTrend", () => {
   });
 
   it("anchors on the 1st so a 31st can't clamp into the wrong month", () => {
-    expect(monthlyTrend([], [], [], "2026-03-31", 2).map((p) => p.month)).toEqual(["2026-02", "2026-03"]);
+    expect(monthlyTrend([], [], "2026-03-31", 2).map((p) => p.month)).toEqual(["2026-02", "2026-03"]);
   });
 });
 

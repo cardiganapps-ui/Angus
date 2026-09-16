@@ -12,6 +12,8 @@ import { PlanBuilder } from "./PlanBuilder";
 import { planRows, type PlanDraft } from "../utils/plan";
 import { makeId } from "../utils/id";
 import { addMonths, formatShort, todayISO } from "../utils/dates";
+import { paidForSale } from "../utils/accounting";
+import { formatMXN } from "../utils/money";
 import { haptic } from "../lib/haptics";
 
 const STATUS_ITEMS = SALE_STATUS.map((s) => ({ k: s.value, l: s.label }));
@@ -43,6 +45,7 @@ export function SaleSheet({
     removeSale,
     addInstallments,
     installments,
+    payments,
     projects,
     contacts,
     events,
@@ -93,6 +96,13 @@ export function SaleSheet({
     .filter((e) => e.kind === "expo")
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((e) => ({ value: e.id, label: `${e.title} · ${formatShort(e.date)}` }));
+
+  /* Flipping a paid sale to "cancelada" used to drop that cash out of
+     every total with no warning at all. It is now a liability rather
+     than a disappearance (see utils/accounting.ts), but she should still
+     be told before she does it, not after. */
+  const alreadyPaid = sale ? paidForSale(payments, sale.id) : 0;
+  const cancellingWithMoney = !!sale && status === "cancelled" && sale.status !== "cancelled" && alreadyPaid > 0;
 
   async function handleSave() {
     if (!canSave) return;
@@ -246,7 +256,9 @@ export function SaleSheet({
           ariaLabel="Estado de la venta"
         />
         <div className="input-help">
-          Solo las ventas confirmadas y entregadas cuentan para lo que te deben.
+          {cancellingWithMoney
+            ? `Ya recibiste ${formatMXN(alreadyPaid)} de esta venta. Al cancelarla ese dinero pasa a "Por devolver" y la venta deja de contar en Por cobrar. Los pagos quedan registrados.`
+            : "Solo las ventas confirmadas y entregadas cuentan para lo que te deben."}
         </div>
       </div>
 

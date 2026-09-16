@@ -42,7 +42,7 @@ export function Reports() {
 
   const summary = useMemo(() => periodSummary(sales, payments, expenses, range.from, range.to), [sales, payments, expenses, range.from, range.to]);
   const prior = useMemo(() => periodSummary(sales, payments, expenses, previous.from, previous.to), [sales, payments, expenses, previous.from, previous.to]);
-  const trend = useMemo(() => monthlyTrend(sales, payments, expenses, range.to, monthsInSpan), [sales, payments, expenses, range.to, monthsInSpan]);
+  const trend = useMemo(() => monthlyTrend(payments, expenses, range.to, monthsInSpan), [payments, expenses, range.to, monthsInSpan]);
   const income = useMemo(() => incomeByCategory(sales, payments, range.from, range.to), [sales, payments, range.from, range.to]);
   const spend = useMemo(() => expenseBreakdown(expenses, range.from, range.to), [expenses, range.from, range.to]);
   const mediums = useMemo(() => salesByMedium(sales, payments, projects, range.from, range.to), [sales, payments, projects, range.from, range.to]);

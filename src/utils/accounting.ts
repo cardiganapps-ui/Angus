@@ -15,8 +15,17 @@ import { remainder, splitEvenly, subtractMoney, sumMoney, toCents } from "./mone
      owed      = Σ over counting sales of max(0, sale.amount − paid(sale))
      credit    = Σ over counting sales of max(0, paid(sale) − sale.amount)
 
-   Payments against a cancelled sale are excluded from `paid` — a refund
-   is recorded by deleting the payment, not by negating it.
+     refundable = Σ(payment.amount) over payments of CANCELLED sales
+
+   A refund is recorded by deleting the payment, not by negating one
+   (payments.amount has a `> 0` check). But between cancelling a sale
+   and handing the money back, that cash is real and it is HERS TO
+   RETURN — so it is reported as `refundable`, not dropped. Before, a
+   $5 000 deposit on a cancelled commission vanished from every total
+   while its payment row sat in the database: cash received no longer
+   equalled cash reported, and nothing on screen said she owed it.
+
+   `paid` still counts only counting sales, so revenue is unchanged.
 
    If you add a SaleStatus, decide here whether it counts, say so in the
    block above, mirror it in the sales.status check constraint, and add
@@ -39,6 +48,8 @@ export interface SaleBalance {
   paid: number;
   owed: number;
   credit: number;
+  /** Money received on a CANCELLED sale — hers to give back, not revenue. */
+  refundable: number;
   settled: boolean;
   /** Share of the total already received, 0–1. For progress bars. */
   progress: number;
@@ -52,11 +63,22 @@ export function saleBalance(sale: Sale, payments: Payment[]): SaleBalance {
   const progress =
     totalCents > 0 ? Math.min(1, paidCents / totalCents) : paidCents > 0 ? 1 : 0;
   if (!saleCountsTowardRevenue(sale)) {
-    return { sale, paid, owed: 0, credit: 0, settled: true, progress };
+    /* A cancelled sale that took money is NOT settled: she owes it back.
+       A quoted one never took any, so it is. */
+    const refundable = sale.status === "cancelled" ? paid : 0;
+    return {
+      sale,
+      paid,
+      owed: 0,
+      credit: 0,
+      refundable,
+      settled: toCents(refundable) === 0,
+      progress
+    };
   }
   const owed = remainder(sale.amount, paid);
   const credit = remainder(paid, sale.amount);
-  return { sale, paid, owed, credit, settled: toCents(owed) === 0, progress };
+  return { sale, paid, owed, credit, refundable: 0, settled: toCents(owed) === 0, progress };
 }
 
 export interface Totals {
@@ -64,16 +86,22 @@ export interface Totals {
   paid: number;
   owed: number;
   credit: number;
+  /** Received on cancelled sales and not yet returned. */
+  refundable: number;
 }
 
 export function totals(sales: Sale[], payments: Payment[]): Totals {
   const counting = sales.filter(saleCountsTowardRevenue);
   const balances = counting.map((s) => saleBalance(s, payments));
+  // Partition rather than filter: the cancelled side carries a real
+  // liability, and dropping it is how the money went missing.
+  const cancelled = sales.filter((s) => s.status === "cancelled");
   return {
     committed: sumMoney(counting.map((s) => s.amount)),
     paid: sumMoney(balances.map((b) => b.paid)),
     owed: sumMoney(balances.map((b) => b.owed)),
-    credit: sumMoney(balances.map((b) => b.credit))
+    credit: sumMoney(balances.map((b) => b.credit)),
+    refundable: sumMoney(cancelled.map((s) => paidForSale(payments, s.id)))
   };
 }
 
@@ -173,7 +201,19 @@ export function overdueInstallments(
 /* ── Profit & loss ──
    Cash in (payments received) vs cash out (expenses) over a date range,
    both inclusive. Uses payments rather than committed sales so the
-   figure answers "what actually moved this month". */
+   figure answers "what actually moved this month".
+
+   Income counts EVERY payment in the range, whatever its sale's status
+   is today. It used to count only payments of currently-counting sales,
+   which meant cancelling a sale in September silently changed March's
+   reported net — a closed month rewritten by an edit made months later.
+   Cash that arrived in March arrived in March; the obligation to give
+   some of it back is a liability, reported by totals().refundable, not
+   a retroactive edit to a period she has already read.
+
+   It does not take `sales` at all any more, which is the point: a
+   closed month's net CANNOT depend on a status edited later, because
+   status is not an input. */
 
 export interface ProfitLoss {
   income: number;
@@ -186,16 +226,12 @@ function inRange(date: string, from: string, to: string): boolean {
 }
 
 export function profitLoss(
-  sales: Sale[],
   payments: Payment[],
   expenses: Expense[],
   from: string,
   to: string
 ): ProfitLoss {
-  const countingIds = new Set(sales.filter(saleCountsTowardRevenue).map((s) => s.id));
-  const income = sumMoney(
-    payments.filter((p) => countingIds.has(p.saleId) && inRange(p.date, from, to)).map((p) => p.amount)
-  );
+  const income = sumMoney(payments.filter((p) => inRange(p.date, from, to)).map((p) => p.amount));
   const spent = sumMoney(expenses.filter((e) => inRange(e.date, from, to)).map((e) => e.amount));
   return { income, expenses: spent, net: subtractMoney(income, spent) };
 }
@@ -346,16 +382,24 @@ export interface ClientBalance {
   committed: number;
   collected: number;
   owed: number;
+  /** A deposit on a cancelled sale — she owes THEM this. */
+  refundable: number;
+  /** Counting sales only; a cancelled one is not a sale she made. */
   saleCount: number;
 }
 
-/* Every client with at least one counting sale, those who owe money
+/* Every client with a counting sale or a refund owed, those who owe money
    first, then by how much they've bought. Sales with no client attached
    are skipped — an unnamed buyer isn't someone you can chase. */
 export function clientBalances(sales: Sale[], payments: Payment[]): ClientBalance[] {
   const byContact = new Map<string, Sale[]>();
   for (const sale of sales) {
-    if (!sale.contactId || !saleCountsTowardRevenue(sale)) continue;
+    if (!sale.contactId) continue;
+    /* Cancelled sales come in too. A client whose only sale was
+       cancelled after paying a deposit used to vanish from this list
+       entirely — refund owed and all — because the filter ran before any
+       balance was built. `totals` keeps the two sides apart. */
+    if (!saleCountsTowardRevenue(sale) && sale.status !== "cancelled") continue;
     const list = byContact.get(sale.contactId);
     if (list) list.push(sale);
     else byContact.set(sale.contactId, [sale]);
@@ -369,10 +413,13 @@ export function clientBalances(sales: Sale[], payments: Payment[]): ClientBalanc
         committed: t.committed,
         collected: t.paid,
         owed: t.owed,
-        saleCount: contactSales.length
+        refundable: t.refundable,
+        saleCount: contactSales.filter(saleCountsTowardRevenue).length
       };
     })
-    .sort((a, b) => b.owed - a.owed || b.committed - a.committed);
+    // A refund she owes is as actionable as money owed to her.
+    .filter((b) => b.saleCount > 0 || toCents(b.refundable) > 0)
+    .sort((a, b) => b.owed - a.owed || b.refundable - a.refundable || b.committed - a.committed);
 }
 
 /* ── Income by category ──

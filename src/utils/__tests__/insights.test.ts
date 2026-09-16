@@ -36,13 +36,16 @@ describe("periodSummary", () => {
     const payments = [payment("p1", "s1", 8000, "2026-03-12"), payment("p2", "s3", 1800, "2026-04-01"), payment("p3", "s4", 999, "2026-04-01")];
     const s = periodSummary(sales, payments, [expense("e1", 500, "2026-05-05")], Y.from, Y.to);
     expect(s).toEqual({
-      income: 9800,
+      // Cash basis: s4 is only quoted, but its 999 arrived, so it counts
+      // here and in paymentsCount. The ledger side (salesCount,
+      // piecesSold) still excludes it — a quote is not a sale.
+      income: 10799,
       expenses: 500,
-      net: 9300,
+      net: 10299,
       salesCount: 3,
       piecesSold: 2,
       avgPiecePrice: 6000,
-      paymentsCount: 2
+      paymentsCount: 3
     });
   });
 });

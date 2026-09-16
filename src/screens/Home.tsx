@@ -122,7 +122,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   const delta = netDelta(pulse.netChange, today);
   const goal = goalProgress(pulse.income, settings.monthlyIncomeGoal);
   const chart = trendChart(
-    monthlyTrend(sales, payments, expenses, today, TREND_MONTHS),
+    monthlyTrend(payments, expenses, today, TREND_MONTHS),
     today.slice(0, 7)
   );
   const snapshot = practiceSnapshot(projects, events, sales, today);

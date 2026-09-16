@@ -29,10 +29,9 @@ export function periodSummary(
   from: string,
   to: string
 ): PeriodSummary {
-  const pl = profitLoss(sales, payments, expenses, from, to);
+  const pl = profitLoss(payments, expenses, from, to);
   const counting = sales.filter((s) => saleCountsTowardRevenue(s) && inRange(s.date, from, to));
   const pieces = counting.filter((s) => s.category === "piece" || s.category === "commission");
-  const countingIds = new Set(sales.filter(saleCountsTowardRevenue).map((s) => s.id));
   return {
     income: pl.income,
     expenses: pl.expenses,
@@ -40,7 +39,11 @@ export function periodSummary(
     salesCount: counting.length,
     piecesSold: pieces.length,
     avgPiecePrice: pieces.length ? fromCents(Math.round(toCents(sumMoney(pieces.map((p) => p.amount))) / pieces.length)) : null,
-    paymentsCount: payments.filter((p) => countingIds.has(p.saleId) && inRange(p.date, from, to)).length
+    /* Every payment in range, matching `income` above. Counting only
+       the ones on counting sales would report cash from N movements as
+       coming from fewer than N. salesCount / piecesSold stay on the
+       ledger side — "agreed this period" is a different question. */
+    paymentsCount: payments.filter((p) => inRange(p.date, from, to)).length
   };
 }
 

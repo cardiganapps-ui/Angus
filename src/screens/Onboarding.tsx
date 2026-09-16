@@ -60,7 +60,6 @@ export function Onboarding() {
     renameWorkspace,
     markOnboarded,
     projects,
-    sales,
     payments,
     expenses,
     rules,
@@ -90,9 +89,9 @@ export function Onboarding() {
     [mediums, projects]
   );
   const recentAverage = useMemo(() => {
-    const months = monthlyTrend(sales, payments, expenses, todayISO(), 3).filter((m) => m.income > 0);
+    const months = monthlyTrend(payments, expenses, todayISO(), 3).filter((m) => m.income > 0);
     return months.length ? sumMoney(months.map((m) => m.income)) / months.length : 0;
-  }, [sales, payments, expenses]);
+  }, [payments, expenses]);
 
   function persist(current: Step) {
     switch (current) {

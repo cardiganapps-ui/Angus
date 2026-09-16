@@ -167,7 +167,6 @@ export interface MonthPoint {
    to the 1st before stepping back, so a 31st never clamps its way into
    the wrong month. */
 export function monthlyTrend(
-  sales: Sale[],
   payments: Payment[],
   expenses: Expense[],
   anchorISO: string,
@@ -177,7 +176,7 @@ export function monthlyTrend(
   const points: MonthPoint[] = [];
   for (let i = count - 1; i >= 0; i--) {
     const { from, to } = monthRange(addMonths(firstOfAnchor, -i));
-    const pl = profitLoss(sales, payments, expenses, from, to);
+    const pl = profitLoss(payments, expenses, from, to);
     points.push({ month: from.slice(0, 7), income: pl.income, expenses: pl.expenses, net: pl.net });
   }
   return points;
@@ -312,7 +311,7 @@ export function moneyPulse(
   expenses: Expense[],
   today: string
 ): MoneyPulse {
-  const [previous, current] = monthlyTrend(sales, payments, expenses, today, 2);
+  const [previous, current] = monthlyTrend(payments, expenses, today, 2);
   const hadPrevious = previous.income !== 0 || previous.expenses !== 0;
   return {
     income: current.income,

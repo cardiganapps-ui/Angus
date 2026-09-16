@@ -3,20 +3,20 @@ import type { Expense, Installment, Payment, Sale, SaleStatus } from "../../type
 import { sumMoney } from "../money";
 import {
   budgetProgress,
+  clientBalances,
   contactOwed,
-  incomeByCategory,
   expenseBreakdown,
   expensesByCategory,
-  generateInstallmentSchedule,
-  clientBalances,
   expoEconomics,
   expoMargins,
-  projectMargins,
+  generateInstallmentSchedule,
+  incomeByCategory,
   installmentPlan,
   overdueInstallments,
-  projectEconomics,
   paidForSale,
   profitLoss,
+  projectEconomics,
+  projectMargins,
   saleBalance,
   saleCountsTowardRevenue,
   totals
@@ -129,7 +129,11 @@ describe("totals", () => {
       committed: 3000,
       paid: 2400,
       owed: 600,
-      credit: 0
+      credit: 0,
+      // s4 was cancelled after taking 7000. That cash is real and hers
+      // to give back — it used to disappear from every figure while its
+      // payment row sat in the database.
+      refundable: 7000
     });
   });
 
@@ -144,7 +148,7 @@ describe("totals", () => {
   });
 
   it("is empty-safe", () => {
-    expect(totals([], [])).toEqual({ committed: 0, paid: 0, owed: 0, credit: 0 });
+    expect(totals([], [])).toEqual({ committed: 0, paid: 0, owed: 0, credit: 0, refundable: 0 });
   });
 });
 
@@ -194,11 +198,11 @@ describe("installment plans", () => {
 });
 
 describe("profit & loss", () => {
-  const sales = [sale("s1", 5000, "confirmed"), sale("s2", 4000, "cancelled")];
+  // No `sales` fixture: profitLoss does not take them, which is the fix.
   const payments = [
     payment("p1", "s1", 2000, "2026-09-03"),
     payment("p2", "s1", 1000, "2026-10-02"), // outside the window
-    payment("p3", "s2", 4000, "2026-09-04") // cancelled sale — never income
+    payment("p3", "s2", 4000, "2026-09-04") // on a sale cancelled later
   ];
   const expenses = [
     expense("e1", 800, "materials", "2026-09-02"),
@@ -206,20 +210,35 @@ describe("profit & loss", () => {
     expense("e3", 5000, "equipment", "2026-08-31") // outside the window
   ];
 
-  it("counts only payments on counting sales inside the range", () => {
-    expect(profitLoss(sales, payments, expenses, "2026-09-01", "2026-09-30")).toEqual({
-      income: 2000,
+  /* Cash basis: every payment inside the range, whatever its sale's
+     status is TODAY. Cash that arrived in September arrived; the duty to
+     return some of it is a liability (totals().refundable), not a
+     retroactive edit to a month she has already read. */
+  it("counts every payment inside the range, regardless of sale status", () => {
+    expect(profitLoss(payments, expenses, "2026-09-01", "2026-09-30")).toEqual({
+      income: 6000, // 2000 on the live sale + 4000 on the cancelled one
       expenses: 1000,
-      net: 1000
+      net: 5000
     });
   });
 
+  /* The regression this replaced: profitLoss keyed income off each
+     sale's CURRENT status, so cancelling in October rewrote September's
+     net. It no longer takes `sales` at all — the invariant is now
+     structural, not merely asserted — and this pins the consequence:
+     the cancelled sale's September payment still counts as September
+     cash. What she owes back is totals().refundable. */
+  it("keeps a cancelled sale's payment in the month it was received", () => {
+    const only = [payment("p3", "s2", 4000, "2026-09-04")];
+    expect(profitLoss(only, [], "2026-09-01", "2026-09-30").income).toBe(4000);
+  });
+
   it("reports a negative net when spending outruns income", () => {
-    expect(profitLoss(sales, [], expenses, "2026-09-01", "2026-09-30").net).toBe(-1000);
+    expect(profitLoss([], expenses, "2026-09-01", "2026-09-30").net).toBe(-1000);
   });
 
   it("includes both range boundaries", () => {
-    expect(profitLoss(sales, payments, [], "2026-09-03", "2026-09-03").income).toBe(2000);
+    expect(profitLoss(payments, [], "2026-09-03", "2026-09-03").income).toBe(2000);
   });
 
   it("buckets expenses by category, largest first", () => {
@@ -463,5 +482,46 @@ describe("generateInstallmentSchedule frequency steps", () => {
   it("splits so the cuotas add back to the total exactly", () => {
     const plan = generateInstallmentSchedule(1000, 3, "2026-01-01", "monthly");
     expect(plan.reduce((n, p) => n + p.amount, 0)).toBe(1000);
+  });
+});
+
+describe("a cancelled sale's money is a liability, not a disappearance", () => {
+  const cancelled = sale("s1", 12000, "cancelled");
+  const deposit = [payment("p1", "s1", 5000)];
+
+  /* The hole this closes: a $5 000 deposit on a cancelled commission
+     vanished from every total while its payment row sat in the
+     database. Cash received no longer equalled cash reported, and
+     nothing on screen said she owed it back. */
+  it("reports the deposit as refundable rather than dropping it", () => {
+    const b = saleBalance(cancelled, deposit);
+    expect(b.paid).toBe(5000);
+    expect(b.refundable).toBe(5000);
+    expect(b.owed).toBe(0);
+    expect(b.credit).toBe(0);
+  });
+
+  it("is not settled while she still owes the money back", () => {
+    expect(saleBalance(cancelled, deposit).settled).toBe(false);
+    // A cancelled sale that never took a peso genuinely is settled.
+    expect(saleBalance(cancelled, []).settled).toBe(true);
+  });
+
+  it("leaves a quoted sale settled and nothing refundable", () => {
+    const b = saleBalance(sale("s2", 900, "quoted"), [payment("p2", "s2", 900)]);
+    expect(b.refundable).toBe(0);
+    expect(b.settled).toBe(true);
+  });
+
+  it("keeps the client on the balance list instead of hiding them", () => {
+    const withContact: Sale = { ...cancelled, contactId: "c1" };
+    const rows = clientBalances([withContact], deposit);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ contactId: "c1", refundable: 5000, owed: 0, saleCount: 0 });
+  });
+
+  it("drops a client with neither a counting sale nor a refund", () => {
+    const withContact: Sale = { ...cancelled, contactId: "c1" };
+    expect(clientBalances([withContact], [])).toHaveLength(0);
   });
 });

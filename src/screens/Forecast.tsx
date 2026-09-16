@@ -32,8 +32,8 @@ export function Forecast({ navigate }: { navigate: (r: Route) => void }) {
     [sales, payments, installments, expenses, rules, today]
   );
   const past = useMemo(
-    () => monthlyTrend(sales, payments, expenses, today, PAST + 1).slice(0, PAST),
-    [sales, payments, expenses, today]
+    () => monthlyTrend(payments, expenses, today, PAST + 1).slice(0, PAST),
+    [payments, expenses, today]
   );
   const net = forecastNet(f.months);
 

@@ -56,8 +56,8 @@ export function Money() {
 
   const today = todayISO();
   const month = monthRange(today);
-  const owed = totals(sales, payments).owed;
-  const net = profitLoss(sales, payments, expenses, month.from, month.to).net;
+  const { owed, refundable } = totals(sales, payments);
+  const net = profitLoss(payments, expenses, month.from, month.to).net;
   const fixedOut = sumMoney(rules.filter((r) => r.kind === "expense" && r.active).map(monthlyEquivalent));
 
   function switchView(next: View) {
@@ -85,8 +85,16 @@ export function Money() {
             <AnimatedNumber value={net} format={formatMXNShortSigned} />
           </div>
         </div>
-        {fixedOut > 0 && (
+        {refundable > 0 && (
           <div className="kpi-card list-entry-stagger" style={stagger(2)}>
+            <div className="kpi-label">Por devolver</div>
+            <div className="kpi-value" style={{ color: "var(--red)" }}>
+              <AnimatedNumber value={refundable} format={formatMXNShort} />
+            </div>
+          </div>
+        )}
+        {fixedOut > 0 && (
+          <div className="kpi-card list-entry-stagger" style={stagger(refundable > 0 ? 3 : 2)}>
             <div className="kpi-label">Fijos al mes</div>
             <div className="kpi-value">
               <AnimatedNumber value={fixedOut} format={formatMXNShort} />
