@@ -14,7 +14,9 @@
    restored database would faithfully preserve paths to photos that no
    longer exist. The mirror step copies those bytes too.
 
-   Env (GitHub Actions secrets, or .env.local for a manual run):
+   Env (in Actions, exported by scripts/backup-credentials.mjs from the
+   backup-secrets edge function — no repository secrets; .env.local for
+   a manual run):
      SUPABASE_DB_URL        postgres connection string (session pooler)
      R2_ACCOUNT_ID
      R2_ACCESS_KEY_ID
@@ -26,7 +28,7 @@
    Usage:  node --env-file=.env.local scripts/backup-db.mjs
 */
 import { spawnSync } from "node:child_process";
-import { createReadStream, statSync, unlinkSync } from "node:fs";
+import { appendFileSync, createReadStream, statSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -124,6 +126,8 @@ await r2.send(
 );
 unlinkSync(local);
 console.log(`  r2://${BUCKET}/${key}`);
+// Lets the workflow's outcome report name the object it wrote.
+if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `key=${key}\nbytes=${bytes}\n`);
 
 console.log(`• prune older than ${RETENTION_DAYS}d…`);
 const cutoff = Date.now() - RETENTION_DAYS * 86_400_000;

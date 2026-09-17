@@ -4,11 +4,20 @@ name: Nightly backup
 # This workflow is the disaster plan for the only copy of one artist's
 # business memory. RPO is up to 24h, accepted deliberately.
 #
+# It needs NO repository secrets. The job proves itself to the
+# `backup-secrets` edge function with a GitHub OIDC token and receives
+# the database URL and the R2 pair for the duration of the run
+# (scripts/backup-credentials.mjs, supabase/functions/backup-secrets).
+#
 # It is deliberately NOT gated behind an "enabled" variable the way
-# e2e.yml is. Until its secrets exist it will fail red every night, and
-# that is the point: a backup that skips itself quietly is the exact
-# failure mode that loses the data. Set the secrets (docs/handoff.md §2)
-# — never silence the job.
+# e2e.yml is: if the broker refuses or Vault is empty it fails red, and
+# that is the point — a backup that skips itself quietly is the exact
+# failure mode that loses the data. Never silence the job.
+#
+# Every run also RESTORES the dump it just took into a throwaway
+# Postgres on the runner and diffs row counts against production. A
+# backup that has never been restored is a hypothesis; this one is
+# rehearsed nightly.
 on:
   schedule:
     # 09:10 UTC — ~03:10 in Mexico City, after her day and off the hour
@@ -23,9 +32,13 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
+
+env:
+  BACKUP_BROKER_URL: https://xbpvqvlomrnuxydyqyqj.supabase.co/functions/v1/backup-secrets
 
 jobs:
-  dump:
+  backup:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,15 +64,24 @@ jobs:
 
       - run: npm ci
 
+      - name: Fetch credentials (OIDC → backup-secrets)
+        run: node scripts/backup-credentials.mjs
+
       # The dump and the document bytes are one job on purpose: a
       # database that points at photos nobody copied is not a backup.
       - name: Dump and mirror to R2
+        id: dump
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BACKUP_BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
-          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
           BACKUP_RETENTION_DAYS: "30"
         run: node scripts/backup-db.mjs
+
+      - name: Restore drill
+        id: drill
+        run: node scripts/restore-drill.mjs
+
+      - name: Record the outcome
+        if: always()
+        run: |
+          node scripts/backup-credentials.mjs report \
+            "${{ (steps.dump.outcome == 'success' && steps.drill.outcome == 'success') && 'success' || 'failure' }}" \
+            '{"dump":"${{ steps.dump.outcome }}","drill":"${{ steps.drill.outcome }}","key":"${{ steps.dump.outputs.key }}","bytes":"${{ steps.dump.outputs.bytes }}","run":"${{ github.run_id }}"}'
