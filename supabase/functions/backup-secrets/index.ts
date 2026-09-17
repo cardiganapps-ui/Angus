@@ -31,8 +31,19 @@ import { createRemoteJWKSet, jwtVerify } from "npm:jose@5.9.6";
 const ISSUER = "https://token.actions.githubusercontent.com";
 const AUDIENCE = "angus-backup";
 const REPOSITORY = "cardiganapps-ui/Angus";
-const WORKFLOWS = new Set([".github/workflows/backup.yml"]);
-const EVENTS = new Set(["schedule", "workflow_dispatch"]);
+// Which workflow may ask for what. The backup gets the backup set; the
+// one-shot protect-main workflow (TEMPORARY, docs/handoff.md §8) gets
+// the GitHub admin token and nothing else.
+const GRANTS: Record<string, { actions: Set<string>; events: Set<string> }> = {
+  ".github/workflows/backup.yml": {
+    actions: new Set(["issue", "report"]),
+    events: new Set(["schedule", "workflow_dispatch"]),
+  },
+  ".github/workflows/protect-main.yml": {
+    actions: new Set(["github_admin"]),
+    events: new Set(["push", "workflow_dispatch"]),
+  },
+};
 // Session mode, port 5432 — pg_dump needs session state (docs/handoff.md §2.2).
 const POOLER_HOST = "aws-0-us-east-1.pooler.supabase.com";
 const VAULT_KEYS = ["r2_account_id", "r2_access_key_id", "r2_secret_access_key"] as const;
@@ -55,7 +66,7 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-async function verifyRunner(req: Request): Promise<Claims | Response> {
+async function verifyRunner(req: Request, action: string): Promise<Claims | Response> {
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) return json(401, { error: "missing bearer" });
@@ -72,14 +83,17 @@ async function verifyRunner(req: Request): Promise<Claims | Response> {
   // not the ref: a branch of this repo is already inside the trust
   // boundary, a fork never is (its token names the fork).
   const wfPath = (claims.job_workflow_ref ?? "").split("@")[0];
-  const okWorkflow = [...WORKFLOWS].some((w) => wfPath === `${REPOSITORY}/${w}`);
-  if (claims.repository !== REPOSITORY || !okWorkflow || !EVENTS.has(claims.event_name ?? "")) {
+  const grant = Object.entries(GRANTS).find(([w]) => wfPath === `${REPOSITORY}/${w}`)?.[1];
+  const ok = claims.repository === REPOSITORY && grant !== undefined &&
+    grant.actions.has(action) && grant.events.has(claims.event_name ?? "");
+  if (!ok) {
     console.warn("refused", {
       repository: claims.repository,
       job_workflow_ref: claims.job_workflow_ref,
       event_name: claims.event_name,
+      action,
     });
-    return json(403, { error: "not the backup workflow of this repository" });
+    return json(403, { error: "this workflow of this repository may not perform that action" });
   }
   return claims;
 }
@@ -94,9 +108,6 @@ function poolerUrl(direct: string): string {
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json(405, { error: "POST only" });
 
-  const who = await verifyRunner(req);
-  if (who instanceof Response) return who;
-
   let body: { action?: string; status?: string; detail?: unknown } = {};
   try {
     body = await req.json();
@@ -104,11 +115,23 @@ Deno.serve(async (req: Request) => {
     // an empty body means "issue"
   }
   const action = body.action ?? "issue";
+
+  const who = await verifyRunner(req, action);
+  if (who instanceof Response) return who;
+
   const direct = Deno.env.get("SUPABASE_DB_URL");
   if (!direct) return json(500, { error: "SUPABASE_DB_URL is not injected" });
 
   const sql = postgres(direct, { prepare: false, connect_timeout: 10 });
   try {
+    if (action === "github_admin") {
+      const [row] = await sql<{ decrypted_secret: string }[]>`
+        select decrypted_secret from vault.decrypted_secrets where name = 'github_admin_pat'`;
+      if (!row) return json(503, { error: "vault is missing secrets", missing: ["github_admin_pat"] });
+      console.warn("github admin token issued", { actor: who.actor, run_id: who.run_id });
+      return json(200, { GITHUB_ADMIN_TOKEN: row.decrypted_secret });
+    }
+
     if (action === "report") {
       const status = body.status === "success" ? "completed" : "failed";
       await sql`

@@ -6,10 +6,12 @@
    comes back into $GITHUB_ENV for the steps that follow — masked, so a
    value can never appear in a log.
 
-   Two modes:
+   Modes:
      node scripts/backup-credentials.mjs            # issue → $GITHUB_ENV
      node scripts/backup-credentials.mjs report <success|failure> [json]
                                                     # record the outcome
+     node scripts/backup-credentials.mjs github_admin
+                                                    # protect-main.yml only
 
    Why not repository secrets: nothing that maintains this project can
    set them (docs/handoff.md §2). The edge function already holds the
@@ -43,7 +45,7 @@ const [mode = "issue", status, detailJson] = process.argv.slice(2);
 const body =
   mode === "report"
     ? { action: "report", status, detail: detailJson ? JSON.parse(detailJson) : {} }
-    : { action: "issue" };
+    : { action: mode };
 
 const res = await fetch(BROKER, {
   method: "POST",
