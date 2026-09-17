@@ -31,17 +31,14 @@ import { createRemoteJWKSet, jwtVerify } from "npm:jose@5.9.6";
 const ISSUER = "https://token.actions.githubusercontent.com";
 const AUDIENCE = "angus-backup";
 const REPOSITORY = "cardiganapps-ui/Angus";
-// Which workflow may ask for what. The backup gets the backup set; the
-// one-shot protect-main workflow (TEMPORARY, docs/handoff.md §8) gets
-// the GitHub admin token and nothing else.
+// Which workflow may ask for what. Add an entry here (and a Vault
+// secret) when another workflow needs a credential — the one-shot
+// protect-main.yml (2026-09-17) was such an entry and is gone with its
+// token.
 const GRANTS: Record<string, { actions: Set<string>; events: Set<string> }> = {
   ".github/workflows/backup.yml": {
     actions: new Set(["issue", "report"]),
     events: new Set(["schedule", "workflow_dispatch"]),
-  },
-  ".github/workflows/protect-main.yml": {
-    actions: new Set(["github_admin"]),
-    events: new Set(["push", "workflow_dispatch"]),
   },
 };
 // Session mode, port 5432 — pg_dump needs session state (docs/handoff.md §2.2).
@@ -124,14 +121,6 @@ Deno.serve(async (req: Request) => {
 
   const sql = postgres(direct, { prepare: false, connect_timeout: 10 });
   try {
-    if (action === "github_admin") {
-      const [row] = await sql<{ decrypted_secret: string }[]>`
-        select decrypted_secret from vault.decrypted_secrets where name = 'github_admin_pat'`;
-      if (!row) return json(503, { error: "vault is missing secrets", missing: ["github_admin_pat"] });
-      console.warn("github admin token issued", { actor: who.actor, run_id: who.run_id });
-      return json(200, { GITHUB_ADMIN_TOKEN: row.decrypted_secret });
-    }
-
     if (action === "report") {
       const status = body.status === "success" ? "completed" : "failed";
       await sql`

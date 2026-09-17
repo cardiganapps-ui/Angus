@@ -355,14 +355,17 @@ broken by it yet; it was one enrollment away from being.
 **A branch ruleset `main` is active:** restrict deletions, block force
 pushes, require a pull request (0 approvals), require the `check` status
 from `ci.yml` with branches up to date, **empty bypass list.** Created
-by the one-shot `protect-main.yml` workflow (since removed): the agent
+by the one-shot `protect-main.yml` workflow
+([run 35222621422](https://github.com/cardiganapps-ui/Angus/actions/runs/35222621422),
+since removed): the agent
 sandbox is barred from *writing* to GitHub's rulesets API by egress
 policy — "Write access to this GitHub API path is not permitted through
 this proxy" — so the runner fetched the owner's fine-grained admin token
 from Supabase Vault via the `backup-secrets` broker and made the call
 itself. The same run then **tried to break it**: an empty commit pushed
-straight at `main` with the job's own token, which GitHub refused. The
-token was deleted from Vault afterwards.
+straight at `main` with the job's own token, which GitHub refused —
+`GH013: Changes must be made through a pull request. Required status
+check "check" is expected.` The token was deleted from Vault afterwards.
 
 **What changes for the agents (8.2):** nothing about how the work is
 done. Only the last step: open a pull request instead of `git push

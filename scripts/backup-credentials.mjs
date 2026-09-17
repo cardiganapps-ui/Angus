@@ -10,8 +10,6 @@
      node scripts/backup-credentials.mjs            # issue → $GITHUB_ENV
      node scripts/backup-credentials.mjs report <success|failure> [json]
                                                     # record the outcome
-     node scripts/backup-credentials.mjs github_admin
-                                                    # protect-main.yml only
 
    Why not repository secrets: nothing that maintains this project can
    set them (docs/handoff.md §2). The edge function already holds the
