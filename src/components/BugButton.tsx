@@ -2,16 +2,16 @@ import { Icon } from "./Icon";
 import { haptic } from "../lib/haptics";
 
 /* ── The little bug ──
-   Bottom-left of every signed-in screen, opposite the +. One tap opens
-   Cuéntale a Diego with the current screen already known. Small and
-   quiet on purpose: it should be findable the moment something goes
-   wrong and invisible the rest of the time. Hidden with the FAB while a
-   sheet is open (base.css, body:has(.sheet-overlay)). */
+   In the topbar, right after the menu / back chevron, on every
+   signed-in screen. One tap opens Cuéntale a Diego with the current
+   screen already known. Same 44px pill as the magnifier on the other
+   side; quiet on purpose — findable the moment something goes wrong,
+   invisible the rest of the time. */
 export function BugButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
-      className="bug-fab btn-tap"
+      className="topbar-search topbar-bug btn-tap"
       aria-label="Reportar una falla o sugerir algo"
       title="Cuéntale a Diego"
       onClick={() => {
@@ -19,7 +19,7 @@ export function BugButton({ onClick }: { onClick: () => void }) {
         onClick();
       }}
     >
-      <Icon name="bug" size={18} strokeWidth={2} />
+      <Icon name="bug" size={20} strokeWidth={2} />
     </button>
   );
 }

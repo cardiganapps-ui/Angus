@@ -25,6 +25,7 @@ import { currentPeriod, periodRange, type Period } from "../utils/period";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { EmptyState } from "../components/EmptyState";
 import { SegmentedControl } from "../components/SegmentedControl";
+import { TrendChart } from "../components/TrendChart";
 import { Icon } from "../components/Icon";
 import { SaleSheet } from "../components/SaleSheet";
 import { SaleDetailSheet } from "../components/SaleDetailSheet";
@@ -151,6 +152,8 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
           onSelect={setEditingExpense}
         />
       ) : (
+        <>
+        <TrendChart payments={payments} expenses={expenses} today={today} />
         <BalanceView
           sales={sales}
           payments={payments}
@@ -159,6 +162,7 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
           projects={projects}
           events={events}
         />
+        </>
       )}
 
       {/* The four finance screens live in the drawer; from here they were
