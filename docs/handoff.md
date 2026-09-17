@@ -2,57 +2,41 @@
 
 Everything in this repo that can be built, tested and applied without a
 credential has been. What is left is a short list of things that are
-*only* obtainable by someone with an account: five secrets, one design
-asset, one decision, one migration, three settings nobody but the repo
-owner can change, and two weeks of real use.
+*only* obtainable by someone with an account: six repository secrets, one
+design asset, three settings nobody but the repo owner can change, and
+two weeks of real use.
 
 Each item below says **why it matters**, **how it's verified today**, and
-**the exact steps**. They are independent — do them in any order — except
-§0, which the rest depends on.
+**the exact steps**. They are independent — do them in any order.
 
-Last verified: 2026-09-16.
+**As of 2026-09-17 the app itself is healthy.** `main` is deployed, all
+22 migrations are live, uploads answer their auth gate, and the suite is
+604 green. The one item that is *urgent* rather than merely open is §2:
+**there is still no backup of her data, and there never has been.**
 
----
-
-## 0 — Decision: put the work on `main`
-
-**Status:** `claude/elite-product-review-hrek6t` is 17 commits ahead of
-`main`, 0 behind. CI green on every one.
-
-**Why it matters more than it sounds.** Migrations 016–020 are *already
-applied to the live database*, but `main` — which is what Vercel serves —
-predates all of them. The schema and the deployed client are out of step
-right now. Nothing is broken by it (verified: sign-in healthy, admin
-still reaches both workspaces), but two things are odd until it merges:
-
-- Signup is closed at the database (migration 017) while the deployed
-  screen still shows "Crear cuenta" with no invite field, so a stranger
-  gets a refusal with no explanation. The branch fixes the copy.
-- `is_admin()` reads `platform_admins` (migration 018) while the deployed
-  client still compares an email string. Harmless — the SQL side is what
-  gates data — but only one of them is the real rule.
-
-**Steps**
-
-    git checkout main
-    git merge --ff-only claude/elite-product-review-hrek6t
-    git push origin main
-
-Vercel auto-deploys `main`. Then confirm at
-`https://angus-xi.vercel.app`: sign in, and check Ajustes → Tus datos
-shows both **Descargar todo** and **Diagnóstico**.
-
-**Do not** merge if you want any stage re-litigated first — this is 17
-commits of behaviour change across money, reads, writes and auth. Every
-commit message states what it changed and what it did *not*.
+Last verified: 2026-09-17.
 
 ---
 
-## 1 — R2 credentials (bucket side DONE; Vercel env still missing)
+## 0 — ~~Decision: put the work on `main`~~ ✅ DONE
 
-**Status: half cleared on 2026-09-16.** The owner supplied the R2
-credentials, and everything that can be done without dashboard access
-has been:
+The work is on `main` and deployed. Verified 2026-09-17: `origin/main`
+is at `ccd2985`, the latest Vercel production deployment is READY on
+that same sha, and CI is green on it. The schema and the deployed client
+are no longer out of step.
+
+---
+
+## 1 — ~~R2 credentials~~ ✅ DONE (one optional verification left)
+
+**Status: cleared.** Re-verified 2026-09-17 — `/api/upload-url` and
+`/api/file-url` both answer **401**, the JWT gate, where they answered
+`503 storage_not_configured` before the env landed. Uploads are live.
+
+The only thing left here is §1.7's end-to-end smoke, which needs the
+throwaway account from §4; it is a nice-to-have, not a blocker.
+
+The record of how it was cleared:
 
 - ✅ **1.1** both buckets exist (`angus-documents`, `angus-backups`)
 - ✅ **1.2 / 1.3** account id + keypair verified against the live API
@@ -64,11 +48,13 @@ has been:
   it could not be, because it had never run. It has: replaying the same
   presigned URL with a body 500 bytes larger is refused with **403**. The
   capability is genuinely bounded.
-- ❌ **1.5 Vercel env — still the blocker.** Uploads stay dead in
-  production until these four are set in the dashboard.
-- ❌ **1.6 redeploy** after 1.5.
+- ✅ **1.5 / 1.6** all six server-only vars set on Production + Preview,
+  and redeployed
+- ⬜ **1.7** the deployed-route smoke (`npm run r2:smoke`) — blocked only
+  on §4's throwaway account
 
-The original diagnosis, kept because 1.5 is still true:
+The original diagnosis, kept because it is the only record of how long
+this was broken:
 
     $ curl -s -X POST https://angus-xi.vercel.app/api/upload-url -d '{}'
     {"error":"Storage not configured","code":"storage_not_configured"}
@@ -180,10 +166,17 @@ account exists and the R2 keys are in `.env.local` — you don't have to.
 
 ## 2 — The nightly backup (there is no backup right now)
 
-**Status: the Prime Directive is uninsured.** Free plan, so no PITR and
-no managed backups. `.github/workflows/backup.yml` and
-`scripts/backup-db.mjs` are written, linted and committed — and have
-never run, because they have no secrets.
+**Status: THE MOST URGENT ITEM IN THIS FILE. The Prime Directive is
+uninsured.** Free plan, so no PITR and no managed backups.
+`.github/workflows/backup.yml` and `scripts/backup-db.mjs` are written,
+linted and committed — and have **never produced a backup**, because they
+have no secrets.
+
+Checked 2026-09-17: the workflow has exactly **one** run in its history,
+`2026-09-16T14:10Z`, **conclusion `failure`** — `✗ SUPABASE_DB_URL is not
+set`. It fires again every night at 09:10 UTC and will keep failing red
+until §2.3 is done. There is, today, **no copy of Andrea's data anywhere
+but the live database.**
 
 The workflow is deliberately *not* gated behind an enable flag the way
 `e2e.yml` is: once it's on `main` it will fail red every night until
@@ -192,9 +185,9 @@ data dies. The first red run is the reminder. Never silence the job.
 
 ### Steps
 
-**2.1 — Backup bucket.** Cloudflare → R2 → *Create bucket* →
-`angus-backups`. Separate from `angus-documents` on purpose: different
-retention, and a compromise of one is not both.
+**2.1 — Backup bucket. ✅ DONE** — `angus-backups` exists, verified
+against the live API on 2026-09-16. Separate from `angus-documents` on
+purpose: different retention, and a compromise of one is not both.
 
 **2.2 — Database connection string. ✅ DONE** — the password was rotated
 through the Management API (`PATCH /v1/projects/{ref}/database/password`,
@@ -235,7 +228,7 @@ repository secret*, six times:
 
 | Name | Value |
 |---|---|
-| `SUPABASE_DB_URL` | the pooler URI — **already in `.env.local`**, copy it from there |
+| `SUPABASE_DB_URL` | the pooler URI — **in the `.env.local` on your own machine**, copy it from there. A cloud agent session cannot: `.env.local` is gitignored, so each fresh container starts without it. If it is lost, reset the password (Settings → Database) and rebuild the URI per §2.2. |
 | `R2_ACCOUNT_ID` | same as §1.2 |
 | `R2_ACCESS_KEY_ID` | same as §1.3 |
 | `R2_SECRET_ACCESS_KEY` | same as §1.3 |
@@ -399,10 +392,25 @@ pilot is what re-ranks them against hers.
 
 ---
 
-## 7 — Apply migrations 021 and 022 (written, committed, NOT applied)
+## 7 — ~~Apply migrations 021 and 022~~ ✅ DONE
 
-**Two files, both unapplied. Apply 021 first, then 022** — they are
-independent, but keeping the numbers in order keeps the ledger honest.
+**Both applied.** Verified live on 2026-09-17 by checking the resulting
+objects, not by trusting that the statements returned:
+
+```
+select relrowsecurity from pg_class where relname='materializer_skips';  -- t
+select count(*) from pg_policies where tablename='materializer_skips';   -- 1
+select pg_get_indexdef('public.sales_session_contact_uidx'::regclass);
+--   ... WHERE ((recurring_rule_id IS NULL) AND (period_key ~ '^[0-9a-fA-F]{8}-…'))
+```
+
+Also confirmed that `materializer_skips` is readable as the role that
+actually queries it (`set local role authenticated` with Andrea's `sub`
+in `request.jwt.claims`) — so the degraded state described below is over,
+and the materializers run again.
+
+The record of what each one fixes, kept because it is the only place it
+is written down:
 
 ### 022 — `materializer_skips`
 
@@ -419,63 +427,23 @@ and the one that got missed would report a wrong total in silence. Under
 the Prime Directive a wrong number is worse than the bug being fixed.
 Nothing derives from `materializer_skips`; nothing sums it.
 
-**Apply it** in the Supabase SQL editor, then verify the table is really
-there and really protected — not that the statement returned:
-
-```sql
-select relrowsecurity from pg_class where relname = 'materializer_skips';
--- expect: t
-select count(*) from pg_policies where tablename = 'materializer_skips';
--- expect: 1
-```
-
-**Until it is applied** the client will get a PostgREST error on every
-read of that table, which surfaces as a persistent "no se pudo cargar"
-warning and — because the skip store is inside the `canDiff` gate — stops
-the materializers running at all. That is the safe direction (nothing is
-generated wrongly), but it does mean the app is degraded until you run
-it. Apply it in the same sitting as the deploy.
-
 ---
 
-## 7a — Apply migration 021 (written, committed, NOT applied)
+## 7a — ~~Apply migration 021~~ ✅ DONE (see §7)
 
-**Status:** every migration up to 020 is live. `021_session_tuition_index.sql`
-is the first one in this repo that exists only as a file. It was written
-deliberately without applying it — read the header before you run it; it
-is forty lines of why.
-
-**What it fixes.** `sales_session_contact_uidx` picks its rows with
+**What it fixed.** `sales_session_contact_uidx` picked its rows with
 `recurring_rule_id is null`, which is not a property of a row but of its
 history: `on delete set null` means every sale a rule ever generated
-falls into that predicate the moment the rule is deleted. Two monthly
+fell into that predicate the moment the rule was deleted. Two monthly
 rules can bill the same contact for the same period — a student enrolled
 in two class groups gets one rule per group — and once the first rule is
-deleted, deleting the second raises a duplicate-key error *from the
+deleted, deleting the second raised a duplicate-key error *from the
 cascade*. The client reads 23505 as "already materialized", so the delete
-that failed is the delete she is told worked. The migration matches the
+that failed was the delete she was told worked. The index now matches the
 session-id *shape* of `period_key` instead.
 
-Today's database is nearly empty, so nothing is currently broken by it;
-it is one enrollment away from being.
-
-### Steps
-
-**7.1** — Supabase dashboard → project `angus` → **SQL Editor** → paste
-`supabase/migrations/021_session_tuition_index.sql` → *Run*. It drops and
-recreates one index inside a transaction; the new predicate is a strict
-subset of the old one, so there is no data to clean up first and nothing
-to do if it is run twice.
-
-**7.2 — Verify the definition changed**, not that the statement returned:
-
-```sql
-select pg_get_indexdef('public.sales_session_contact_uidx'::regclass);
-```
-
-The result must contain `period_key ~ '^[0-9a-fA-F]{8}-…'`. If it still
-reads `WHERE ((recurring_rule_id IS NULL) AND (period_key IS NOT NULL))`,
-the old index is still there and nothing happened.
+The database was nearly empty when this was written, so nothing was
+broken by it yet; it was one enrollment away from being.
 
 ---
 
