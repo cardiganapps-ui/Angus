@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { recordVisit } from "../lib/usage";
+import { recordBreadcrumb } from "../lib/breadcrumbs";
 
 /* ── Routes ──
    Three of these live in the bottom tab pill (see TAB_ROUTES); every
@@ -80,6 +81,7 @@ export function useNavigation() {
      lib/usage.ts. */
   useEffect(() => {
     recordVisit(route);
+    recordBreadcrumb("route", route);
   }, [route]);
 
   /* Where she came from, so the chevron takes her BACK rather than to a

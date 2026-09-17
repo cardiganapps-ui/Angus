@@ -35,6 +35,7 @@ export type IconName =
   | "phone"
   | "mail"
   | "message"
+  | "bug"
   | "user"
   | "pause"
   | "play"
@@ -94,6 +95,7 @@ const PATHS: Record<IconName, string> = {
   phone: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z",
   mail: "M3 6h18v12H3zM3 7l9 6 9-6",
   message: "M4 5h16v11H9l-5 4z",
+  bug: "M8 12a4 4 0 0 1 8 0v4a4 4 0 0 1-8 0zM10 8a2 2 0 0 1 4 0M9 6 7.5 4M15 6l1.5-2M8 13H5M8 16l-3 1.5M16 13h3M16 16l3 1.5M12 12v8",
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-3.9 3.6-7 8-7s8 3.1 8 7z",
   pause: "M8 5v14M16 5v14",
   play: "M7 4l12 8-12 8z",

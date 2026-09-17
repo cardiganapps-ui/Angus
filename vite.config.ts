@@ -8,7 +8,10 @@ const emptyModule = fileURLToPath(new URL("./src/lib/emptyModule.ts", import.met
 
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version)
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    // Vercel sets this at build time; a report that names the commit is
+    // a report someone can check out.
+    __BUILD_SHA__: JSON.stringify((process.env.VERCEL_GIT_COMMIT_SHA ?? "dev").slice(0, 7))
   },
   resolve: {
     // jsPDF's optional peers (doc.html / SVG) are never used by the note export.

@@ -10,6 +10,7 @@ import { useWorkspaces } from "./hooks/useWorkspaces";
 import { AccountSheet } from "./components/AccountSheet";
 import { FeedbackSheet } from "./components/FeedbackSheet";
 import { QuickAddFab } from "./components/QuickAddFab";
+import { BugButton } from "./components/BugButton";
 import { FabProvider, type FabControl, type FabPrimary } from "./context/FabContext";
 import { ChangePasswordSheet } from "./components/ChangePasswordSheet";
 import { Drawer } from "./components/Drawer";
@@ -506,6 +507,7 @@ export default function App() {
             </Suspense>
           )}
           {feedbackOpen && <FeedbackSheet route={route} onClose={() => setFeedbackOpen(false)} />}
+          {active.onboardedAt && <BugButton onClick={() => setFeedbackOpen(true)} />}
           {/* The one + for the whole app; Ajustes has nothing to add. */}
           {active.onboardedAt && route !== "settings" && (
             <QuickAddFab primary={fabPrimary} hidden={fabHidden} />
