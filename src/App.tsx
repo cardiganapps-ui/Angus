@@ -8,6 +8,7 @@ import { useMediaQuery } from "./hooks/useMediaQuery";
 import { useTheme } from "./hooks/useTheme";
 import { useWorkspaces } from "./hooks/useWorkspaces";
 import { AccountSheet } from "./components/AccountSheet";
+import { FeedbackSheet } from "./components/FeedbackSheet";
 import { ChangePasswordSheet } from "./components/ChangePasswordSheet";
 import { Drawer } from "./components/Drawer";
 import { EmptyState } from "./components/EmptyState";
@@ -262,6 +263,7 @@ export default function App() {
   const auth = useAuth();
   const ws = useWorkspaces(auth.user?.id ?? null);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const theme = useTheme();
@@ -313,7 +315,8 @@ export default function App() {
               setAccountOpen(false);
             },
             updatePassword: auth.updatePassword,
-            openAccount: () => setAccountOpen(true)
+            openAccount: () => setAccountOpen(true),
+            openFeedback: () => setFeedbackOpen(true)
           }
         : null,
     [user, ws, active?.id, auth]
@@ -363,7 +366,7 @@ export default function App() {
         <DataErrorToast />
         {/* Inside the shell, so a crashed screen leaves the topbar and
             tabs usable; keyed on the route so navigating away clears it. */}
-        <AppErrorBoundary resetKey={route} onOpenDiagnostics={() => navigate("settings")}>
+        <AppErrorBoundary resetKey={route} onOpenDiagnostics={() => navigate("settings")} onReport={() => setFeedbackOpen(true)}>
           <Suspense fallback={<LoadingSkeleton route={route} />}>
             {active.onboardedAt ? <SignedIn route={route} navigate={navigate} /> : <OnboardingGate />}
           </Suspense>
@@ -496,6 +499,7 @@ export default function App() {
               <GlobalSearchSheet onClose={() => setSearchOpen(false)} />
             </Suspense>
           )}
+          {feedbackOpen && <FeedbackSheet route={route} onClose={() => setFeedbackOpen(false)} />}
           {overlays}
         </Shell>
       </SessionProvider>
