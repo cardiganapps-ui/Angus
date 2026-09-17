@@ -32,7 +32,7 @@ const ISSUER = "https://token.actions.githubusercontent.com";
 const AUDIENCE = "angus-backup";
 const REPOSITORY = "cardiganapps-ui/Angus";
 const WORKFLOWS = new Set([".github/workflows/backup.yml"]);
-const EVENTS = new Set(["schedule", "workflow_dispatch"]);
+const EVENTS = new Set(["schedule", "workflow_dispatch", "push"]); // push: TEMPORARY test scaffold
 // Session mode, port 5432 — pg_dump needs session state (docs/handoff.md §2.2).
 const POOLER_HOST = "aws-0-us-east-1.pooler.supabase.com";
 const VAULT_KEYS = ["r2_account_id", "r2_access_key_id", "r2_secret_access_key"] as const;
