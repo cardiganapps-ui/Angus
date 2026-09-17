@@ -224,6 +224,20 @@ export function Drawer({
             </span>
             <span className="drawer-item-label">Tu cuenta</span>
           </button>
+          <button
+            type="button"
+            className="drawer-item"
+            onClick={() => {
+              haptic.tap();
+              session.openFeedback();
+              if (!rail) animatedClose();
+            }}
+          >
+            <span className="drawer-item-icon">
+              <Icon name="message" size={20} />
+            </span>
+            <span className="drawer-item-label">Cuéntale a Diego</span>
+          </button>
         </div>
       </div>
 

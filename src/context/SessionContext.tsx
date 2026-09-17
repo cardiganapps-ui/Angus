@@ -14,6 +14,8 @@ export interface SessionValue {
   signOut: () => Promise<void>;
   updatePassword: (password: string) => Promise<string | null>;
   openAccount: () => void;
+  /** Cuéntale a Diego — the feedback sheet, from anywhere signed in. */
+  openFeedback: () => void;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);

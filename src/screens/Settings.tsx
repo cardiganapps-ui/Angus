@@ -279,6 +279,15 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
         />
       </Section>
 
+      <Section title="Ayuda">
+        <Row
+          icon="message"
+          label="Cuéntale a Diego"
+          hint="Una falla, una idea o una pregunta. Le llega por correo con la pantalla y la versión — nunca tus registros."
+          onClick={() => session.openFeedback()}
+        />
+      </Section>
+
       <Section title="Acerca de">
         <div className="card">
           <div className="settings-about">

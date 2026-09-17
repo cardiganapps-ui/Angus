@@ -20,6 +20,8 @@ interface Props {
   resetKey?: string;
   /** Opens Ajustes → Diagnóstico, when the shell can route there. */
   onOpenDiagnostics?: () => void;
+  /** Opens Cuéntale a Diego — a crash is the moment she most wants to say so. */
+  onReport?: () => void;
 }
 
 interface State {
@@ -76,8 +78,13 @@ export class AppErrorBoundary extends Component<Props, State> {
             <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
               Recargar
             </button>
+            {this.props.onReport && (
+              <button type="button" className="btn btn-secondary" onClick={this.props.onReport}>
+                Cuéntale a Diego
+              </button>
+            )}
             {this.props.onOpenDiagnostics && (
-              <button type="button" className="btn btn-secondary" onClick={this.props.onOpenDiagnostics}>
+              <button type="button" className="btn btn-ghost" onClick={this.props.onOpenDiagnostics}>
                 Ver diagnóstico
               </button>
             )}

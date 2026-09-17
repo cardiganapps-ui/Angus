@@ -382,3 +382,11 @@ export const ASSIGNMENT_STATUS_BADGE: Record<AssignmentStatus, string> = {
   in_progress: "badge-teal",
   done: "badge-green"
 };
+
+/* ── Cuéntale a Diego ── mirrored by the check constraint in migration 024 */
+export type FeedbackKind = "bug" | "idea" | "question";
+export const FEEDBACK_KINDS: { value: FeedbackKind; label: string }[] = [
+  { value: "bug", label: "Falla" },
+  { value: "idea", label: "Idea" },
+  { value: "question", label: "Pregunta" }
+];
