@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { recordVisit } from "../lib/usage";
 import { recordBreadcrumb } from "../lib/breadcrumbs";
+import { isTabRoute, landingRoute, parentRoute } from "../data/nav";
 
 /* ── Routes ──
-   Three of these live in the bottom tab pill (see TAB_ROUTES); every
-   other one is reached from the side drawer and shows a back chevron in
-   the topbar. Hash-based so a reload and the OS back gesture both work
-   without a router. */
+   The ones in `settings.tabs` live in the bottom pill; every other one
+   is reached from the side drawer and shows a back chevron in the
+   topbar (data/nav.ts is the catalog). Hash-based so a reload and the
+   OS back gesture both work without a router. */
 export type Route =
   | "home"
   | "schedule"
@@ -40,25 +41,6 @@ const ROUTES: readonly Route[] = [
   "settings"
 ];
 
-export const TAB_ROUTES: readonly Route[] = ["home", "schedule", "money"];
-
-/* Where the topbar's back chevron goes from a drawer route. Finance
-   sub-screens return to Dinero; everything else to Hoy. */
-const PARENT: Partial<Record<Route, Route>> = {
-  recurring: "money",
-  budgets: "money",
-  forecast: "money",
-  reports: "money"
-};
-
-export function isTabRoute(route: Route): boolean {
-  return TAB_ROUTES.includes(route);
-}
-
-export function parentRoute(route: Route): Route {
-  return PARENT[route] ?? "home";
-}
-
 function readRoute(): Route {
   const hash = window.location.hash.replace("#", "");
   return (ROUTES as readonly string[]).includes(hash) ? (hash as Route) : "home";
@@ -66,8 +48,13 @@ function readRoute(): Route {
 
 export const ALL_ROUTES = ROUTES;
 
-export function useNavigation() {
+/* `tabs` is the bar as she configured it. It arrives with the
+   workspace, after the first render, so it is read through a ref: the
+   callbacks stay stable and still see the latest bar. */
+export function useNavigation(tabs: readonly Route[]) {
   const [route, setRoute] = useState<Route>(readRoute);
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
 
   useEffect(() => {
     const onHashChange = () => setRoute(readRoute());
@@ -93,7 +80,7 @@ export function useNavigation() {
 
   const navigate = useCallback((next: Route) => {
     const current = readRoute();
-    if (current !== next) cameFrom.current = isTabRoute(current) ? current : null;
+    if (current !== next) cameFrom.current = isTabRoute(current, tabsRef.current) ? current : null;
     window.location.hash = next;
     setRoute(next);
   }, []);
@@ -101,8 +88,18 @@ export function useNavigation() {
   const back = useCallback(() => {
     const current = readRoute();
     const from = cameFrom.current;
-    navigate(from && from !== current ? from : parentRoute(current));
+    navigate(from && from !== current ? from : parentRoute(current, tabsRef.current));
   }, [navigate]);
+
+  /* A fresh open (no hash yet) lands on Hoy, or on her first tab when
+     she took Hoy off the bar — the bar is the app as she set it up.
+     Only ever runs before the first navigation: after that the hash is
+     set and a settings change never yanks her off a screen. */
+  useEffect(() => {
+    if (window.location.hash) return;
+    const landing = landingRoute(tabs);
+    if (landing !== "home") navigate(landing);
+  }, [tabs, navigate]);
 
   return { route, navigate, back };
 }

@@ -3,7 +3,8 @@ import { AppProvider, useApp, type WorkspaceActions } from "./context/AppContext
 import { SessionProvider, type SessionValue } from "./context/SessionContext";
 import { ToastProvider } from "./context/ToastContext";
 import { useAuth } from "./hooks/useAuth";
-import { isTabRoute, useNavigation, type Route } from "./hooks/useNavigation";
+import { useNavigation, type Route } from "./hooks/useNavigation";
+import { DEFAULT_TABS, isTabRoute } from "./data/nav";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { useTheme } from "./hooks/useTheme";
 import { useWorkspaces } from "./hooks/useWorkspaces";
@@ -16,7 +17,7 @@ import { ChangePasswordSheet } from "./components/ChangePasswordSheet";
 import { Drawer } from "./components/Drawer";
 import { EmptyState } from "./components/EmptyState";
 import { Icon } from "./components/Icon";
-import { BottomTabs, TAB_ORDER } from "./components/BottomTabs";
+import { BottomTabs } from "./components/BottomTabs";
 import { DataErrorToast } from "./components/DataErrorToast";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { UpdateToast } from "./components/UpdateToast";
@@ -26,11 +27,12 @@ import { AuthScreen } from "./screens/AuthScreen";
 import { Home } from "./screens/Home";
 import { Schedule } from "./screens/Schedule";
 import { Money } from "./screens/Money";
-/* Route-level splitting. The three tab routes (Hoy, Agenda, Dinero)
-   stay eager — that is where she lives, and a suspense flash on the
-   default screen would be a regression. Everything reached from the
-   drawer, plus the eight-step Onboarding she sees exactly once per
-   account, loads on first visit instead of riding in the entry chunk. */
+/* Route-level splitting. Hoy, Agenda and Dinero stay eager — the
+   default bar, where she lives, and a suspense flash on the landing
+   screen would be a regression. Everything else, plus the eight-step
+   Onboarding she sees exactly once per account, loads on first visit
+   instead of riding in the entry chunk — a module she pins to the bar
+   is fetched once and cached like any other chunk. */
 const Projects = lazy(() => import("./screens/Projects").then((m) => ({ default: m.Projects })));
 const Contacts = lazy(() => import("./screens/Contacts").then((m) => ({ default: m.Contacts })));
 const Settings = lazy(() => import("./screens/Settings").then((m) => ({ default: m.Settings })));
@@ -99,13 +101,13 @@ function Screen({ route, navigate }: { route: Route; navigate: (r: Route) => voi
    the very first mount never animates; the wrapper is keyed on `route`
    in `SignedIn` so every later change replays the keyframe. */
 type Direction = "left" | "right" | "fade" | null;
-function useScreenDirection(route: Route): Direction {
+function useScreenDirection(route: Route, tabs: readonly Route[]): Direction {
   const [direction, setDirection] = useState<Direction>(null);
   const [prevRoute, setPrevRoute] = useState(route);
   if (route !== prevRoute) {
     setPrevRoute(route);
-    if (isTabRoute(route) && isTabRoute(prevRoute)) {
-      setDirection(TAB_ORDER.indexOf(route) > TAB_ORDER.indexOf(prevRoute) ? "left" : "right");
+    if (isTabRoute(route, tabs) && isTabRoute(prevRoute, tabs)) {
+      setDirection(tabs.indexOf(route) > tabs.indexOf(prevRoute) ? "left" : "right");
     } else {
       setDirection("fade");
     }
@@ -125,8 +127,8 @@ const SCREEN_ANIMATION: Record<NonNullable<Direction>, string> = {
    subtree moves on navigation; the chrome (top bar, FAB inside each
    screen is position: fixed, BottomTabs) stays put. */
 function SignedIn({ route, navigate }: { route: Route; navigate: (r: Route) => void }) {
-  const { loading, refreshAll } = useApp();
-  const direction = useScreenDirection(route);
+  const { loading, refreshAll, settings } = useApp();
+  const direction = useScreenDirection(route, settings.tabs);
 
   return (
     <PullToRefresh onRefresh={refreshAll}>
@@ -167,7 +169,7 @@ function OnboardingGate() {
          <BottomTabs />           floating Liquid Glass pill (hidden by
                                   the body:has(.sheet-overlay) rule while
                                   a sheet is open, together with the FAB)
-   `tabs` is false on the auth screen so the pill doesn't render there. */
+   `tabs` is null on the auth screen so the pill doesn't render there. */
 function Shell({
   route,
   navigate,
@@ -180,7 +182,7 @@ function Shell({
 }: {
   route: Route;
   navigate: (r: Route) => void;
-  tabs: boolean;
+  tabs: readonly Route[] | null;
   topbarLeft?: ReactNode;
   topbarRight?: ReactNode;
   brand: string;
@@ -254,7 +256,7 @@ function Shell({
             </div>
           </div>
           {children}
-          {tabs && <BottomTabs route={route} navigate={navigate} />}
+          {tabs && <BottomTabs tabs={tabs} route={route} navigate={navigate} />}
         </div>
       </ToastProvider>
     </div>
@@ -262,9 +264,11 @@ function Shell({
 }
 
 export default function App() {
-  const { route, navigate, back } = useNavigation();
   const auth = useAuth();
   const ws = useWorkspaces(auth.user?.id ?? null);
+  // The bar as she set it up; the default until her workspace loads.
+  const tabs = ws.active?.settings.tabs ?? DEFAULT_TABS;
+  const { route, navigate, back } = useNavigation(tabs);
   const [accountOpen, setAccountOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [fabPrimary, setFabPrimary] = useState<FabPrimary | null>(null);
@@ -329,7 +333,7 @@ export default function App() {
   );
 
   const rail = wide && signedIn && !!active;
-  const onTab = isTabRoute(route);
+  const onTab = isTabRoute(route, tabs);
 
   // Auth gate: skeleton while the session + workspace list resolve (first
   // paint looks like the destination), AuthScreen when signed out, then
@@ -483,7 +487,7 @@ export default function App() {
 
   if (!(signedIn && active && session)) {
     return (
-      <Shell route={route} navigate={navigate} tabs={false} brand="Angus" topbarRight={topbarRight}>
+      <Shell route={route} navigate={navigate} tabs={null} brand="Angus" topbarRight={topbarRight}>
         {body}
         {overlays}
       </Shell>
@@ -497,7 +501,7 @@ export default function App() {
         <Shell
           route={route}
           navigate={navigate}
-          tabs={!!active.onboardedAt}
+          tabs={active.onboardedAt ? tabs : null}
           brand={active.name}
           topbarLeft={active.onboardedAt ? topbarLeft : null}
           topbarRight={topbarRight}

@@ -54,6 +54,13 @@ describe("mergeSettings", () => {
   it("rounds a fractional deposit percent", () => {
     expect(mergeSettings({ defaultDepositPercent: 33.4 }).defaultDepositPercent).toBe(33);
   });
+
+  it("keeps her bottom bar in her order and falls back to the default bar", () => {
+    expect(mergeSettings({}).tabs).toEqual(["money", "home", "schedule"]);
+    expect(mergeSettings({ tabs: ["notes", "home", "projects", "settings"] }).tabs).toEqual(["notes", "home", "projects"]);
+    expect(mergeSettings({ tabs: ["home"] }).tabs).toEqual(["money", "home", "schedule"]);
+    expect(mergeSettings({ tabs: "home,money" }).tabs).toEqual(["money", "home", "schedule"]);
+  });
 });
 
 describe("firstName", () => {

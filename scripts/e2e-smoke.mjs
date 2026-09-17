@@ -260,6 +260,26 @@ await page.reload({ waitUntil: "domcontentloaded" });
 await page.waitForTimeout(2500);
 step("it stays gone after a reload", (await page.locator(`text=${edited}`).count()) === 0);
 
+/* ── Her bar ──
+   The bottom pill is a workspace setting (data/nav.ts). Pin a module
+   from Ajustes, see it land in the pill, put the default back so the
+   next run starts from the same bar. */
+const barLabels = () => page.$$eval("nav.bottom-tabs .bottom-tab-label", (els) => els.map((e) => e.textContent));
+step("the default bar is Dinero · Hoy · Agenda", JSON.stringify(await barLabels()) === JSON.stringify(["Dinero", "Hoy", "Agenda"]));
+await page.evaluate(() => {
+  // eslint-disable-next-line no-undef -- runs in the page, not in Node
+  window.location.hash = "settings";
+});
+await page.waitForSelector(".tabbar-editor", { timeout: 15000 });
+await page.waitForTimeout(500);
+await page.click('.tabbar-editor-add .chip:has-text("Obra")');
+await page.waitForTimeout(600);
+step("pinning Obra puts it in the pill", JSON.stringify(await barLabels()) === JSON.stringify(["Dinero", "Hoy", "Agenda", "Obra"]));
+await shot("10-bar-edited");
+await page.click(".tabbar-editor-reset");
+await page.waitForTimeout(600);
+step("reset restores the default bar", JSON.stringify(await barLabels()) === JSON.stringify(["Dinero", "Hoy", "Agenda"]));
+
 await browser.close();
 if (errors.length) {
   console.error("FAILED with errors:\n" + errors.join("\n"));

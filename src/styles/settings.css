@@ -45,6 +45,44 @@
 }
 .settings-control-help { font-size: var(--text-xs); color: var(--charcoal-md); margin-top: 8px; }
 
+/* ── Barra de abajo (TabBarEditor) ──
+   One row per pinned module: position, icon, label, then three 44px
+   icon buttons (left / right / remove). Reads top-to-bottom as the
+   pill reads left-to-right. */
+.tabbar-editor-list { list-style: none; margin: 0; padding: 0; }
+.tabbar-editor-row {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 4px 0;
+  border-bottom: 1px solid var(--border-lt);
+}
+.tabbar-editor-row:last-child { border-bottom: none; }
+.tabbar-editor-pos {
+  width: 18px; flex-shrink: 0; text-align: center;
+  font-family: var(--font-d); font-weight: 800; font-size: var(--text-sm);
+  color: var(--charcoal-xl); font-variant-numeric: tabular-nums;
+}
+.tabbar-editor-label {
+  flex: 1; min-width: 0;
+  font-size: var(--text-md); font-weight: 600; color: var(--charcoal);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tabbar-editor-btn {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-lt); border-radius: var(--radius-pill);
+  background: var(--white); color: var(--charcoal-md);
+  cursor: pointer; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.tabbar-editor-btn:active { background: var(--accent-mist); color: var(--accent-dark); }
+.tabbar-editor-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.tabbar-editor-btn:disabled:active { background: var(--white); color: var(--charcoal-md); }
+.tabbar-editor-btn--remove:not(:disabled):active { background: var(--red-bg); color: var(--red); }
+.tabbar-editor-add { margin-top: 12px; }
+.tabbar-editor-add .chip:disabled { opacity: 0.55; cursor: not-allowed; }
+.tabbar-editor-reset { margin-top: 10px; }
+
 .settings-about {
   padding: 16px; font-size: var(--text-sm); color: var(--charcoal-md); line-height: 1.5;
 }

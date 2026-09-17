@@ -16,12 +16,14 @@ import {
 import { formatMXN } from "../utils/money";
 import { formatFileSize } from "../lib/files";
 import { suggestMediums } from "../utils/settings";
+import { MAX_TABS, MIN_TABS } from "../data/nav";
 import { Icon, type IconName } from "../components/Icon";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { ChipSelect } from "../components/ChipSelect";
 import { ChipMultiSelect } from "../components/ChipMultiSelect";
 import { SettingsFieldSheet } from "../components/SettingsFieldSheet";
 import { ChangePasswordSheet } from "../components/ChangePasswordSheet";
+import { TabBarEditor } from "../components/TabBarEditor";
 import { haptic } from "../lib/haptics";
 import { TABLE_COUNT, buildBackup, countRows, downloadJson } from "../lib/exportAll";
 import { DiagnosticsSheet } from "../components/DiagnosticsSheet";
@@ -127,6 +129,19 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
           >
             + Otro medio
           </button>
+        </Control>
+      </Section>
+
+      <Section title="Tu barra de abajo">
+        <Control
+          label="Qué módulos van en la barra"
+          help={`Entre ${MIN_TABS} y ${MAX_TABS}, en el orden que elijas. Lo que no esté aquí queda a un toque en el menú.`}
+        >
+          {/* No "Guardado" toast: the pill at the bottom of the screen
+              moves with every tap, and three toasts stacked over it
+              hid the very thing she was arranging. A failed write
+              still surfaces through DataErrorToast. */}
+          <TabBarEditor value={settings.tabs} onChange={(next) => void updateSettings({ tabs: next })} />
         </Control>
       </Section>
 

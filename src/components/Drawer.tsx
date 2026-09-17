@@ -1,53 +1,23 @@
 import { useCallback, useEffect, useRef, type TouchEvent as ReactTouchEvent } from "react";
-import { Icon, type IconName } from "./Icon";
+import { Icon } from "./Icon";
 import { useEscape } from "../hooks/useEscape";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useSheetExit } from "../hooks/useSheetExit";
 import { useApp } from "../context/AppContext";
 import { useSession } from "../context/SessionContext";
 import type { Route } from "../hooks/useNavigation";
+import { NAV_GROUP_TITLE, NAV_ITEMS, type NavGroupKey, type NavItem } from "../data/nav";
 import { firstName } from "../utils/settings";
 import { haptic } from "../lib/haptics";
 
 /* ── Drawer ──
-   The side menu. Which items appear depends on the workspace's practice
-   (a studio that doesn't teach has no Clases entry) — see `visible`. */
+   The side menu: every destination that is NOT in her bottom bar
+   (data/nav.ts is the one catalog both read from), so a module she
+   pins to the pill leaves the menu and one she removes shows up here.
+   Which practice items appear depends on the workspace's practice (a
+   studio that doesn't teach has no Clases entry) — see `visible`. */
 
-interface NavItem {
-  route: Route;
-  label: string;
-  icon: IconName;
-  /** Hide unless the practice includes one of these (undefined = always). */
-  practice?: string[];
-}
-
-interface NavGroup {
-  title: string;
-  items: NavItem[];
-}
-
-const GROUPS: NavGroup[] = [
-  {
-    title: "Tu práctica",
-    items: [
-      { route: "projects", label: "Obra", icon: "palette" },
-      { route: "contacts", label: "Contactos", icon: "users" },
-      { route: "classes", label: "Clases", icon: "graduation", practice: ["classes", "workshops"] },
-      { route: "studies", label: "Estudios", icon: "book", practice: ["studies"] },
-      { route: "notes", label: "Notas", icon: "edit" },
-      { route: "expos", label: "Expos", icon: "map-pin", practice: ["expos"] }
-    ]
-  },
-  {
-    title: "Dinero",
-    items: [
-      { route: "recurring", label: "Recurrentes", icon: "repeat" },
-      { route: "budgets", label: "Presupuestos", icon: "target" },
-      { route: "forecast", label: "Pronóstico", icon: "trending" },
-      { route: "reports", label: "Reportes", icon: "chart" }
-    ]
-  }
-];
+const GROUP_ORDER: NavGroupKey[] = ["day", "practice", "money"];
 
 const SWIPE_CLOSE_PX = 56;
 
@@ -133,11 +103,17 @@ export function Drawer({
   };
 
   const practice = settings.practice;
+  const inBar = new Set<Route>(settings.tabs);
   const visible = (item: NavItem) =>
-    !item.practice ||
-    practice.length === 0 ||
-    (counts[item.route] ?? 0) > 0 ||
-    item.practice.some((p) => practice.includes(p as never));
+    !inBar.has(item.route) &&
+    (!item.practice ||
+      practice.length === 0 ||
+      (counts[item.route] ?? 0) > 0 ||
+      item.practice.some((p) => practice.includes(p as never)));
+  const menuGroups = GROUP_ORDER.map((key) => ({
+    title: NAV_GROUP_TITLE[key],
+    items: NAV_ITEMS.filter((item) => item.group === key && visible(item))
+  }));
 
   const name = firstName(settings.artistName) || session.email;
   const initial = (settings.artistName || session.email || "?").slice(0, 1).toUpperCase();
@@ -166,13 +142,12 @@ export function Drawer({
       </button>
 
       <div className="drawer-nav scroll-bounce">
-        {GROUPS.map((group) => {
-          const items = group.items.filter(visible);
-          if (items.length === 0) return null;
+        {menuGroups.map((group) => {
+          if (group.items.length === 0) return null;
           return (
             <div className="drawer-group" key={group.title}>
               <div className="drawer-group-title">{group.title}</div>
-              {items.map((item) => {
+              {group.items.map((item) => {
                 const active = route === item.route;
                 const count = counts[item.route];
                 return (
