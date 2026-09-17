@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
-import type { Assignment, Contact, Note, Project, QuickAction, ScheduleEvent } from "../types";
+import type { Assignment, Contact, Note, Project, ScheduleEvent } from "../types";
 import type { Route } from "../hooks/useNavigation";
 import { EVENT_KIND, LEAD_STAGE, labelFor } from "../data/constants";
 import {
@@ -35,7 +35,6 @@ import { SaleDetailSheet } from "../components/SaleDetailSheet";
 import { SaleSheet } from "../components/SaleSheet";
 import { ExpenseSheet } from "../components/ExpenseSheet";
 import { EventSheet } from "../components/EventSheet";
-import { QuickAddFab } from "../components/QuickAddFab";
 import { AttendanceSheet } from "../components/AttendanceSheet";
 import { AssignmentSheet } from "../components/AssignmentSheet";
 import { QuickCaptureSheet } from "../components/notes/QuickCaptureSheet";
@@ -99,16 +98,6 @@ type OpenSheet =
   | { kind: "newEvent" }
   | { kind: "attendance"; groupId: string; eventId: string }
   | null;
-
-const QUICK_SHEET: Record<QuickAction, OpenSheet> = {
-  sale: { kind: "newSale" },
-  expense: { kind: "newExpense" },
-  event: { kind: "newEvent" },
-  project: { kind: "project", project: null },
-  contact: { kind: "contact", contact: null },
-  assignment: { kind: "assignment", assignment: null },
-  note: { kind: "quickNote" }
-};
 
 export function Home({ navigate }: { navigate: (route: Route) => void }) {
   const { sales, payments, installments, expenses, contacts, projects, events, settings, groups, attendance, courses, assignments } =
@@ -623,8 +612,6 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
           </div>
         </div>
       )}
-
-      <QuickAddFab onPick={(action) => setSheet(QUICK_SHEET[action])} />
 
       {sheet?.kind === "sale" && (
         <SaleDetailSheet saleId={sheet.id} onClose={() => setSheet(null)} />

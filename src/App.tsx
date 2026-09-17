@@ -9,6 +9,8 @@ import { useTheme } from "./hooks/useTheme";
 import { useWorkspaces } from "./hooks/useWorkspaces";
 import { AccountSheet } from "./components/AccountSheet";
 import { FeedbackSheet } from "./components/FeedbackSheet";
+import { QuickAddFab } from "./components/QuickAddFab";
+import { FabProvider, type FabControl, type FabPrimary } from "./context/FabContext";
 import { ChangePasswordSheet } from "./components/ChangePasswordSheet";
 import { Drawer } from "./components/Drawer";
 import { EmptyState } from "./components/EmptyState";
@@ -63,7 +65,7 @@ function Screen({ route, navigate }: { route: Route; navigate: (r: Route) => voi
     case "schedule":
       return <Schedule />;
     case "money":
-      return <Money />;
+      return <Money navigate={navigate} />;
     case "settings":
       return <Settings navigate={navigate} />;
     case "recurring":
@@ -264,6 +266,9 @@ export default function App() {
   const ws = useWorkspaces(auth.user?.id ?? null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [fabPrimary, setFabPrimary] = useState<FabPrimary | null>(null);
+  const [fabHidden, setFabHidden] = useState(false);
+  const fabControl = useMemo<FabControl>(() => ({ setPrimary: setFabPrimary, setHidden: setFabHidden }), []);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const theme = useTheme();
@@ -478,6 +483,7 @@ export default function App() {
   return (
     <AppProvider key={active.id} workspace={active} actions={wsActions}>
       <SessionProvider value={session}>
+        <FabProvider value={fabControl}>
         <Shell
           route={route}
           navigate={navigate}
@@ -500,8 +506,13 @@ export default function App() {
             </Suspense>
           )}
           {feedbackOpen && <FeedbackSheet route={route} onClose={() => setFeedbackOpen(false)} />}
+          {/* The one + for the whole app; Ajustes has nothing to add. */}
+          {active.onboardedAt && route !== "settings" && (
+            <QuickAddFab primary={fabPrimary} hidden={fabHidden} />
+          )}
           {overlays}
         </Shell>
+        </FabProvider>
       </SessionProvider>
     </AppProvider>
   );

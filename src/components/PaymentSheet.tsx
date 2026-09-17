@@ -11,6 +11,7 @@ import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
 import { formatMXN } from "../utils/money";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 export function PaymentSheet({
   saleId,
@@ -118,7 +119,7 @@ export function PaymentSheet({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0"
-            autoFocus={payment === null}
+            autoFocus={payment === null && prefersAutoFocus()}
           />
         </div>
         {owed > 0 && <div className="input-help">Falta por cubrir {formatMXN(owed)}.</div>}

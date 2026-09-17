@@ -30,6 +30,8 @@ import { SaleSheet } from "../components/SaleSheet";
 import { SaleDetailSheet } from "../components/SaleDetailSheet";
 import { ExpenseSheet } from "../components/ExpenseSheet";
 import { BalanceView } from "./MoneyBalance";
+import { useFab } from "../context/FabContext";
+import type { Route } from "../hooks/useNavigation";
 
 type View = "sales" | "expenses" | "balance";
 
@@ -46,13 +48,25 @@ const VIEW_ITEMS = [
 
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
 
-export function Money() {
+const MONEY_LINKS: { route: Route; label: string }[] = [
+  { route: "recurring", label: "Recurrentes" },
+  { route: "budgets", label: "Presupuestos" },
+  { route: "forecast", label: "Pronóstico" },
+  { route: "reports", label: "Reportes" }
+];
+
+export function Money({ navigate }: { navigate: (r: Route) => void }) {
   const { sales, payments, expenses, contacts, projects, events, rules } = useApp();
   const [view, setView] = useState<View>(lastView);
   const [period, setPeriod] = useState<Period>(() => currentPeriod("month", todayISO()));
   const [editingSale, setEditingSale] = useState<Sale | "new" | null>(null);
   const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | "new" | null>(null);
+  useFab(
+    view === "expenses"
+      ? { key: "expense", label: "Nuevo gasto", icon: "receipt", onPick: () => setEditingExpense("new") }
+      : { key: "sale", label: "Nueva venta", icon: "banknote", onPick: () => setEditingSale("new") }
+  );
 
   const today = todayISO();
   const month = monthRange(today);
@@ -147,13 +161,21 @@ export function Money() {
         />
       )}
 
-      <button
-        className="fab"
-        onClick={() => (view === "expenses" ? setEditingExpense("new") : setEditingSale("new"))}
-        aria-label={view === "expenses" ? "Nuevo gasto" : "Nueva venta"}
-      >
-        <Icon name="plus" size={24} strokeWidth={2.2} />
-      </button>
+      {/* The four finance screens live in the drawer; from here they were
+          menu → item. One row of chips makes them a single tap. */}
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Más de tu dinero</span>
+        </div>
+        <div className="chip-row">
+          {MONEY_LINKS.map((l) => (
+            <button key={l.route} type="button" className="chip" onClick={() => navigate(l.route)}>
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
 
       {editingSale && (
         <SaleSheet

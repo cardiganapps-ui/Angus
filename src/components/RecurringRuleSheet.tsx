@@ -20,6 +20,7 @@ import { formatShort, todayISO } from "../utils/dates";
 import { formatMXN } from "../utils/money";
 import { monthlyEquivalent, nextOccurrence, periodKeyFamily } from "../utils/recurrence";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 const KIND_ITEMS = RECURRENCE_KIND.map((k) => ({ k: k.value, l: k.label }));
 const CADENCE_OPTIONS = RECURRENCE_CADENCE.map((c) => ({ value: c.value, label: c.label }));
@@ -199,7 +200,7 @@ export function RecurringRuleSheet({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={kind === "income" ? "Colegiatura de Sofía, retainer galería…" : "Renta del taller, Adobe, seguro…"}
-          autoFocus={rule === null}
+          autoFocus={rule === null && prefersAutoFocus()}
         />
       </div>
 

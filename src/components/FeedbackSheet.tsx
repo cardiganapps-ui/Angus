@@ -8,6 +8,7 @@ import { apiFetch, isOffline } from "../lib/api";
 import { readEvents } from "../lib/diagnostics";
 import { haptic } from "../lib/haptics";
 import { firstName } from "../utils/settings";
+import { prefersAutoFocus } from "../lib/device";
 
 /* ── Cuéntale a Diego ──
    The one channel from her to whoever maintains this. A kind, a
@@ -120,7 +121,7 @@ export function FeedbackSheet({ route, onClose }: { route?: string; onClose: () 
           onChange={(e) => setMessage(e.target.value)}
           placeholder={PLACEHOLDER[kind]}
           maxLength={4000}
-          autoFocus
+          autoFocus={prefersAutoFocus()}
           disabled={submitting}
         />
         <div className="input-help">

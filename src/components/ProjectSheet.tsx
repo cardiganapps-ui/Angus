@@ -20,6 +20,7 @@ import { DocumentViewer } from "./DocumentViewer";
 import { UploadSheet } from "./UploadSheet";
 import type { Document } from "../types";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 const STATUS_ITEMS = PROJECT_STATUS.map((s) => ({ k: s.value, l: s.label }));
 
@@ -186,7 +187,7 @@ export function ProjectSheet({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Retrato, serie, encargo…"
-          autoFocus={project === null}
+          autoFocus={project === null && prefersAutoFocus()}
         />
       </div>
 

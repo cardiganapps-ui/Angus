@@ -10,6 +10,7 @@ import { AssignmentSheet } from "../components/AssignmentSheet";
 import { dueLabel } from "../utils/studies";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { MonthGrid } from "../components/MonthGrid";
+import { useFab } from "../context/FabContext";
 
 type View = "agenda" | "month";
 let lastView: View = "agenda";
@@ -40,6 +41,7 @@ export function Schedule() {
   const [tarea, setTarea] = useState<Assignment | null>(null);
   const today = todayISO();
   const [selected, setSelected] = useState(today);
+  useFab({ key: "event", label: "Nuevo evento", icon: "calendar", onPick: () => setEditing({ newOn: view === "month" ? selected : today }) });
   const [month, setMonth] = useState(today);
 
   const live = useMemo(() => events.filter((e) => !e.cancelled), [events]);
@@ -199,9 +201,6 @@ export function Schedule() {
         </>
       )}
 
-      <button className="fab" onClick={() => setEditing({ newOn: view === "month" ? selected : today })} aria-label="Nuevo evento">
-        <Icon name="plus" size={24} strokeWidth={2.2} />
-      </button>
 
       {editing && (
         <EventSheet

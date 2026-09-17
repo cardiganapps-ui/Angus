@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { recordVisit } from "../lib/usage";
 
 /* ── Routes ──
@@ -82,13 +82,24 @@ export function useNavigation() {
     recordVisit(route);
   }, [route]);
 
+  /* Where she came from, so the chevron takes her BACK rather than to a
+     fixed parent: Obra → Contactos → chevron used to land on Hoy. Only
+     tab routes are remembered — from a drawer route the parent is the
+     right answer (Obra → Recurrentes → back is Dinero, not Obra) — and
+     the OS back gesture is untouched; it walks the hash history. */
+  const cameFrom = useRef<Route | null>(null);
+
   const navigate = useCallback((next: Route) => {
+    const current = readRoute();
+    if (current !== next) cameFrom.current = isTabRoute(current) ? current : null;
     window.location.hash = next;
     setRoute(next);
   }, []);
 
   const back = useCallback(() => {
-    navigate(parentRoute(readRoute()));
+    const current = readRoute();
+    const from = cameFrom.current;
+    navigate(from && from !== current ? from : parentRoute(current));
   }, [navigate]);
 
   return { route, navigate, back };

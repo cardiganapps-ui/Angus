@@ -27,6 +27,7 @@ import { Sheet } from "./Sheet";
 import { Icon, type IconName } from "./Icon";
 import { formatDateLong, formatWithWeekday, todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 /* ── NoteEditor ──
    The full-height writing surface: header (back · save state ·
@@ -539,7 +540,7 @@ export function NoteEditor({
               }
             }}
             placeholder="Título"
-            autoFocus={isBrandNewEmpty}
+            autoFocus={isBrandNewEmpty && prefersAutoFocus()}
             readOnly={readingMode}
             aria-label="Título"
           />

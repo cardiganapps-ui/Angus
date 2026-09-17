@@ -13,6 +13,7 @@ import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { addDays, parseISODate, todayISO } from "../utils/dates";
 import { describeSeries, reshapeFuture, seriesFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 /* ── EventSheet ──
    One-off events and recurring sessions in the same sheet.
@@ -338,7 +339,7 @@ export function EventSheet({
 
       <div className="input-group">
         <label className="input-label" htmlFor="event-title">Título</label>
-        <input id="event-title" className="input" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus={event === null} />
+        <input id="event-title" className="input" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus={event === null && prefersAutoFocus()} />
       </div>
 
       <div className="input-group">

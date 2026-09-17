@@ -10,6 +10,7 @@ import { makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 export function ContactSheet({
   contact,
@@ -100,7 +101,7 @@ export function ContactSheet({
     >
       <div className="input-group">
         <label className="input-label" htmlFor="contact-name">Nombre</label>
-        <input id="contact-name" className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus={contact === null} />
+        <input id="contact-name" className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus={contact === null && prefersAutoFocus()} />
       </div>
 
       <div className="input-group">

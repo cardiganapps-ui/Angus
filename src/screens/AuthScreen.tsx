@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { AuthState } from "../hooks/useAuth";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { translateError } from "../lib/authErrors";
+import { prefersAutoFocus } from "../lib/device";
 
 type Mode = "signin" | "signup" | "magic" | "reset";
 
@@ -96,7 +97,7 @@ export function AuthScreen({ auth }: { auth: AuthState }) {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoFocus
+              autoFocus={prefersAutoFocus()}
             />
           </div>
 

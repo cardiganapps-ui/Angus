@@ -15,6 +15,7 @@ import { addMonths, formatShort, todayISO } from "../utils/dates";
 import { paidForSale, planMismatch, rebuildPlan } from "../utils/accounting";
 import { formatMXN, toCents } from "../utils/money";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 type PlanChoice = "rebuild" | "keep";
 const PLAN_CHOICE_ITEMS = [
@@ -262,7 +263,7 @@ export function SaleSheet({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Retrato por encargo, pieza en expo…"
-          autoFocus={sale === null}
+          autoFocus={sale === null && prefersAutoFocus()}
         />
       </div>
 
