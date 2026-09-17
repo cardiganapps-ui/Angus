@@ -240,12 +240,16 @@ artifact either way, which is most of the value when it fails.
 
 ## 5 — Two small assets, and one optional string
 
-**5.1 — A maskable app icon.** `public/icon-512.png` is edge-to-edge, so
-declaring it `maskable` got its edges cropped by Android's launcher mask.
-The maskable entry is removed rather than left wrong. To restore it,
-export a 512×512 PNG with the mark inside the centre **80%** (≈51px
-padding all round) as `public/icon-512-maskable.png` and I'll wire it
-into the manifest.
+**5.1 — ~~A maskable app icon.~~ ✅ DONE 2026-09-17.** The app has a
+real icon now: a hand-drawn A — A for Angus, Art, Andrea — designed with
+Gemini from the palette brief, traced as a vector (`public/icon.svg`) so
+it is crisp at every size, blush on deep rose (`--accent-dark`). It
+replaces the orange placeholder in `icon-192.png` / `icon-512.png` and
+the unrelated `favicon.svg`. The mark sits inside the 80% safe zone, so
+the same 512 is declared both `any` and `maskable`; verified against
+circle and squircle masks at 96 px and 48 px on light and dark
+wallpapers. The rose-on-blush colourway is one edit away in `icon.svg`
+if she prefers it.
 
 **5.2 — `VITE_INVITE_CODE` (optional).** A shared string that gates the
 "Crear cuenta" form. Unset means no code is asked for, which is the
