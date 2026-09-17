@@ -39,7 +39,7 @@ jobs:
         env:
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASS: ${{ secrets.E2E_PASS }}
-        run: node scripts/e2e-smoke.mjs "${{ vars.E2E_URL || 'https://angus-xi.vercel.app' }}"
+        run: node scripts/e2e-smoke.mjs "${{ vars.E2E_URL || 'https://angus.cardigan.mx' }}"
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v4

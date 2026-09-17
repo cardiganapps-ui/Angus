@@ -6,6 +6,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
    are cross-origin, so their preflights need these headers. Auth is
    still each handler's JWT check — CORS only lets the request through. */
 
+// angus.cardigan.mx is production; angus-xi.vercel.app stays for the
+// redirect hop and anything still pointing at it.
 const STATIC_ALLOWED = new Set([
   "https://angus.cardigan.mx",
   "https://angus-xi.vercel.app",

@@ -3,11 +3,11 @@
 // delete → confirm the GET now 404s. Uses a disposable account
 // (playbook §9) and that account's own workspace.
 //
-//   API_BASE=https://angus-xi.vercel.app E2E_EMAIL=… E2E_PASS=… \
+//   API_BASE=https://angus.cardigan.mx E2E_EMAIL=… E2E_PASS=… \
 //   node --env-file=.env.local scripts/r2-smoke.mjs
 import { createClient } from "@supabase/supabase-js";
 
-const API = (process.env.API_BASE || "https://angus-xi.vercel.app").replace(/\/$/, "");
+const API = (process.env.API_BASE || "https://angus.cardigan.mx").replace(/\/$/, "");
 const url = process.env.VITE_SUPABASE_URL;
 const anon = process.env.VITE_SUPABASE_ANON_KEY;
 const email = process.env.E2E_EMAIL;
