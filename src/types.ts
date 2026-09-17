@@ -1,3 +1,5 @@
+import type { TabRoute } from "./data/nav";
+
 export type ProjectStatus = "idea" | "in_progress" | "on_hold" | "completed";
 
 /** Whether the piece can be sold — inventory state, separate from production status. */
@@ -435,6 +437,7 @@ export interface WorkspaceSettings {
   theme: ThemePreference;
   textScale: TextScale;
   quickActions: QuickAction[]; // FAB speed-dial order on Hoy
+  tabs: TabRoute[]; // the bottom pill, in her order (2–5); the drawer shows the rest
 }
 
 export interface Workspace {

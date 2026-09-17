@@ -8,6 +8,8 @@ export type IconName =
   | "chevron-right"
   | "chevron-left"
   | "chevron-down"
+  | "arrow-up"
+  | "arrow-down"
   | "trash"
   | "check"
   | "banknote"
@@ -64,6 +66,8 @@ const PATHS: Record<IconName, string> = {
   "chevron-right": "M9 5l7 7-7 7",
   "chevron-left": "M15 5l-7 7 7 7",
   "chevron-down": "M5 9l7 7 7-7",
+  "arrow-up": "M12 19V5M5 12l7-7 7 7",
+  "arrow-down": "M12 5v14M19 12l-7 7-7-7",
   trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13",
   check: "M20 6L9 17l-5-5",
   banknote:

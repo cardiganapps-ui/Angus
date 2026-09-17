@@ -1,23 +1,19 @@
 import type { CSSProperties } from "react";
-import { Icon, type IconName } from "./Icon";
+import { Icon } from "./Icon";
 import type { Route } from "../hooks/useNavigation";
+import { navItem } from "../data/nav";
 import { haptic } from "../lib/haptics";
 
-/* Three tabs: the day, the calendar, the money. Everything else — Obra,
-   Contactos, Clases, Expos, the finance sub-screens, Ajustes — lives in
-   the side drawer so the pill stays roomy on a phone. */
-const TABS: { key: Route; label: string; icon: IconName }[] = [
-  { key: "home", label: "Hoy", icon: "home" },
-  { key: "schedule", label: "Agenda", icon: "calendar" },
-  { key: "money", label: "Dinero", icon: "banknote" }
-];
-
-/* Tab order, exported so App.tsx derives the screen slide direction
-   from the same source the pill draws from. */
-export const TAB_ORDER: Route[] = TABS.map((t) => t.key);
-
-export function BottomTabs({ route, navigate }: { route: Route; navigate: (r: Route) => void }) {
-  const activeIndex = TABS.findIndex((tab) => tab.key === route);
+/* The pill shows `settings.tabs` in her order — Dinero · Hoy · Agenda
+   by default, two to five of anything from data/nav.ts. Everything she
+   leaves out lives in the side drawer so the pill stays roomy on a
+   phone. */
+export function BottomTabs({ tabs, route, navigate }: { tabs: readonly Route[]; route: Route; navigate: (r: Route) => void }) {
+  const items = tabs.flatMap((key) => {
+    const item = navItem(key);
+    return item ? [item] : [];
+  });
+  const activeIndex = items.findIndex((tab) => tab.route === route);
   const showIndicator = activeIndex >= 0;
 
   return (
@@ -25,21 +21,21 @@ export function BottomTabs({ route, navigate }: { route: Route; navigate: (r: Ro
       <nav
         className="bottom-tabs"
         aria-label="Navegación"
-        style={{ "--active-i": Math.max(activeIndex, 0), "--tab-count": TABS.length } as CSSProperties}
+        style={{ "--active-i": Math.max(activeIndex, 0), "--tab-count": items.length } as CSSProperties}
       >
         {showIndicator && <span className="bottom-tab-indicator" aria-hidden="true" />}
-        {TABS.map((tab, i) => {
-          const active = route === tab.key;
+        {items.map((tab, i) => {
+          const active = route === tab.route;
           return (
             <button
-              key={tab.key}
+              key={tab.route}
               type="button"
               aria-current={active ? "page" : undefined}
               className={`bottom-tab ${active ? "bottom-tab--active" : ""}`}
               data-tab-i={i}
               onClick={() => {
                 if (!active) haptic.tap();
-                navigate(tab.key);
+                navigate(tab.route);
               }}
             >
               <span className="bottom-tab-icon" aria-hidden="true">

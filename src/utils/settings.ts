@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import type { InstallmentFrequency } from "./accounting";
 import { EXPENSE_CATEGORY } from "../data/constants";
+import { DEFAULT_TABS, normalizeTabs } from "../data/nav";
 
 /* ── Workspace settings ──
    The jsonb blob on `workspaces.settings` is written by whichever client
@@ -47,7 +48,8 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   budgets: {},
   theme: "system",
   textScale: "md",
-  quickActions: [...QUICK_ACTIONS]
+  quickActions: [...QUICK_ACTIONS],
+  tabs: [...DEFAULT_TABS]
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -110,7 +112,8 @@ export function mergeSettings(raw: unknown): WorkspaceSettings {
     budgets,
     theme: oneOf(r.theme, THEMES, "system"),
     textScale: oneOf(r.textScale, TEXT_SCALES, "md"),
-    quickActions: quick.length > 0 ? quick : [...QUICK_ACTIONS]
+    quickActions: quick.length > 0 ? quick : [...QUICK_ACTIONS],
+    tabs: normalizeTabs(r.tabs)
   };
 }
 
