@@ -6,6 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { FEEDBACK_KINDS, type FeedbackKind } from "../data/constants";
 import { apiFetch, isOffline } from "../lib/api";
 import { readEvents } from "../lib/diagnostics";
+import { readBreadcrumbs } from "../lib/breadcrumbs";
 import { haptic } from "../lib/haptics";
 import { firstName } from "../utils/settings";
 import { prefersAutoFocus } from "../lib/device";
@@ -29,24 +30,39 @@ const PLACEHOLDER: Record<FeedbackKind, string> = {
   question: "Lo que quieras preguntar — te contesto por correo."
 };
 
-function context(route: string | undefined) {
+type Tables = { table: string; loaded: number; total: number | null; truncated: boolean; readError: string | null }[];
+
+/* Everything that helps someone reproduce what she saw, nothing that
+   is hers: no rows, no titles, no amounts. */
+function context(route: string | undefined, tables: Tables) {
   const nav = typeof navigator !== "undefined" ? navigator : null;
   const win = typeof window !== "undefined" ? window : null;
+  const conn = nav ? (nav as Navigator & { connection?: { effectiveType?: string } }).connection : undefined;
   return {
     route: route ?? (win ? win.location.hash.replace(/^#\/?/, "") || "home" : "unknown"),
     version: __APP_VERSION__,
+    build: __BUILD_SHA__,
+    at: new Date().toISOString(),
+    lang: nav?.language ?? null,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone ?? null,
+    connection: conn?.effectiveType ?? null,
     online: nav ? nav.onLine : null,
     standalone: win ? win.matchMedia("(display-mode: standalone)").matches : null,
     viewport: win ? `${win.innerWidth}×${win.innerHeight}` : null,
     ua: nav ? nav.userAgent.slice(0, 200) : null,
     recent: readEvents()
       .slice(0, 5)
-      .map((e) => ({ at: e.lastAt ?? e.at, kind: e.kind, scope: e.scope, message: e.message, count: e.count }))
+      .map((e) => ({ at: e.lastAt ?? e.at, kind: e.kind, scope: e.scope, message: e.message, count: e.count })),
+    // Her last 40 steps: screens visited and anything the page complained about.
+    trail: readBreadcrumbs(),
+    // How much of each table the app was holding — "the total is wrong"
+    // is usually "the store was truncated".
+    tables
   };
 }
 
 export function FeedbackSheet({ route, onClose }: { route?: string; onClose: () => void }) {
-  const { workspaceId, settings } = useApp();
+  const { workspaceId, settings, loadReports } = useApp();
   const { showSuccess, showToast } = useToast();
   const [kind, setKind] = useState<FeedbackKind>("bug");
   const [message, setMessage] = useState("");
@@ -66,7 +82,10 @@ export function FeedbackSheet({ route, onClose }: { route?: string; onClose: () 
       workspaceId,
       kind,
       message: message.trim(),
-      context: context(route)
+      context: context(
+        route,
+        loadReports.map(({ table, report: r }) => ({ table, loaded: r.loaded, total: r.total, truncated: r.truncated, readError: r.readError }))
+      )
     });
     setSubmitting(false);
     if (!result.ok) {
@@ -125,8 +144,8 @@ export function FeedbackSheet({ route, onClose }: { route?: string; onClose: () 
           disabled={submitting}
         />
         <div className="input-help">
-          Se manda con la pantalla donde estás, la versión de Angus y los últimos avisos del
-          Diagnóstico — nunca tus registros.
+          Se manda con la pantalla donde estás, las últimas que abriste, la versión de Angus y los
+          últimos avisos — nunca tus registros.
         </div>
       </div>
     </Sheet>

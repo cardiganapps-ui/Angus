@@ -3,6 +3,7 @@
 
 /** Injected by vite.config.ts from package.json — shown in Ajustes → Acerca de. */
 declare const __APP_VERSION__: string;
+declare const __BUILD_SHA__: string;
 
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string;

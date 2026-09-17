@@ -16,7 +16,7 @@ import { getAuth, isWorkspaceMember } from "./_r2.js";
 const KINDS = new Set(["bug", "idea", "question"]);
 const KIND_LABEL: Record<string, string> = { bug: "Falla", idea: "Idea", question: "Pregunta" };
 const MAX_MESSAGE = 4000;
-const MAX_CONTEXT_BYTES = 8_000;
+const MAX_CONTEXT_BYTES = 32_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function contextOf(raw: unknown): Record<string, unknown> {
@@ -27,7 +27,15 @@ function contextOf(raw: unknown): Record<string, unknown> {
 
 function plain(context: Record<string, unknown>): string {
   return Object.entries(context)
-    .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
+    .map(([k, v]) => {
+      if (typeof v === "string") return `${k}: ${v}`;
+      if (Array.isArray(v) && v.length === 0) return `${k}: —`;
+      if (Array.isArray(v)) {
+        // one line per entry, in order — a trail reads top to bottom
+        return `${k}:\n` + v.map((x) => `  ${typeof x === "string" ? x : JSON.stringify(x)}`).join("\n");
+      }
+      return `${k}: ${JSON.stringify(v)}`;
+    })
     .join("\n");
 }
 
@@ -38,7 +46,8 @@ async function notify(input: { kind: string; message: string; email: string; wor
   const from = process.env.FEEDBACK_FROM || "Angus <angus@cardigan.mx>";
   const label = KIND_LABEL[input.kind] ?? input.kind;
   const firstLine = input.message.split("\n")[0].trim();
-  const subject = `[Angus] ${label}: ${firstLine.length > 70 ? `${firstLine.slice(0, 70)}…` : firstLine}`;
+  const build = typeof input.context.build === "string" ? ` · ${input.context.build}` : "";
+  const subject = `[Angus] ${label}: ${firstLine.length > 70 ? `${firstLine.slice(0, 70)}…` : firstLine}${build}`;
   const text = [
     `${label} de ${input.email}`,
     "",
