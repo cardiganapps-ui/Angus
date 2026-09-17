@@ -162,59 +162,37 @@ account exists and the R2 keys are in `.env.local` — you don't have to.
 
 ---
 
-## 2 — The nightly backup — one paste from done
+## 2 — ~~The nightly backup~~ ✅ DONE — first backup taken and restored 2026-09-17
 
-**Status 2026-09-17: the mechanism is built, deployed and exercised on a
-real runner. It needs exactly one thing from the owner: the R2 key
-pair, pasted to the agent, which stores it in Supabase Vault.** No
-GitHub settings, no dashboards.
+**There is a backup of her data now, and it has been restored.** Run
+[35221021905](https://github.com/cardiganapps-ui/Angus/actions/runs/35221021905),
+every step green: OIDC → broker → `pg_dump` 17 over the session pooler →
+`r2://angus-backups/pg/` → prune → documents mirror → **restore into a
+throwaway Postgres 17 on the runner, row counts identical to
+production** (25 tables, `auth.users` 2, 28 policies) → outcome
+`completed` in `ops.backup_events`. It repeats every night at 09:10 UTC
+from `main`, and each night is a rehearsal, not just a copy.
 
-What changed. The old design needed six repository secrets, and nothing
-that maintains this project could set them: the agent sandbox is barred
-from GitHub's secrets API by egress policy (`403` on
-`/actions/secrets/public-key`; `/rulesets` answers `200`, so it is the
-path, not the token) and cannot open a TCP connection to Postgres at all.
-So the runner now **asks** for its credentials instead of carrying them:
+**How it works** (details in `docs/playbook.md` §8b): the workflow
+carries **no repository secrets**. The runner proves itself with a
+GitHub OIDC token to the `backup-secrets` edge function, which returns
+the pooler connection string (from the edge runtime's own injected
+`SUPABASE_DB_URL`) and the R2 pair from Supabase **Vault**. Trust
+boundary identical to repository secrets; a fork's token is refused.
 
-1. `backup.yml` runs with `id-token: write` and mints a GitHub OIDC token.
-2. `scripts/backup-credentials.mjs` presents it to the `backup-secrets`
-   edge function (`supabase/functions/backup-secrets/index.ts`).
-3. The function verifies the token against GitHub's JWKS, checks it was
-   minted for `cardiganapps-ui/Angus` by `.github/workflows/backup.yml`,
-   and returns the session-pooler connection string — the password comes
-   from the edge runtime's own injected `SUPABASE_DB_URL`, so nobody ever
-   had to look it up — plus the R2 pair and bucket names from **Vault**.
-4. `backup-db.mjs` runs unchanged: `pg_dump` → gzip → R2, prune, mirror
-   the documents bucket.
-5. `restore-drill.mjs` then restores that dump into a throwaway Postgres
-   on the runner and diffs row counts against production. **Every night
-   is a rehearsal.**
-6. The outcome is recorded in `ops.backup_events` (migration 023, applied);
-   `public.backup_status()` reports it to the admin account only.
+**What was wrong before, for the record:** the old design needed six
+repository secrets that nothing maintaining this project could set —
+the agent sandbox is barred from GitHub's secrets API by egress policy
+and cannot open a TCP connection to Postgres at all — and the first
+restore rehearsal found the drill pre-creating a schema the dump also
+creates. Both fixed the same day the R2 pair arrived.
 
-Trust boundary: identical to repository secrets — anyone who can push a
-workflow here could read those too. A fork's token names the fork and
-is refused. Details in `docs/playbook.md` §8b.
-
-### What is left
-
-**2.3 — The R2 pair, into Vault.** Vault currently holds
-`PLACEHOLDER_UNTIL_OWNER_SUPPLIES` for `r2_account_id`,
-`r2_access_key_id` and `r2_secret_access_key` (so the leg up to the
-upload could be proven). Paste the three values to the agent — the same
-ones you gave for the Vercel env on 2026-09-16 — and it runs:
-
-```sql
-select vault.update_secret(id, '<value>') from vault.secrets where name = 'r2_account_id';
--- and the other two
-```
-
-Then it triggers a run and reads the log. Done means: `✓ backup
-complete`, `✓ restore drill passed`, and a `completed` row in
-`ops.backup_events`.
-
-**2.4 — Nothing else.** The buckets exist, CORS is set, the database
-password is never needed by a human again.
+**To rotate the R2 pair:** `select vault.update_secret(id, '<new>')
+from vault.secrets where name = 'r2_secret_access_key';` (and the other
+two). No redeploy. **To check it is still running:** the admin account
+calls `backup_status()` — or Actions → Nightly backup. GitHub disables
+schedules in repositories with no commits for 60 days; this one is
+committed to often, but that is the one silent failure to know about.
 
 ## 3 — ~~Supabase Management PAT~~ — PAT supplied 2026-09-17; one item closed, one needs Resend
 
