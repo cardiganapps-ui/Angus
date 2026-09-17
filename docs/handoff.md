@@ -154,7 +154,7 @@ the real deployment. It signs in as a disposable account, so it needs
 the one from §4 (or any throwaway) in `.env.local` alongside the
 Supabase vars:
 
-    API_BASE=https://angus-xi.vercel.app npm run r2:smoke
+    API_BASE=https://angus.cardigan.mx npm run r2:smoke
 
 **Until that passes, treat uploads as unverified**, because of the
 signed-length change above. I can run this myself the moment §4's
@@ -411,7 +411,7 @@ with the real console in front of you.
 
 ### Steps
 
-**9.1** — Deploy, open <https://angus-xi.vercel.app> in Chrome with the
+**9.1** — Deploy, open <https://angus.cardigan.mx> in Chrome with the
 console open, and use the parts that talk to another origin: sign in,
 open a piece and add a photo, open the photo, export a note to PDF, load
 a note with an inline attachment. Every violation logs as
