@@ -33,7 +33,7 @@ const browser = await chromium.launch({
   proxy: proxy ? { server: proxy } : undefined,
   args: proxy ? ["--proxy-bypass-list=localhost;127.0.0.1"] : []
 });
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: !!proxy });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, ignoreHTTPSErrors: !!proxy });
 const page = await ctx.newPage();
 // Behind the sandbox proxy, Chromium can't fetch sw.js (TLS interception +
 // ERR_TOO_MANY_RETRIES); those errors are environmental, not app bugs.
@@ -68,6 +68,23 @@ if (proxy) {
 
 const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
 
+/* One + for the whole app: tap it, then the option. Also the one place
+   the keyboard rule is checked — on a touch device no field may take
+   focus on its own when a sheet opens (lib/device.ts::prefersAutoFocus). */
+async function openNew(label, shotName) {
+  await page.click('[aria-label="Crear"]');
+  await page.waitForTimeout(450);
+  if (shotName) await shot(`${shotName}-fab`);
+  await page.click(`.fab-menu >> text=${label}`);
+  await page.waitForSelector(".sheet-panel", { timeout: 10000 });
+  await page.waitForTimeout(600);
+  const focused = await page.evaluate(() => {
+    const el = document.activeElement;
+    return el ? `${el.tagName}${el.id ? "#" + el.id : ""}` : "none";
+  });
+  if (/^(INPUT|TEXTAREA)/.test(focused)) errors.push(`keyboard: "${label}" focused ${focused} on open (touch device)`);
+}
+
 await page.goto(BASE, { waitUntil: "networkidle" });
 await shot("00-auth");
 await page.fill("#auth-email", EMAIL);
@@ -99,8 +116,7 @@ for (const [tab, fab] of tabs) {
   await page.click(`nav.bottom-tabs >> text=${tab}`);
   await page.waitForTimeout(700);
   await shot(`02-${tab.toLowerCase()}`);
-  await page.click(`[aria-label="${fab}"]`);
-  await page.waitForTimeout(600);
+  await openNew(fab, `02-${tab.toLowerCase()}`);
   await shot(`03-${tab.toLowerCase()}-sheet`);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
@@ -137,8 +153,7 @@ for (const [item, fab] of drawerRoutes) {
   await page.waitForTimeout(700);
   await shot(`05-${item.toLowerCase()}`);
   if (fab) {
-    await page.click(`[aria-label="${fab}"]`);
-    await page.waitForTimeout(600);
+    await openNew(fab, `05-${item.toLowerCase()}`);
     await shot(`06-${item.toLowerCase()}-sheet`);
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
@@ -184,8 +199,7 @@ await page.waitForTimeout(600);
 const exactly = (text) => page.getByText(text, { exact: true });
 
 // create
-await page.click('[aria-label="Nueva pieza"]');
-await page.waitForSelector(".sheet-panel", { timeout: 10000 });
+await openNew("Nueva pieza");
 await page.fill("#project-title", title);
 await page.click('.sheet-footer >> text=Guardar');
 await page.waitForTimeout(1200);

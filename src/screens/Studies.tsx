@@ -12,6 +12,7 @@ import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
 import { CourseSheet } from "../components/CourseSheet";
 import { CourseDetailSheet } from "../components/CourseDetailSheet";
+import { useFab } from "../context/FabContext";
 
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
 
@@ -21,6 +22,7 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
 export function Studies() {
   const { courses, events, expenses, assignments } = useApp();
   const [creating, setCreating] = useState(false);
+  useFab({ key: "course", label: "Nuevo curso", icon: "book", onPick: () => setCreating(true) });
   const [open, setOpen] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<"all" | CourseKind>("all");
@@ -156,9 +158,6 @@ export function Studies() {
         </>
       )}
 
-      <button className="fab" onClick={() => setCreating(true)} aria-label="Nuevo curso">
-        <Icon name="plus" size={24} strokeWidth={2.2} />
-      </button>
 
       {creating && <CourseSheet course={null} onClose={() => setCreating(false)} />}
       {open && <CourseDetailSheet courseId={open} onClose={() => setOpen(null)} />}

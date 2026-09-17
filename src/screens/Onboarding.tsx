@@ -23,6 +23,7 @@ import { SegmentedControl } from "../components/SegmentedControl";
 import { applyTextScale } from "../lib/appearance";
 import { useTheme } from "../hooks/useTheme";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 /* ── Onboarding ──
    Seven short questions, each persisted the moment she taps Continuar,
@@ -203,7 +204,7 @@ export function Onboarding() {
             className="input"
             value={artistName}
             placeholder="Andrea"
-            autoFocus
+            autoFocus={prefersAutoFocus()}
             onChange={(e) => setArtistName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && next()}
           />

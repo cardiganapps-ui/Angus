@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
+import { prefersAutoFocus } from "../lib/device";
 
 /* ── SettingsFieldSheet ──
    One text or money field in a sheet: label, input, Guardar. Used by
@@ -62,7 +63,7 @@ export function SettingsFieldSheet({
               placeholder={placeholder ?? "0"}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && save()}
-              autoFocus
+              autoFocus={prefersAutoFocus()}
             />
           </div>
         ) : (
@@ -73,7 +74,7 @@ export function SettingsFieldSheet({
             placeholder={placeholder}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && save()}
-            autoFocus
+            autoFocus={prefersAutoFocus()}
           />
         )}
         {help && <div className="input-help">{help}</div>}

@@ -15,6 +15,7 @@ import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { parseISODate, todayISO } from "../utils/dates";
 import { reshapeFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 /* ── CourseSheet ──
    Create / edit a course she takes. The schedule is an EventSeries the
@@ -241,7 +242,7 @@ export function CourseSheet({
             value={name}
             placeholder="Maestría en Artes, Taller de grabado…"
             onChange={(e) => setName(e.target.value)}
-            autoFocus={course === null}
+            autoFocus={course === null && prefersAutoFocus()}
           />
         </div>
 

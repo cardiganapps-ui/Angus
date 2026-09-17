@@ -17,6 +17,7 @@ import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
 import { RecurringRuleSheet } from "../components/RecurringRuleSheet";
 import { haptic } from "../lib/haptics";
+import { useFab } from "../context/FabContext";
 
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
 
@@ -28,6 +29,7 @@ export function Recurring() {
   const { rules, updateRule } = useApp();
   const { showSuccess } = useToast();
   const [editing, setEditing] = useState<RecurringRule | { kind: RecurrenceKind } | null>(null);
+  useFab({ key: "rule", label: "Nueva regla", icon: "repeat", onPick: () => setEditing({ kind: "expense" }) });
   const today = todayISO();
 
   const income = rules.filter((r) => r.kind === "income");
@@ -94,9 +96,6 @@ export function Recurring() {
         emptyBody="Renta, apps, seguro, transporte. Se registran solos cada periodo y entran al pronóstico."
       />
 
-      <button className="fab" onClick={() => setEditing({ kind: "expense" })} aria-label="Nueva regla">
-        <Icon name="plus" size={24} strokeWidth={2.2} />
-      </button>
 
       {editing && (
         <RecurringRuleSheet

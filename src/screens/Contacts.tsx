@@ -19,6 +19,7 @@ import { ContactDetailSheet } from "../components/ContactDetailSheet";
 import { SearchField } from "../components/SearchField";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { haptic } from "../lib/haptics";
+import { useFab } from "../context/FabContext";
 
 type View = "all" | "pipeline";
 type Filter = "all" | ContactRelationship;
@@ -40,6 +41,7 @@ export function Contacts() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [creating, setCreating] = useState(false);
+  useFab({ key: "contact", label: "Nuevo contacto", icon: "users", onPick: () => setCreating(true) });
   const [detailId, setDetailId] = useState<string | null>(null);
   const today = todayISO();
 
@@ -186,9 +188,6 @@ export function Contacts() {
         </>
       )}
 
-      <button className="fab" onClick={() => setCreating(true)} aria-label="Nuevo contacto">
-        <Icon name="plus" size={24} strokeWidth={2.2} />
-      </button>
 
       {creating && <ContactSheet contact={null} onClose={() => setCreating(false)} />}
       {detailId && <ContactDetailSheet contactId={detailId} onClose={() => setDetailId(null)} />}

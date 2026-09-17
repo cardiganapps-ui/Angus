@@ -4,6 +4,7 @@ import { useToast } from "../context/ToastContext";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { domId } from "../utils/id";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 const MIN = 8;
 
@@ -64,7 +65,7 @@ export function ChangePasswordSheet({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           aria-describedby={error ? errorId : undefined}
-          autoFocus
+          autoFocus={prefersAutoFocus()}
         />
         <div className="input-help">Mínimo {MIN} caracteres.</div>
       </div>

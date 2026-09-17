@@ -6,6 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { domId } from "../utils/id";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 /* ── LinkSheet ──
    A URL she wants to keep with the course or tarea: a video, a PDF
@@ -65,7 +66,7 @@ export function LinkSheet({ links, onClose }: { links: DocumentLinks; onClose: (
           placeholder="https://…"
           aria-invalid={showError || undefined}
           aria-describedby={errorId}
-          autoFocus
+          autoFocus={prefersAutoFocus()}
         />
         {/* Rendered unconditionally: .input-error-msg reserves its own
             line, and role=alert only announces text that APPEARS in a

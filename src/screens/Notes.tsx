@@ -16,6 +16,7 @@ import { groupNotesByRecency } from "../utils/noteGrouping";
 import { matches, tokenize } from "../utils/noteSearch";
 import { notePreview, relativeTime } from "../utils/noteText";
 import { haptic } from "../lib/haptics";
+import { useFab } from "../context/FabContext";
 
 type Filter = "all" | "pinned" | "inbox";
 
@@ -38,6 +39,7 @@ export function Notes() {
   const [quickOpen, setQuickOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  useFab({ key: "note", label: "Nota rápida", icon: "edit", onPick: () => setQuickOpen(true) }, selectMode);
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [propsNote, setPropsNote] = useState<Note | null>(null);
   const [longPressingId, setLongPressingId] = useState<string | null>(null);
@@ -273,12 +275,6 @@ export function Notes() {
             Eliminar
           </button>
         </div>
-      )}
-
-      {!selectMode && (
-        <button className="fab" onClick={() => setQuickOpen(true)} aria-label="Nota rápida">
-          <Icon name="plus" size={24} strokeWidth={2.2} />
-        </button>
       )}
 
       {quickOpen && (

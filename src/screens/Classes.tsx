@@ -4,9 +4,9 @@ import { activeEnrollments, groupOccupancy, groupSessions, sessionsWithoutAttend
 import { formatMXNShort, sumMoney } from "../utils/money";
 import { formatWithWeekday, todayISO } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
-import { Icon } from "../components/Icon";
 import { ClassGroupSheet } from "../components/ClassGroupSheet";
 import { ClassGroupDetailSheet } from "../components/ClassGroupDetailSheet";
+import { useFab } from "../context/FabContext";
 
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
 
@@ -16,6 +16,7 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
 export function Classes() {
   const { groups, enrollments, attendance, events, rules, sales, payments } = useApp();
   const [creating, setCreating] = useState(false);
+  useFab({ key: "group", label: "Nueva clase", icon: "graduation", onPick: () => setCreating(true) });
   const [open, setOpen] = useState<string | null>(null);
   const today = todayISO();
 
@@ -85,9 +86,6 @@ export function Classes() {
         )}
       </div>
 
-      <button className="fab" onClick={() => setCreating(true)} aria-label="Nueva clase">
-        <Icon name="plus" size={24} strokeWidth={2.2} />
-      </button>
 
       {creating && <ClassGroupSheet group={null} onClose={() => setCreating(false)} />}
       {open && <ClassGroupDetailSheet groupId={open} onClose={() => setOpen(null)} />}

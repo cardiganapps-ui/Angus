@@ -5,6 +5,7 @@ import { useNotes, type NoteLinks } from "../../hooks/useNotes";
 import { useToast } from "../../context/ToastContext";
 import { useDirtyGuard } from "../../hooks/useDirtyGuard";
 import { haptic } from "../../lib/haptics";
+import { prefersAutoFocus } from "../../lib/device";
 
 /* ── QuickCaptureSheet ──
    "Jot now, file later": a title and a body, nothing else. The note
@@ -27,6 +28,7 @@ export function QuickCaptureSheet({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    if (!prefersAutoFocus()) return; // on a phone she taps the field herself — no keyboard ambush
     const id = setTimeout(() => textareaRef.current?.focus(), 60);
     return () => clearTimeout(id);
   }, []);

@@ -12,6 +12,7 @@ import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { parseISODate, todayISO } from "../utils/dates";
 import { reshapeFuture } from "../utils/series";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 /* ── ClassGroupSheet ──
    Create / edit a class group. The schedule is an EventSeries owned by
@@ -173,7 +174,7 @@ export function ClassGroupSheet({
           value={name}
           placeholder="Óleo martes, Taller de grabado…"
           onChange={(e) => setName(e.target.value)}
-          autoFocus={group === null}
+          autoFocus={group === null && prefersAutoFocus()}
         />
       </div>
 

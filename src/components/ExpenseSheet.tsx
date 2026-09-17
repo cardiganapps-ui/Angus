@@ -11,6 +11,7 @@ import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
 import { haptic } from "../lib/haptics";
+import { prefersAutoFocus } from "../lib/device";
 
 export function ExpenseSheet({
   expense,
@@ -135,7 +136,7 @@ export function ExpenseSheet({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Bastidores, renta del taller…"
-          autoFocus={expense === null}
+          autoFocus={expense === null && prefersAutoFocus()}
         />
       </div>
 

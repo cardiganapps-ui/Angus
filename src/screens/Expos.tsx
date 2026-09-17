@@ -6,9 +6,9 @@ import { periodSummary } from "../utils/insights";
 import { formatMXNShort, formatMXNShortSigned, sumMoney } from "../utils/money";
 import { addMonths, formatWithWeekday, todayISO, yearRange } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
-import { Icon } from "../components/Icon";
 import { EventSheet } from "../components/EventSheet";
 import { ExpoSheet } from "../components/ExpoSheet";
+import { useFab } from "../context/FabContext";
 
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
 
@@ -26,6 +26,7 @@ export function Expos() {
   const { events, sales, payments, expenses } = useApp();
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  useFab({ key: "expo", label: "Nueva expo", icon: "map-pin", onPick: () => setCreating(true) });
   const today = todayISO();
 
   // Average piece price over the last 12 months, for break-even math.
@@ -75,9 +76,6 @@ export function Expos() {
         </>
       )}
 
-      <button className="fab" onClick={() => setCreating(true)} aria-label="Nueva expo">
-        <Icon name="plus" size={24} strokeWidth={2.2} />
-      </button>
 
       {creating && <EventSheet event={null} initialKind="expo" onClose={() => setCreating(false)} />}
       {open && <ExpoSheet eventId={open} onClose={() => setOpen(null)} />}

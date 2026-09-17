@@ -10,12 +10,12 @@ import {
 } from "../data/constants";
 import { formatMXNShort } from "../utils/money";
 import { EmptyState } from "../components/EmptyState";
-import { Icon } from "../components/Icon";
 import { ProjectSheet } from "../components/ProjectSheet";
 import { SearchField } from "../components/SearchField";
 import { matches } from "../utils/text";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { haptic } from "../lib/haptics";
+import { useFab } from "../context/FabContext";
 
 type Sort = "recent" | "title" | "price";
 type StatusFilter = "all" | ProjectStatus;
@@ -36,6 +36,7 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
 export function Projects() {
   const { projects, contacts, courses } = useApp();
   const [editing, setEditing] = useState<Project | null | "new">(null);
+  useFab({ key: "project", label: "Nueva pieza", icon: "palette", onPick: () => setEditing("new") });
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [avail, setAvail] = useState<AvailFilter>("all");
@@ -172,9 +173,6 @@ export function Projects() {
         ))
       )}
 
-      <button className="fab" onClick={() => setEditing("new")} aria-label="Nueva pieza">
-        <Icon name="plus" size={24} strokeWidth={2.2} />
-      </button>
 
       {editing && <ProjectSheet project={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
     </div>
