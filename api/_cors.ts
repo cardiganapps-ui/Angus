@@ -6,7 +6,13 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
    are cross-origin, so their preflights need these headers. Auth is
    still each handler's JWT check — CORS only lets the request through. */
 
-const STATIC_ALLOWED = new Set(["https://angus-xi.vercel.app", "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173"]);
+const STATIC_ALLOWED = new Set([
+  "https://angus.cardigan.mx",
+  "https://angus-xi.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173"
+]);
 
 /* Vercel preview hosts for THIS project look like
    angus-<hash>-<scope>.vercel.app. The old rule accepted any
