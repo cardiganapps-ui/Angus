@@ -115,15 +115,21 @@ if (bytes < 4096) fail(`dump is only ${bytes} bytes — refusing to upload it as
 console.log(`  ${(bytes / 1024).toFixed(0)} KiB`);
 
 console.log("• upload…");
-await r2.send(
-  new PutObjectCommand({
-    Bucket: BUCKET,
-    Key: key,
-    Body: createReadStream(local),
-    ContentLength: bytes,
-    ContentType: "application/gzip"
-  })
-);
+try {
+  await r2.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: createReadStream(local),
+      ContentLength: bytes,
+      ContentType: "application/gzip"
+    })
+  );
+} catch (err) {
+  // The dump is good; the destination is not. Say which, in one line,
+  // instead of a stack trace from inside the SDK.
+  fail(`upload to r2://${BUCKET}/${key} failed: ${err instanceof Error ? err.message : String(err)}`);
+}
 unlinkSync(local);
 console.log(`  r2://${BUCKET}/${key}`);
 // Lets the workflow's outcome report name the object it wrote.

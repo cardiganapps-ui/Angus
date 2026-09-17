@@ -24,9 +24,6 @@ on:
     # so it doesn't queue behind everyone else's midnight cron.
     - cron: "10 9 * * *"
   workflow_dispatch:
-  # TEMPORARY test scaffold — removed once the leg is proven on a runner.
-  push:
-    branches: [claude/angus-urgent-fixes-ysb8bn]
 
 # Two runs writing the same prefix would race the retention prune.
 concurrency:
