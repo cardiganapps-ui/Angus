@@ -63,7 +63,10 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
-          pg_dump --version
+          # /usr/bin/pg_dump is postgresql-common's wrapper and picks the
+          # runner's bundled 16 even with 17 installed. Put 17 first.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version
 
       - run: npm ci
 

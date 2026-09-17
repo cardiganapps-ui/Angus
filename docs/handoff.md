@@ -164,111 +164,59 @@ account exists and the R2 keys are in `.env.local` — you don't have to.
 
 ---
 
-## 2 — The nightly backup (there is no backup right now)
+## 2 — The nightly backup — one paste from done
 
-**Status: THE MOST URGENT ITEM IN THIS FILE. The Prime Directive is
-uninsured.** Free plan, so no PITR and no managed backups.
-`.github/workflows/backup.yml` and `scripts/backup-db.mjs` are written,
-linted and committed — and have **never produced a backup**, because they
-have no secrets.
+**Status 2026-09-17: the mechanism is built, deployed and exercised on a
+real runner. It needs exactly one thing from the owner: the R2 key
+pair, pasted to the agent, which stores it in Supabase Vault.** No
+GitHub settings, no dashboards.
 
-Checked 2026-09-17: the workflow has exactly **one** run in its history,
-`2026-09-16T14:10Z`, **conclusion `failure`** — `✗ SUPABASE_DB_URL is not
-set`. It fires again every night at 09:10 UTC and will keep failing red
-until §2.3 is done. There is, today, **no copy of Andrea's data anywhere
-but the live database.**
+What changed. The old design needed six repository secrets, and nothing
+that maintains this project could set them: the agent sandbox is barred
+from GitHub's secrets API by egress policy (`403` on
+`/actions/secrets/public-key`; `/rulesets` answers `200`, so it is the
+path, not the token) and cannot open a TCP connection to Postgres at all.
+So the runner now **asks** for its credentials instead of carrying them:
 
-The workflow is deliberately *not* gated behind an enable flag the way
-`e2e.yml` is: once it's on `main` it will fail red every night until
-these exist, because a backup that skips itself quietly is exactly how
-data dies. The first red run is the reminder. Never silence the job.
+1. `backup.yml` runs with `id-token: write` and mints a GitHub OIDC token.
+2. `scripts/backup-credentials.mjs` presents it to the `backup-secrets`
+   edge function (`supabase/functions/backup-secrets/index.ts`).
+3. The function verifies the token against GitHub's JWKS, checks it was
+   minted for `cardiganapps-ui/Angus` by `.github/workflows/backup.yml`,
+   and returns the session-pooler connection string — the password comes
+   from the edge runtime's own injected `SUPABASE_DB_URL`, so nobody ever
+   had to look it up — plus the R2 pair and bucket names from **Vault**.
+4. `backup-db.mjs` runs unchanged: `pg_dump` → gzip → R2, prune, mirror
+   the documents bucket.
+5. `restore-drill.mjs` then restores that dump into a throwaway Postgres
+   on the runner and diffs row counts against production. **Every night
+   is a rehearsal.**
+6. The outcome is recorded in `ops.backup_events` (migration 023, applied);
+   `public.backup_status()` reports it to the admin account only.
 
-### Steps
+Trust boundary: identical to repository secrets — anyone who can push a
+workflow here could read those too. A fork's token names the fork and
+is refused. Details in `docs/playbook.md` §8b.
 
-**2.1 — Backup bucket. ✅ DONE** — `angus-backups` exists, verified
-against the live API on 2026-09-16. Separate from `angus-documents` on
-purpose: different retention, and a compromise of one is not both.
+### What is left
 
-**2.2 — Database connection string. ✅ DONE** — the password was rotated
-through the Management API (`PATCH /v1/projects/{ref}/database/password`,
-the same call the dashboard makes) and the resulting URI is in
-`.env.local` as `SUPABASE_DB_URL`. Nothing broke: PostgREST, GoTrue and
-the app all still answer 200, which is the practical proof of the claim
-below that nothing stores this password. Host and user confirmed against
-`GET /v1/projects/{ref}/config/database/pooler`, which is authoritative:
-`db_host: aws-0-us-east-1.pooler.supabase.com`,
-`db_user: postgres.xbpvqvlomrnuxydyqyqj`.
+**2.3 — The R2 pair, into Vault.** Vault currently holds
+`PLACEHOLDER_UNTIL_OWNER_SUPPLIES` for `r2_account_id`,
+`r2_access_key_id` and `r2_secret_access_key` (so the leg up to the
+upload could be proven). Paste the three values to the agent — the same
+ones you gave for the Vercel env on 2026-09-16 — and it runs:
 
-That endpoint reports port **6543 / transaction mode**, because the
-transaction pooler is the configurable one. Session mode is the same host
-on **5432**, and that is what `SUPABASE_DB_URL` uses — `pg_dump` needs
-session state and will not work over 6543.
+```sql
+select vault.update_secret(id, '<value>') from vault.secrets where name = 'r2_account_id';
+-- and the other two
+```
 
-(Do not try to identify the host by DNS: `aws-0-…` and `aws-1-…` both
-resolve to live Supabase load balancers, so resolution proves nothing
-about which one serves this project.)
+Then it triggers a run and reads the log. Done means: `✓ backup
+complete`, `✓ restore drill passed`, and a `completed` row in
+`ops.backup_events`.
 
-The original instructions, still true if you ever need to redo it —
-Supabase dashboard → project `angus` → **Connect** → **Session pooler**.
-
-> Take the **Session pooler** (port 5432), not "Direct connection".
-> Direct connections are IPv6-only on this plan and GitHub Actions
-> runners have no IPv6 route, so a direct URI fails with a connection
-> timeout that looks like a credential problem and isn't. Do not take
-> the Transaction pooler (port 6543) either — `pg_dump` needs session
-> state.
-
-Replace `[YOUR-PASSWORD]` in the URI with the database password
-(Settings → Database → *Reset database password* if it isn't to hand —
-resetting it breaks nothing else, nothing stores it).
-
-**2.3 — Repository secrets.** GitHub → `cardiganapps-ui/Angus` →
-**Settings** → **Secrets and variables** → **Actions** → *New
-repository secret*, six times:
-
-| Name | Value |
-|---|---|
-| `SUPABASE_DB_URL` | the pooler URI — **in the `.env.local` on your own machine**, copy it from there. A cloud agent session cannot: `.env.local` is gitignored, so each fresh container starts without it. If it is lost, reset the password (Settings → Database) and rebuild the URI per §2.2. |
-| `R2_ACCOUNT_ID` | same as §1.2 |
-| `R2_ACCESS_KEY_ID` | same as §1.3 |
-| `R2_SECRET_ACCESS_KEY` | same as §1.3 |
-| `R2_BACKUP_BUCKET` | `angus-backups` |
-| `R2_BUCKET_NAME` | `angus-documents` — the job mirrors its objects into the backup bucket under `files/` |
-
-**2.4 — Run it by hand once.** Actions → **Nightly backup** → *Run
-workflow*. Don't wait for 09:10 UTC to find out it doesn't work. The log
-prints the object key it wrote, then `copied … / skipped … / of …` for
-the documents mirror (all zeros until §1 is done and she has uploaded
-something).
-
-**2.5 — Then restore it.** A backup that has never been restored is a
-hypothesis, and the acceptance bar says *performed*, not *configured*.
-
-    npm run restore:drill
-
-That is the whole step. `scripts/restore-drill.mjs` pulls the newest
-dump out of R2, starts a throwaway Postgres 17 in Docker, restores with
-`-v ON_ERROR_STOP=1`, and diffs exact per-table row counts against
-production — including `auth.users`, because losing it means nobody can
-sign in to reach whatever else restored. It prints PASS or FAIL and
-exits accordingly. It only ever *reads* production (one count query).
-
-Needs `.env.local` to hold the same values you just put in the repo
-secrets, plus Docker running. `TARGET_DB_URL=…` restores somewhere else
-instead of spawning a container; `KEEP_CONTAINER=1` leaves it up to poke
-at.
-
-Why it cannot simply run against a spare Supabase project: the dump
-includes `--schema=auth`, and loading that into a live Supabase aborts —
-dropping its `auth` schema takes GoTrue's grants with it, which
-`--no-privileges` cannot put back. Vanilla Postgres has no such
-attachment, which is why the drill uses it.
-
-`-v ON_ERROR_STOP=1` is the load-bearing flag: plain `psql -f` prints
-every error, keeps going, and still exits 0 — a restore that "worked".
-The sharp edges are in `docs/playbook.md` §8b.
-
----
+**2.4 — Nothing else.** The buckets exist, CORS is set, the database
+password is never needed by a human again.
 
 ## 3 — Supabase Management PAT (two settings I can't reach)
 

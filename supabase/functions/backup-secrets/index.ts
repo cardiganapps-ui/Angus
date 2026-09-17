@@ -114,7 +114,7 @@ Deno.serve(async (req: Request) => {
       await sql`
         insert into ops.backup_events (kind, actor, run_id, git_ref, workflow, detail)
         values (${status}, ${who.actor ?? null}, ${who.run_id ?? null}, ${who.ref ?? null},
-                ${who.job_workflow_ref ?? null}, ${JSON.stringify(body.detail ?? {})}::jsonb)`;
+                ${who.job_workflow_ref ?? null}, ${sql.json(body.detail ?? {})})`;
       return json(200, { ok: true, recorded: status });
     }
 

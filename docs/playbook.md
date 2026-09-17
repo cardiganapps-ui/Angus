@@ -261,15 +261,41 @@ Phase 2 exists because the dump alone is a trap. `documents` and
 restored database would faithfully preserve paths to photos that no
 longer exist anywhere.
 
-Required GitHub repository secrets (**the workflow no-ops loudly until
-these exist**):
+**No repository secrets.** The job proves itself with a GitHub OIDC
+token (`permissions: id-token: write`) to the `backup-secrets` edge
+function (`supabase/functions/backup-secrets/index.ts`), which verifies
+the token against GitHub's JWKS, checks it was minted for
+`cardiganapps-ui/Angus` by `.github/workflows/backup.yml`, and returns:
 
-| Secret | Where to get it |
+| Value | Where it comes from |
 |---|---|
-| `SUPABASE_DB_URL` | Supabase → Project Settings → Database → Connection string (**session pooler**, with the password) |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | the same pair the `api/` routes use; the token needs both buckets in its scope |
-| `R2_BACKUP_BUCKET` | optional; defaults to `angus-backups`. Create the bucket first — the script does not. |
-| `R2_BUCKET_NAME` | optional; defaults to `angus-documents`. The bucket to mirror *from*. |
+| `SUPABASE_DB_URL` | the password inside the edge runtime's own `SUPABASE_DB_URL`, rewritten to the **session pooler** host (runners have no IPv6 route to the direct host) |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Supabase **Vault**, secrets `r2_account_id` / `r2_access_key_id` / `r2_secret_access_key` — the same pair the `api/` routes use; the token needs both buckets in its scope |
+| `R2_BACKUP_BUCKET`, `R2_BUCKET_NAME` | Vault `r2_backup_bucket` / `r2_bucket_name`; default `angus-backups` / `angus-documents` |
+
+`scripts/backup-credentials.mjs` does the asking and exports the values
+into `$GITHUB_ENV`, masked. To rotate the R2 pair:
+
+```sql
+select vault.update_secret(id, '<new value>') from vault.secrets where name = 'r2_secret_access_key';
+```
+
+— no redeploy, the next run picks it up. If any of the three R2 names is
+missing the broker answers `503` naming it and the job fails red; it
+never uploads nothing and calls that success.
+
+Every issuance and every outcome is a row in `ops.backup_events`
+(migration 023); `public.backup_status()` returns the last
+completed/failed timestamps to the admin account and `null` to anyone
+else. That is the staleness signal — check it, not the Actions tab.
+
+**Why the trust boundary is the same as repository secrets:** anyone who
+can push a workflow to this repository could read repository secrets
+from it; the broker grants exactly that set (any branch of this repo,
+the backup workflow file, a schedule or manual event). A fork's OIDC
+token carries the fork's name and is refused. GitHub also disables
+scheduled workflows in a repository with no commits for 60 days — this
+one is committed to often, but `backup_status()` is what would notice.
 
 Three refusals are deliberate: a dump under 4 KiB is never uploaded (that
 is `pg_dump` "succeeding" against nothing and overwriting good history),
@@ -278,7 +304,8 @@ stops if the two bucket names are equal or if the source lists zero
 objects while the backup already holds files (a renamed bucket, not an
 emptied studio).
 
-Run it by hand with `npm run backup` (needs those vars in `.env.local`).
+Run it by hand with `npm run backup` (needs those same vars in
+`.env.local`; the broker only answers GitHub runners).
 
 **Restore** — into a scratch database first, always. A backup that has
 never been restored is a hypothesis, not a backup, and **no restore of
