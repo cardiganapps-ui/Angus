@@ -48,7 +48,7 @@ npm run backup        # nightly pg_dump -> R2, by hand
 npm run check:size    # bundle + precache budget (part of `build`)
 ```
 
-CI (`.github/workflows/ci.yml`) runs typecheck → lint → test → build on every push and PR.
+CI (`.github/workflows/ci.yml`) runs typecheck → lint → test → build on every push and PR. **Run `npm run preflight` before every push** — the same four commands, exit code preserved; the Claude Code hook in `.claude/settings.json` runs it for you and blocks `git push` if anything fails. Never judge a check by output piped through `tail` or `grep`: a pipe swallows the exit code, which is how a lint error reached CI and Vercel on 2026-09-17. Preview deployments are skipped for every branch but `main` (`vercel.json` `ignoreCommand`) — CI is the gate on a PR, so a preview build only ever repeated its verdict and its failure email.
 
 Env: copy `.env.example` → `.env.local` with `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Both are browser-safe. The serverless `api/` routes need the server-only block (`R2_*`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`) — see "The `api/` layer" below; in local dev set `VITE_API_BASE=https://angus.cardigan.mx` so uploads talk to the deployed functions.
 
