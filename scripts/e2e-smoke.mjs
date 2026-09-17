@@ -79,6 +79,8 @@ async function openNew(label, shotName) {
   await page.waitForSelector(".sheet-panel", { timeout: 10000 });
   await page.waitForTimeout(600);
   const focused = await page.evaluate(() => {
+    // Runs in the page, not in Node — `document` is real there.
+    // eslint-disable-next-line no-undef
     const el = document.activeElement;
     return el ? `${el.tagName}${el.id ? "#" + el.id : ""}` : "none";
   });
