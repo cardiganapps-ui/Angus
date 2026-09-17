@@ -17,17 +17,14 @@
       "Bash(bash:*)",
       "Bash(sh *)",
       "Bash(sh:*)",
-
       "Bash(curl *)",
       "Bash(curl:*)",
       "Bash(wget *)",
       "Bash(wget:*)",
-
       "Bash(git *)",
       "Bash(git:*)",
       "Bash(gh *)",
       "Bash(gh:*)",
-
       "Bash(rm *)",
       "Bash(rm:*)",
       "Bash(rmdir *)",
@@ -47,7 +44,6 @@
       "Bash(tee *)",
       "Bash(tee:*)",
       "Bash(install *)",
-
       "Bash(psql *)",
       "Bash(psql:*)",
       "Bash(pg_dump *)",
@@ -61,7 +57,6 @@
       "Bash(openssl *)",
       "Bash(docker *)",
       "Bash(docker:*)",
-
       "Bash(kill *)",
       "Bash(pkill *)",
       "Bash(export *)",
@@ -69,10 +64,8 @@
       "Bash(for *)",
       "Bash(while *)",
       "Bash(if *)",
-
       "WebFetch",
       "WebSearch",
-
       "mcp__Supabase__execute_sql",
       "mcp__Supabase__apply_migration",
       "mcp__Supabase__query_logs",
@@ -101,7 +94,6 @@
       "mcp__Supabase__confirm_cost",
       "mcp__Supabase__pause_project",
       "mcp__Supabase__restore_project",
-
       "mcp__github__actions_list",
       "mcp__github__actions_get",
       "mcp__github__actions_run_trigger",
@@ -152,7 +144,6 @@
       "mcp__github__list_repository_collaborators",
       "mcp__github__run_secret_scanning",
       "mcp__github__get_me",
-
       "mcp__Vercel__list_deployments",
       "mcp__Vercel__get_deployment",
       "mcp__Vercel__get_deployment_build_logs",
@@ -176,7 +167,6 @@
       "mcp__Vercel__get_agent_run",
       "mcp__Vercel__get_agent_run_trace",
       "mcp__Vercel__list_agent_run_projects",
-
       "mcp__Claude_Code_Remote__add_repo",
       "mcp__Claude_Code_Remote__register_repo_root",
       "mcp__Claude_Code_Remote__list_repos",
@@ -199,13 +189,26 @@
       "mcp__Claude_Code_Remote__unsubscribe_pr_activity",
       "mcp__Claude_Code_Remote__watch_url",
       "mcp__Claude_Code_Remote__unwatch_url",
-
       "mcp__Gmail__search_threads",
       "mcp__Gmail__get_thread",
       "mcp__Gmail__get_message",
       "mcp__Gmail__list_drafts",
       "mcp__Gmail__get_draft",
       "mcp__Gmail__list_labels"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/prepush-guard.sh\"",
+            "timeout": 900
+          }
+        ]
+      }
     ]
   }
 }
