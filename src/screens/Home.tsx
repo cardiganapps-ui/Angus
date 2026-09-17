@@ -7,22 +7,18 @@ import {
   attentionItems,
   goalProgress,
   moneyPulse,
-  monthlyTrend,
   netDelta,
   practiceSnapshot,
-  trendChart,
   type AttentionItem
 } from "../utils/dashboard";
 import { formatMXNShort, formatMXNShortSigned } from "../utils/money";
 import { firstName } from "../utils/settings";
 import { ProgressRing } from "../components/ProgressRing";
-import { BarChart } from "../components/charts/BarChart";
 import {
   daysBetween,
   formatDateLong,
   formatMonthLong,
   greetingFor,
-  monthInitial,
   monthName,
   relativeDayLabel,
   todayISO
@@ -46,17 +42,16 @@ import { haptic } from "../lib/haptics";
 
 /* ── Home ──
    The dashboard. Ordered by what she can act on, not by what looks
-   impressive: anything that needs her today, then this month's money,
-   then the shape of the last six months, then the practice itself.
-   With nothing overdue the first block collapses to a single quiet
-   line, so the money becomes the top of the screen — the page is only
-   as loud as the situation is.
+   impressive: anything that needs her today, then her practice — the
+   pieces, what is agendado — and only then this month's money. The
+   six-month chart moved to Dinero → Balance on the pilot's first ask:
+   a graph of her money must not be the first thing she sees when she
+   opens the app. With nothing overdue the first block collapses to a
+   single quiet line — the page is only as loud as the situation is.
 
    Every figure comes from utils/dashboard.ts. This file resolves ids to
    names, picks the Spanish and formats the pesos; it does no arithmetic
    on money. */
-
-const TREND_MONTHS = 6;
 
 const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProperties;
 
@@ -144,7 +139,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   const pulse = useMemo(() => moneyPulse(sales, payments, expenses, today), [sales, payments, expenses, today]);
   const delta = useMemo(() => netDelta(pulse.netChange, today), [pulse.netChange, today]);
   /* `pulse.earned`, not `pulse.income`. The trio below (Entró / Salió /
-     el neto) stays strict cash basis — same numbers as Dinero and the
+     el neto) stays strict cash basis — same numbers as Dinero and its
      trend chart, and a closed month is never rewritten. The goal ring
      answers a different question: money she is holding to hand back on a
      cancelled sale isn't progress toward a target, and celebrating it
@@ -152,10 +147,6 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
      her two things at once. The band above the ring names the gap so the
      two figures never look like a rounding error. */
   const goal = useMemo(() => goalProgress(pulse.earned, settings.monthlyIncomeGoal), [pulse.earned, settings.monthlyIncomeGoal]);
-  const chart = useMemo(
-    () => trendChart(monthlyTrend(payments, expenses, today, TREND_MONTHS), today.slice(0, 7)),
-    [payments, expenses, today]
-  );
   const snapshot = useMemo(
     () => practiceSnapshot(projects, events, sales, today),
     [projects, events, sales, today]
@@ -262,7 +253,6 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
   // Nothing moved in the whole window: keep the chart (it's the shape of
   // the year) but collapse it to a baseline instead of framing 100px of
   // white as if data were missing.
-  const flatTrend = chart.max === 0 && chart.min === 0;
 
   // The next expo only earns its own line when it isn't already the
   // next thing on her calendar.
@@ -347,6 +337,70 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
           </div>
         </div>
       )}
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Tu taller</span>
+        </div>
+        <div className="card">
+          <div className="dash-figures">
+            <button type="button" className="dash-figure btn-tap" onClick={() => goTo("projects")}>
+              <span className="dash-figure-label">En proceso</span>
+              <span className="dash-figure-value">
+                <AnimatedNumber value={snapshot.inProgress} />
+              </span>
+              <span className="dash-figure-meta">
+                {snapshot.inProgress === 1 ? "pieza" : "piezas"}
+              </span>
+            </button>
+            <button type="button" className="dash-figure btn-tap" onClick={() => goTo("projects")}>
+              <span className="dash-figure-label">Guardadas</span>
+              <span className="dash-figure-value">
+                <AnimatedNumber value={snapshot.parked} />
+              </span>
+              <span className="dash-figure-meta">ideas y pausas</span>
+            </button>
+            <button type="button" className="dash-figure btn-tap" onClick={() => goTo("money")}>
+              <span className="dash-figure-label">Vendidas</span>
+              <span className="dash-figure-value">
+                <AnimatedNumber value={snapshot.soldThisMonth} />
+              </span>
+              <span className="dash-figure-meta">
+                {snapshot.soldThisMonth > 0
+                  ? formatMXNShort(snapshot.soldThisMonthAmount)
+                  : "este mes"}
+              </span>
+            </button>
+          </div>
+
+          {nextAgenda || nextStudy || nextExpo ? (
+            <>
+              {nextAgenda && (
+                <EventRow
+                  event={nextAgenda}
+                  lead={nextAgenda.courseId ? "Tu próxima clase" : "Próximo"}
+                  today={today}
+                  onOpen={() => goTo(nextAgenda.courseId ? "studies" : "schedule")}
+                />
+              )}
+              {nextStudy && <EventRow event={nextStudy} lead="Tu próxima clase" today={today} onOpen={() => goTo("studies")} />}
+              {nextExpo && (
+                <EventRow event={nextExpo} lead="Próxima expo" today={today} onOpen={() => goTo("schedule")} />
+              )}
+            </>
+          ) : snapshot.nextEvent ? null : (
+            <button type="button" className="row-item" onClick={() => goTo("schedule")}>
+              <div className="row-content">
+                <div className="row-title">Nada agendado</div>
+                <div className="row-sub">Agrega una clase, una expo o una entrega.</div>
+              </div>
+              <span className="row-chevron">
+                <Icon name="chevron-right" size={16} />
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="section">
         <div className="section-header">
@@ -437,101 +491,6 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Cómo vienes</span>
-          <span className="eyebrow">Últimos {TREND_MONTHS} meses</span>
-        </div>
-        <div className={`card dash-trend${flatTrend ? " dash-trend--flat" : ""}`}>
-          <BarChart
-            series={[{ key: "net", label: "Balance", color: "var(--green)", negColor: "var(--red)" }]}
-            columns={chart.bars.map((bar) => ({
-              key: bar.month,
-              label: monthInitial(bar.month),
-              title: formatMonthLong(bar.month),
-              values: { net: bar.net },
-              current: bar.current
-            }))}
-            height={flatTrend ? 36 : 124}
-            signed
-            labelCurrent
-            ariaLabel={`Balance por mes: ${chart.bars
-              .map((bar) => `${monthName(bar.month)} ${formatMXNShortSigned(bar.net)}`)
-              .join(", ")}`}
-          />
-          {flatTrend && (
-            <div className="dash-trend-note">
-              Aún no hay entradas ni gastos que graficar. En cuanto registres el primero, verás la
-              forma de tu año aquí.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Tu taller</span>
-        </div>
-        <div className="card">
-          <div className="dash-figures">
-            <button type="button" className="dash-figure btn-tap" onClick={() => goTo("projects")}>
-              <span className="dash-figure-label">En proceso</span>
-              <span className="dash-figure-value">
-                <AnimatedNumber value={snapshot.inProgress} />
-              </span>
-              <span className="dash-figure-meta">
-                {snapshot.inProgress === 1 ? "pieza" : "piezas"}
-              </span>
-            </button>
-            <button type="button" className="dash-figure btn-tap" onClick={() => goTo("projects")}>
-              <span className="dash-figure-label">Guardadas</span>
-              <span className="dash-figure-value">
-                <AnimatedNumber value={snapshot.parked} />
-              </span>
-              <span className="dash-figure-meta">ideas y pausas</span>
-            </button>
-            <button type="button" className="dash-figure btn-tap" onClick={() => goTo("money")}>
-              <span className="dash-figure-label">Vendidas</span>
-              <span className="dash-figure-value">
-                <AnimatedNumber value={snapshot.soldThisMonth} />
-              </span>
-              <span className="dash-figure-meta">
-                {snapshot.soldThisMonth > 0
-                  ? formatMXNShort(snapshot.soldThisMonthAmount)
-                  : "este mes"}
-              </span>
-            </button>
-          </div>
-
-          {nextAgenda || nextStudy || nextExpo ? (
-            <>
-              {nextAgenda && (
-                <EventRow
-                  event={nextAgenda}
-                  lead={nextAgenda.courseId ? "Tu próxima clase" : "Próximo"}
-                  today={today}
-                  onOpen={() => goTo(nextAgenda.courseId ? "studies" : "schedule")}
-                />
-              )}
-              {nextStudy && <EventRow event={nextStudy} lead="Tu próxima clase" today={today} onOpen={() => goTo("studies")} />}
-              {nextExpo && (
-                <EventRow event={nextExpo} lead="Próxima expo" today={today} onOpen={() => goTo("schedule")} />
-              )}
-            </>
-          ) : snapshot.nextEvent ? null : (
-            <button type="button" className="row-item" onClick={() => goTo("schedule")}>
-              <div className="row-content">
-                <div className="row-title">Nada agendado</div>
-                <div className="row-sub">Agrega una clase, una expo o una entrega.</div>
-              </div>
-              <span className="row-chevron">
-                <Icon name="chevron-right" size={16} />
-              </span>
-            </button>
           )}
         </div>
       </div>

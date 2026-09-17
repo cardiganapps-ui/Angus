@@ -381,33 +381,42 @@ export default function App() {
     );
   }
 
+  const bug = active?.onboardedAt ? <BugButton onClick={() => setFeedbackOpen(true)} /> : null;
   const topbarLeft =
     signedIn && active ? (
-      rail ? null : onTab ? (
-        <button
-          type="button"
-          className="topbar-menu btn-tap"
-          aria-label="Menú"
-          aria-expanded={drawerOpen}
-          onClick={() => {
-            haptic.tap();
-            setDrawerOpen(true);
-          }}
-        >
-          <Icon name="menu" size={22} strokeWidth={2} />
-        </button>
+      rail ? (
+        bug
+      ) : onTab ? (
+        <>
+          <button
+            type="button"
+            className="topbar-menu btn-tap"
+            aria-label="Menú"
+            aria-expanded={drawerOpen}
+            onClick={() => {
+              haptic.tap();
+              setDrawerOpen(true);
+            }}
+          >
+            <Icon name="menu" size={22} strokeWidth={2} />
+          </button>
+          {bug}
+        </>
       ) : (
-        <button
-          type="button"
-          className="topbar-menu btn-tap"
-          aria-label="Volver"
-          onClick={() => {
-            haptic.tap();
-            back();
-          }}
-        >
-          <Icon name="chevron-left" size={22} strokeWidth={2.2} />
-        </button>
+        <>
+          <button
+            type="button"
+            className="topbar-menu btn-tap"
+            aria-label="Volver"
+            onClick={() => {
+              haptic.tap();
+              back();
+            }}
+          >
+            <Icon name="chevron-left" size={22} strokeWidth={2.2} />
+          </button>
+          {bug}
+        </>
       )
     ) : null;
 
@@ -507,7 +516,6 @@ export default function App() {
             </Suspense>
           )}
           {feedbackOpen && <FeedbackSheet route={route} onClose={() => setFeedbackOpen(false)} />}
-          {active.onboardedAt && <BugButton onClick={() => setFeedbackOpen(true)} />}
           {/* The one + for the whole app; Ajustes has nothing to add. */}
           {active.onboardedAt && route !== "settings" && (
             <QuickAddFab primary={fabPrimary} hidden={fabHidden} />

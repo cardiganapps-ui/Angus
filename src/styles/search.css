@@ -41,9 +41,12 @@
    rather than letting a long studio name run under the magnifier. */
 .topbar:has(.topbar-search) .topbar-brand {
   /* 44 (search) + 6 + 32 (avatar) + 14 (the bar's own padding) = 96px
-     the cluster owns, doubled because the brand is centred. */
+     the cluster owns, doubled because the brand is centred. The left
+     cluster is now the same width — menu + the little bug — so the two
+     sides are symmetric and this figure covers both. */
   max-width: calc(100% - 200px);
 }
+.topbar-bug { color: var(--charcoal-md); }
 
 /* A tall, stable body: results appearing and disappearing under her
    thumb must not resize the panel on every keystroke. */

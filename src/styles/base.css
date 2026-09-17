@@ -713,7 +713,6 @@ a[href^="tel:"], a[href^="mailto:"] {
    any blocking surface is in the body. Only list classes that are
    CONDITIONALLY rendered. */
 body:has(.sheet-overlay) .fab,
-body:has(.sheet-overlay) .bug-fab,
 body:has(.sheet-overlay) .fab-overlay,
 body:has(.sheet-overlay) .fab-menu,
 body:has(.sheet-overlay) .bottom-tabs { display: none !important; }
