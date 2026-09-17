@@ -10,7 +10,7 @@ Two things this does NOT mean:
 1. **Still report what you did.** Acting without asking is authorized; acting silently is not. Destructive or hard-to-reverse actions (deleting a user, dropping data, rotating a credential) get done *and then stated plainly* in the reply, with what was removed.
 2. **Permission ≠ product direction.** Keep asking when the *design* is genuinely ambiguous (what a feature should mean, how money should be modeled) — that's information only the owner has, not a permission gate. Never ask twice about the same thing; check this file and `docs/playbook.md` first.
 
-**What this project is waiting on a human for — five secrets, one asset, one decision and the pilot — is in `docs/handoff.md`, with the exact steps and how each one is verified.** Read it before reporting something as blocked; and if you clear one of those items, strike it from that file in the same commit.
+**What this project is waiting on a human for is in `docs/handoff.md`, with the exact steps and how each one is verified.** Read it before reporting something as blocked; and if you clear one of those items, strike it from that file in the same commit.
 
 Before building anything, read `docs/playbook.md` — the component catalog (what to reuse) and the step-by-step recipes (new entity, new field, new tab, migration template, motion cookbook, verification loop). This file is the *rules*; the playbook is the *how*. If you find yourself writing a picker, a sheet footer, a skeleton, or a list row from scratch, stop — it exists.
 
@@ -176,7 +176,7 @@ Angus uses Cardigan's design system unchanged: same tokens, same class vocabular
   |---|---|---|---|
   | Publishable / anon | `sb_publishable_…` | Nothing RLS doesn't allow | `VITE_SUPABASE_ANON_KEY`, ships in the browser bundle — by design |
   | **Secret (service role)** | `sb_secret_…` | **Bypasses RLS entirely** + the Auth Admin API | `SUPABASE_SECRET_KEY` in `.env.local` (gitignored) or a server env var. **NEVER a `VITE_` var, never imported from `src/`** |
-  | Management PAT | `sbp_…` | Project *config*: auth settings, SMTP, rate limits | Not currently held — needed to fix auth email |
+  | Management PAT | `sbp_…` | Project *config*: auth settings, SMTP, rate limits, edge-function delete | `SUPABASE_PAT` in `.env.local` only. Supplied 2026-09-17; leaked-password protection is Pro-only (402), SMTP still needs a Resend key |
   | R2 access key pair | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Read/write/delete every object in the bucket | Vercel env + `.env.local` only; the serverless routes sign short-lived URLs with it. **Never `VITE_`** |
 
   The secret key in the bundle would let anyone read and write **every** workspace, Andrea's included. Vite inlines anything prefixed `VITE_`, so one careless rename is the whole breach. `npm run build` therefore ends with `scripts/check-bundle-secrets.mjs`, which scans `dist/` for secret patterns and fails the build (and CI) on a hit. Don't weaken it; if it fires, something is genuinely wrong.

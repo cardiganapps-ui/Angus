@@ -2,17 +2,15 @@
 
 Everything in this repo that can be built, tested and applied without a
 credential has been. What is left is a short list of things that are
-*only* obtainable by someone with an account: six repository secrets, one
-design asset, three settings nobody but the repo owner can change, and
-two weeks of real use.
+*only* obtainable by someone with an account: one Resend key, one GitHub
+token, one design asset, and two weeks of real use.
 
 Each item below says **why it matters**, **how it's verified today**, and
 **the exact steps**. They are independent — do them in any order.
 
 **As of 2026-09-17 the app itself is healthy.** `main` is deployed, all
-22 migrations are live, uploads answer their auth gate, and the suite is
-604 green. The one item that is *urgent* rather than merely open is §2:
-**there is still no backup of her data, and there never has been.**
+23 migrations are live, uploads answer their auth gate, and the suite is
+604 green. See §2 for the backup — the one item that was urgent.
 
 Last verified: 2026-09-17.
 
@@ -218,42 +216,26 @@ complete`, `✓ restore drill passed`, and a `completed` row in
 **2.4 — Nothing else.** The buckets exist, CORS is set, the database
 password is never needed by a human again.
 
-## 3 — Supabase Management PAT (two settings I can't reach)
+## 3 — ~~Supabase Management PAT~~ — PAT supplied 2026-09-17; one item closed, one needs Resend
 
-**Status:** the security advisor is clean except for one WARN I cannot
-clear from here, and one thing that has been on the to-do list since the
-project started.
+The owner supplied the PAT. Used it for:
 
-- **Leaked-password protection is off.** Passwords are checked against
-  nothing, with an 8-character minimum, on an account that can read
-  every workspace.
-- **No custom SMTP.** The built-in mailer is capped at ~2 emails/hour and
-  cannot be raised — the API rejects the field outright without SMTP
-  configured. Password reset and magic link are therefore unreliable
-  today. `mailer_autoconfirm: true` keeps *signup* off that quota, which
-  is why signup works at all.
+- **Leaked-password protection: NOT AVAILABLE.** `PATCH
+  /config/auth {"password_hibp_enabled": true}` answers **402** — "available
+  on Pro Plans and up". The advisor WARN will stay until the org upgrades.
+  Nothing to do on the free plan; it is a plan limit, not a to-do.
+- Deleted the retired `env-probe` edge function (the MCP tooling cannot
+  delete functions; the Management API can).
 
-### Steps
-
-**3.1** — <https://supabase.com/dashboard/account/tokens> → *Generate
-new token* → name it `angus-config`. Copy it (starts `sbp_`).
-
-**3.2** — Put it in `.env.local` as `SUPABASE_PAT=sbp_…`. It is
-gitignored. **Never** as a `VITE_` var.
-
-**3.3** — For SMTP, also create a Resend API key
-(<https://resend.com/api-keys>) and verify a sending domain, the same way
-Cardigan does. Without a verified domain Resend will only send to your
-own address.
-
-Then tell me, and I'll PATCH both settings. One warning for whoever does
-it instead: send the **entire** smtp block in one request
-(`smtp_host`, `smtp_port`, `smtp_user`, `smtp_pass`, `smtp_admin_email`,
-`smtp_sender_name`) — a partial PATCH resets the siblings you left out.
-And verify by sending a real reset email, not by reading the config
-back; config reads are eventually consistent.
-
----
+**Still open — custom SMTP.** Needs a **Resend API key** with a verified
+sending domain (<https://resend.com/api-keys>, then *Domains*). Without a
+verified domain Resend only delivers to the account's own address. With
+the key in hand the agent sends the full smtp block in one PATCH
+(`smtp_host smtp.resend.com`, `smtp_port 465`, `smtp_user resend`,
+`smtp_pass <key>`, `smtp_admin_email`, `smtp_sender_name`) and verifies
+with a real reset email. Until then password reset and magic link stay
+on the built-in mailer at ~2/hour; sign-up is unaffected
+(`mailer_autoconfirm: true`).
 
 ## 4 — Turn the e2e journey on (optional, cheap)
 

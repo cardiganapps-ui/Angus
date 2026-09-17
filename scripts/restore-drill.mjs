@@ -120,12 +120,32 @@ if (!targetUrl) {
 }
 
 /* The dump covers public + auth and is taken --no-owner --no-privileges,
-   so it carries no roles or grants to satisfy. What it DOES assume is
-   that gen_random_uuid() resolves: on Supabase that lives in an
-   extensions schema the dump does not include. Create it up front so the
-   drill measures the backup, not a known environment difference. */
-const prep = run("psql", [targetUrl, "-v", "ON_ERROR_STOP=1", "-c",
-  "create schema if not exists auth; create extension if not exists pgcrypto; create extension if not exists \"uuid-ossp\";"]);
+   so it carries no grants to satisfy — but it does CREATE both schemas
+   and it does name roles in its policies (`... TO authenticated`). What
+   the first rehearsal (2026-09-17, run 35220700750) taught, in order:
+
+   - `auth` must NOT be pre-created: the dump creates it and aborts on
+     "schema already exists" if it is there. `public` exists in every
+     fresh database, so it is dropped first for the same reason.
+   - pgcrypto / uuid-ossp are installed into their own `extensions`
+     schema, as on Supabase, and before `public` is dropped — an
+     extension installs into the current schema, and the dump's
+     gen_random_uuid() is pg_catalog's anyway.
+   - The four Supabase roles must exist for the policies to restore.
+     NOLOGIN, no privileges: the drill measures the dump, not auth. */
+const PREP = `
+  create schema if not exists extensions;
+  create extension if not exists pgcrypto schema extensions;
+  create extension if not exists "uuid-ossp" schema extensions;
+  drop schema public cascade;
+  do $$ declare r text; begin
+    foreach r in array array['anon','authenticated','service_role','supabase_auth_admin'] loop
+      if not exists (select 1 from pg_roles where rolname = r) then
+        execute format('create role %I nologin', r);
+      end if;
+    end loop;
+  end $$;`;
+const prep = run("psql", [targetUrl, "-v", "ON_ERROR_STOP=1", "-c", PREP]);
 if (prep.status !== 0) fail(`could not prepare the target: ${prep.stderr.trim()}`);
 
 /* ── 3. Restore. ON_ERROR_STOP=1 is the whole point: without it psql
