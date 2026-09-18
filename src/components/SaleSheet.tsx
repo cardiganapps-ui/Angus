@@ -8,6 +8,7 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
+import { ContactSheet } from "./ContactSheet";
 import { PlanBuilder, PlanPreview } from "./PlanBuilder";
 import { planRows, type PlanDraft } from "../utils/plan";
 import { makeId } from "../utils/id";
@@ -80,6 +81,10 @@ export function SaleSheet({
   const [notes, setNotes] = useState(sale?.notes ?? "");
   const [planChoice, setPlanChoice] = useState<PlanChoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /* A client she hasn't saved yet: the picker hands back whatever she
+     typed and we open a real ContactSheet on top, pre-filled. `null`
+     means closed — an empty string is a legitimate "create, blank". */
+  const [newContactName, setNewContactName] = useState<string | null>(null);
 
   const safeClose = submitting ? null : onClose;
   const parsedAmount = Number(amount);
@@ -242,6 +247,7 @@ export function SaleSheet({
   }
 
   return (
+    <>
     <Sheet
       title={sale ? "Editar venta" : "Nueva venta"}
       onClose={safeClose}
@@ -395,7 +401,12 @@ export function SaleSheet({
           options={contactOptions}
           value={contactId}
           onChange={setContactId}
+          onCreate={setNewContactName}
+          createLabel="Nuevo contacto"
         />
+        <div className="input-help">
+          ¿No está en tu agenda? Escribe su nombre en el buscador y créalo desde ahí.
+        </div>
       </div>
 
       <div className="input-group">
@@ -427,5 +438,18 @@ export function SaleSheet({
         />
       </div>
     </Sheet>
+    {newContactName !== null && (
+      <ContactSheet
+        contact={null}
+        initialName={newContactName}
+        initialRelationship="client"
+        onClose={() => setNewContactName(null)}
+        onCreated={(id) => {
+          setNewContactName(null);
+          setContactId(id);
+        }}
+      />
+    )}
+    </>
   );
 }

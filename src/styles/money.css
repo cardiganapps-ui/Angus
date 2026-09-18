@@ -187,6 +187,63 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── FOLD (Ventas → Entregadas y pagadas) ──
+   A finished sale is still hers to look up, just not hers to act on, so
+   it collapses behind a header instead of leaving the list. The body
+   animates with grid-template-rows 0fr → 1fr: height:auto can't be
+   transitioned, and a fixed max-height would either clip the list or
+   make the ease depend on how many sales she has sold. */
+.money-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  /* Negative margin so the label lines up with .section-title while the
+     tap area still spills past it. */
+  padding: 10px 4px;
+  margin: 0 -4px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.money-fold-title {
+  font-family: var(--font-d);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--charcoal-md);
+}
+.money-fold-count {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--charcoal-xl);
+  font-variant-numeric: tabular-nums;
+  background: var(--cream-dark);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+}
+.money-fold-chevron {
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--charcoal-lt);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.money-fold-chevron.is-open { transform: rotate(180deg); }
+
+.money-fold-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-out);
+}
+.money-fold-body.is-open { grid-template-rows: 1fr; }
+.money-fold-clip { overflow: hidden; min-height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .money-fold-chevron,
+  .money-fold-body { transition: none; }
+}
+
 /* Inline destructive confirm inside a sheet (borrar un plan). */
 .money-confirm {
   display: flex;

@@ -16,14 +16,24 @@ const SEARCH_THRESHOLD = 8;
    SEARCH_THRESHOLD options a search input filters by name (no
    autofocus — popping the keyboard over a picker is jarring).
    Selecting fires a light haptic, updates the field, and closes
-   through Sheet's normal animated exit via `closeRef`. */
+   through Sheet's normal animated exit via `closeRef`.
+
+   `onCreate` turns the picker into a way OUT of the picker: the search
+   box is always shown, and whatever she typed is offered as "Crear
+   «…»". A client who isn't in her agenda yet used to be a dead end in
+   every sheet that references one — she could only pick from what
+   already existed. The caller decides what creating means (usually:
+   open the entity's own sheet with the name pre-filled), so the new row
+   still lands with a relationship, a phone and everything else. */
 export function PickerSheet({
   title,
   options,
   value,
   placeholder,
   onSelect,
-  onClose
+  onClose,
+  onCreate,
+  createLabel = "Crear nuevo"
 }: {
   title: string;
   options: PickerOption[];
@@ -31,18 +41,32 @@ export function PickerSheet({
   placeholder: string;
   onSelect: (next: string) => void;
   onClose: () => void;
+  /** Offer a create row; receives whatever she typed (may be empty). */
+  onCreate?: (typed: string) => void;
+  /** Label for the create row when the search box is empty. */
+  createLabel?: string;
 }) {
   const [query, setQuery] = useState("");
   const closeRef = useRef<(() => void) | null>(null);
 
-  const searchable = options.length > SEARCH_THRESHOLD;
-  const q = query.trim().toLocaleLowerCase();
+  const searchable = options.length > SEARCH_THRESHOLD || !!onCreate;
+  const typed = query.trim();
+  const q = typed.toLocaleLowerCase();
   const visible = q ? options.filter((o) => o.label.toLocaleLowerCase().includes(q)) : options;
   const rows: PickerOption[] = q ? visible : [{ value: "", label: placeholder }, ...visible];
+  // No point offering "Crear «Ana»" when Ana is already one tap away.
+  const exact = q.length > 0 && options.some((o) => o.label.toLocaleLowerCase() === q);
+  const showCreate = !!onCreate && !exact;
 
   function choose(next: string) {
     haptic.tap();
     onSelect(next);
+    (closeRef.current ?? onClose)();
+  }
+
+  function create() {
+    haptic.tap();
+    onCreate?.(typed);
     (closeRef.current ?? onClose)();
   }
 
@@ -54,16 +78,32 @@ export function PickerSheet({
             className="input"
             type="search"
             inputMode="search"
-            placeholder="Buscar…"
+            placeholder={onCreate ? "Buscar o escribir un nombre…" : "Buscar…"}
             aria-label={`Buscar en ${title}`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
       )}
+      {/* Outside the listbox on purpose: it doesn't pick an option, it
+          leaves to make one, and a non-option child breaks the role. */}
+      {showCreate && (
+        <div className="card picker-create">
+          <button type="button" className="row-item picker-row" onClick={create}>
+            <span className="picker-create-icon" aria-hidden="true">
+              <Icon name="plus" size={16} strokeWidth={2.4} />
+            </span>
+            <div className="row-content">
+              <div className="row-title">{typed ? `Crear “${typed}”` : createLabel}</div>
+            </div>
+          </button>
+        </div>
+      )}
       <div className="card picker-list" role="listbox" aria-label={title}>
         {rows.length === 0 ? (
-          <div className="picker-empty">Sin resultados para “{query.trim()}”.</div>
+          showCreate ? null : (
+            <div className="picker-empty">Sin resultados para “{typed}”.</div>
+          )
         ) : (
           rows.map((opt) => {
             const active = opt.value === value;

@@ -32,7 +32,9 @@ export function PickerField({
   value,
   onChange,
   placeholder = "Ninguno",
-  labelId
+  labelId,
+  onCreate,
+  createLabel
 }: {
   title: string;
   options: PickerOption[];
@@ -41,6 +43,9 @@ export function PickerField({
   placeholder?: string;
   /** id of the visible .input-label above this field. */
   labelId?: string;
+  /** Offer a "Crear …" row inside the picker; see PickerSheet. */
+  onCreate?: (typed: string) => void;
+  createLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const valueId = `picker-value-${domId(useId())}`;
@@ -70,6 +75,14 @@ export function PickerField({
           placeholder={placeholder}
           onSelect={onChange}
           onClose={() => setOpen(false)}
+          onCreate={
+            onCreate &&
+            ((typed) => {
+              setOpen(false);
+              onCreate(typed);
+            })
+          }
+          createLabel={createLabel}
         />
       )}
     </>

@@ -1609,6 +1609,21 @@ button.row-item {
 .picker-row-none { color: var(--charcoal-xl); font-weight: 500; }
 .picker-check { display: inline-flex; color: var(--accent); flex-shrink: 0; }
 .picker-empty { padding: 20px 16px; font-size: var(--text-md); color: var(--charcoal-xl); text-align: center; }
+/* "Crear «…»" — its own card above the list: it's an action, not one of
+   the options, and the accent reads it as the way forward. */
+.picker-create { margin-bottom: 10px; }
+.picker-create .row-title { color: var(--accent-dark); font-weight: 700; }
+.picker-create-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+  flex-shrink: 0;
+}
 
 /* ── SHEET ACTIONS ──
    <SheetActions />: both footer states (Guardar/Eliminar and the

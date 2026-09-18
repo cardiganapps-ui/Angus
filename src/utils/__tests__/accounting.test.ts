@@ -22,6 +22,7 @@ import {
   projectMargins,
   saleBalance,
   saleCountsTowardRevenue,
+  saleIsClosed,
   totals
 } from "../accounting";
 
@@ -112,6 +113,21 @@ describe("saleBalance", () => {
     const b = saleBalance(sale("s1", 5000, "cancelled"), [payment("p1", "s1", 1000)]);
     expect(b.owed).toBe(0);
     expect(b.credit).toBe(0);
+  });
+
+  it("closes a sale only when it is delivered AND fully paid", () => {
+    expect(saleIsClosed(sale("s1", 1000, "delivered"), [payment("p1", "s1", 1000)])).toBe(true);
+    // Delivered but still owed — she has to chase it.
+    expect(saleIsClosed(sale("s1", 1000, "delivered"), [payment("p1", "s1", 400)])).toBe(false);
+    // Paid in full but not delivered — the piece is still hers to make.
+    expect(saleIsClosed(sale("s1", 1000, "confirmed"), [payment("p1", "s1", 1000)])).toBe(false);
+    // Quoted and cancelled owe nothing, which is NOT the same as closed.
+    expect(saleIsClosed(sale("s1", 1000, "quoted"), [])).toBe(false);
+    expect(saleIsClosed(sale("s1", 1000, "cancelled"), [payment("p1", "s1", 1000)])).toBe(false);
+  });
+
+  it("closes a delivered sale that was overpaid", () => {
+    expect(saleIsClosed(sale("s1", 1000, "delivered"), [payment("p1", "s1", 1200)])).toBe(true);
   });
 
   it("ignores payments belonging to other sales", () => {

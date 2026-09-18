@@ -16,7 +16,9 @@ export function ContactSheet({
   contact,
   onClose,
   onDeleted,
-  onCreated
+  onCreated,
+  initialName,
+  initialRelationship
 }: {
   contact: Contact | null;
   onClose: () => void;
@@ -24,11 +26,17 @@ export function ContactSheet({
   onDeleted?: () => void;
   /** Called with the new id after a create (enrolling a brand-new student). */
   onCreated?: (id: string) => void;
+  /** Pre-fill for a contact born somewhere else — the name she typed into a picker. */
+  initialName?: string;
+  /** Default relationship for that contact; falls back to "lead". */
+  initialRelationship?: ContactRelationship;
 }) {
   const { addContact, updateContact, removeContact } = useApp();
   const { showSuccess } = useToast();
-  const [name, setName] = useState(contact?.name ?? "");
-  const [relationship, setRelationship] = useState<ContactRelationship>(contact?.relationship ?? "lead");
+  const [name, setName] = useState(contact?.name ?? initialName ?? "");
+  const [relationship, setRelationship] = useState<ContactRelationship>(
+    contact?.relationship ?? initialRelationship ?? "lead"
+  );
   const [email, setEmail] = useState(contact?.email ?? "");
   const [phone, setPhone] = useState(contact?.phone ?? "");
   const [leadStage, setLeadStage] = useState<LeadStage>(contact?.leadStage ?? "new");

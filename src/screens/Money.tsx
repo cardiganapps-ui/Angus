@@ -15,6 +15,7 @@ import {
   profitLoss,
   saleBalance,
   saleCountsTowardRevenue,
+  saleIsClosed,
   totals
 } from "../utils/accounting";
 import { formatMXN, formatMXNShort, formatMXNShortSigned, sumMoney } from "../utils/money";
@@ -32,6 +33,7 @@ import { SaleDetailSheet } from "../components/SaleDetailSheet";
 import { ExpenseSheet } from "../components/ExpenseSheet";
 import { BalanceView } from "./MoneyBalance";
 import { useFab } from "../context/FabContext";
+import { haptic } from "../lib/haptics";
 import type { Route } from "../hooks/useNavigation";
 
 type View = "sales" | "expenses" | "balance";
@@ -40,6 +42,11 @@ type View = "sales" | "expenses" | "balance";
    the tab unmounts on every navigation, but coming back within the same
    session should land where she left off. */
 let lastView: View = "sales";
+
+/* Same reasoning for the Ventas fold: closed sales stay tucked away by
+   default, but if she opened them she shouldn't have to do it again the
+   next time she comes back to Dinero in the same session. */
+let lastClosedOpen = false;
 
 const VIEW_ITEMS = [
   { k: "sales", l: "Ventas" },
@@ -211,9 +218,16 @@ function SalesView({
   contacts: Contact[];
   onSelect: (id: string) => void;
 }) {
+  const [closedOpen, setClosedOpen] = useState(lastClosedOpen);
   const sorted = [...sales].sort(
     (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
   );
+  /* Entregada y pagada = nothing left to do. It drops out of the working
+     list into the fold below so what's still owed, quoted or in cuotas
+     isn't buried under a year of finished commissions. */
+  const open: Sale[] = [];
+  const closed: Sale[] = [];
+  for (const sale of sorted) (saleIsClosed(sale, payments) ? closed : open).push(sale);
 
   if (sorted.length === 0) {
     return (
@@ -229,65 +243,144 @@ function SalesView({
     );
   }
 
+  function toggleClosed() {
+    haptic.tap();
+    lastClosedOpen = !closedOpen;
+    setClosedOpen(!closedOpen);
+  }
+
   return (
-    <div className="section">
-      <div className="card">
-        {sorted.map((sale, i) => {
-          const balance = saleBalance(sale, payments);
-          const contact = contacts.find((c) => c.id === sale.contactId);
-          const counting = saleCountsTowardRevenue(sale);
-          const owes = counting && balance.owed > 0;
-          return (
-            <button
-              key={sale.id}
-              type="button"
-              className="row-item list-entry-stagger"
-              style={stagger(i)}
-              onClick={() => onSelect(sale.id)}
-            >
-              <div className="row-content">
-                <div className="row-title">{sale.title}</div>
-                <div className="row-sub">
-                  {contact ? `${contact.name} · ` : ""}
-                  {formatShort(sale.date)}
-                  {sale.paymentTerms === "installments"
-                    ? " · en cuotas"
-                    : sale.paymentTerms === "deposit_balance"
-                      ? " · anticipo"
-                      : ""}
-                  {sale.recurringRuleId ? " · fijo" : ""}
-                </div>
-              </div>
-              <div className="money-row-right">
-                <span className="money-badges">
-                  <span className={`badge ${INCOME_CATEGORY_BADGE[sale.category]}`}>
-                    {labelFor(INCOME_CATEGORY, sale.category)}
-                  </span>
-                  <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>
-                    {labelFor(SALE_STATUS, sale.status)}
-                  </span>
-                </span>
-                {owes ? (
-                  <>
-                    <span className="row-amount amount-owe">{formatMXN(balance.owed)}</span>
-                    <span className="money-submeta">
-                      {formatMXNShort(balance.paid)} de {formatMXNShort(sale.amount)}
-                    </span>
-                  </>
-                ) : counting ? (
-                  <span className="row-amount amount-paid money-amount-mark">
-                    <Icon name="check" size={14} strokeWidth={2.4} />
-                    {formatMXN(sale.amount)}
-                  </span>
-                ) : (
-                  <span className="row-amount amount-clear">{formatMXN(sale.amount)}</span>
-                )}
-              </div>
-            </button>
-          );
-        })}
+    <>
+      <div className="section">
+        <div className="card">
+          {open.length === 0 ? (
+            <div className="money-list-empty">
+              Todo entregado y pagado. Lo cerrado está aquí abajo.
+            </div>
+          ) : (
+            open.map((sale, i) => (
+              <SaleRow
+                key={sale.id}
+                sale={sale}
+                payments={payments}
+                contacts={contacts}
+                index={i}
+                onSelect={onSelect}
+              />
+            ))
+          )}
+        </div>
       </div>
-    </div>
+
+      {closed.length > 0 && (
+        <div className="section">
+          <button
+            type="button"
+            className="money-fold-head btn-tap"
+            aria-expanded={closedOpen}
+            aria-controls="ventas-cerradas"
+            onClick={toggleClosed}
+          >
+            <span className="money-fold-title">Entregadas y pagadas</span>
+            <span className="money-fold-count">{closed.length}</span>
+            <span className={`money-fold-chevron ${closedOpen ? "is-open" : ""}`} aria-hidden="true">
+              <Icon name="chevron-down" size={18} strokeWidth={2.2} />
+            </span>
+          </button>
+          <div
+            id="ventas-cerradas"
+            className={`money-fold-body ${closedOpen ? "is-open" : ""}`}
+            aria-hidden={!closedOpen}
+          >
+            <div className="money-fold-clip">
+              <div className="card" style={{ marginTop: 10 }}>
+                {closed.map((sale, i) => (
+                  <SaleRow
+                    key={sale.id}
+                    sale={sale}
+                    payments={payments}
+                    contacts={contacts}
+                    index={i}
+                    tabbable={closedOpen}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SaleRow({
+  sale,
+  payments,
+  contacts,
+  index,
+  tabbable = true,
+  onSelect
+}: {
+  sale: Sale;
+  payments: Payment[];
+  contacts: Contact[];
+  index: number;
+  /** Rows inside a collapsed fold stay out of the tab order. */
+  tabbable?: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const balance = saleBalance(sale, payments);
+  const contact = contacts.find((c) => c.id === sale.contactId);
+  const counting = saleCountsTowardRevenue(sale);
+  const owes = counting && balance.owed > 0;
+  return (
+    <button
+      type="button"
+      className="row-item list-entry-stagger"
+      style={stagger(index)}
+      tabIndex={tabbable ? undefined : -1}
+      onClick={() => onSelect(sale.id)}
+    >
+      <div className="row-content">
+        <div className="row-title">{sale.title}</div>
+        <div className="row-sub">
+          {contact ? `${contact.name} · ` : ""}
+          {formatShort(sale.date)}
+          {sale.paymentTerms === "installments"
+            ? " · en cuotas"
+            : sale.paymentTerms === "deposit_balance"
+              ? " · anticipo"
+              : ""}
+          {sale.recurringRuleId ? " · fijo" : ""}
+        </div>
+      </div>
+      <div className="money-row-right">
+        <span className="money-badges">
+          <span className={`badge ${INCOME_CATEGORY_BADGE[sale.category]}`}>
+            {labelFor(INCOME_CATEGORY, sale.category)}
+          </span>
+          <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>
+            {labelFor(SALE_STATUS, sale.status)}
+          </span>
+        </span>
+        {owes ? (
+          <>
+            <span className="row-amount amount-owe">{formatMXN(balance.owed)}</span>
+            <span className="money-submeta">
+              {formatMXNShort(balance.paid)} de {formatMXNShort(sale.amount)}
+            </span>
+          </>
+        ) : counting ? (
+          <span className="row-amount amount-paid money-amount-mark">
+            <Icon name="check" size={14} strokeWidth={2.4} />
+            {formatMXN(sale.amount)}
+          </span>
+        ) : (
+          <span className="row-amount amount-clear">{formatMXN(sale.amount)}</span>
+        )}
+      </div>
+    </button>
   );
 }
 
