@@ -25,7 +25,7 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: 2px solid var(--border);
+  border: 2px solid var(--charcoal-xl);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,6 +54,7 @@
 
 /* Five tabs in the course sheet: tighter segments so "Sesiones" still
    fits at 360px without truncating. */
+.course-tabs { margin-top: 12px; }
 .course-tabs .segmented-btn { padding: 0 4px; font-size: var(--text-sm); letter-spacing: -0.2px; }
 
 /* The "3 de 8 entregadas" band above the list. */

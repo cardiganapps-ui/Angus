@@ -909,7 +909,7 @@ button.kpi-card:active {
 .row-icon { width: 40px; height: 40px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: var(--text-lg); flex-shrink: 0; }
 .row-content { flex: 1; min-width: 0; }
 .row-title { font-size: var(--text-md); font-weight: 600; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-.row-sub { font-size: var(--text-sm); color: var(--charcoal-xl); }
+.row-sub { font-size: var(--text-sm); color: var(--charcoal-xl); font-variant-numeric: tabular-nums; }
 .row-right { text-align: right; flex-shrink: 0; }
 .row-amount { font-family: var(--font-d); font-size: var(--text-lg); font-weight: 700; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
 /* --charcoal-xl, not --border: a disclosure chevron is an affordance, not a divider (1.45:1 read as a smudge). */
@@ -1429,6 +1429,9 @@ button.row-item {
   font-family: inherit; color: inherit; padding: 13px 16px;
 }
 .row-item--muted { opacity: 0.7; }
+/* A row that is data, not a tap target: no pointer, no hover lift. */
+.row-item--static { cursor: default; }
+.row-item--static:hover, .row-item--static:active { background: transparent; }
 /* A sub-line that is itself the warning (an overdue follow-up). */
 .row-sub--overdue { color: var(--red-text); font-weight: 600; }
 /* "Sin teléfono" where a value would go — quiet, not a dash. */
@@ -1441,7 +1444,7 @@ button.row-item {
 /* A .section inside a sheet body must not stack the page gutter on the sheet's. */
 .sheet-body .section { padding-left: 0; padding-right: 0; }
 .sheet-footer {
-  position: sticky; bottom: 0; background: var(--white);
+  position: sticky; bottom: 0; z-index: 1; background: var(--white);
   padding: 12px 20px 22px; margin-top: 8px;
   border-top: 1px solid var(--border-lt);
   display: flex; flex-direction: column; gap: 10px;
@@ -1456,6 +1459,8 @@ button.row-item {
    Port of Cardigan's single pill-tab style, used by <SegmentedControl />
    (auth Entrar/Crear cuenta, project status). */
 .segmented {
+  /* Segment z-indices stay inside the pill: they used to paint through the sticky sheet footer. */
+  isolation: isolate;
   display: flex; background: var(--accent-pale);
   border-radius: var(--radius-pill);
   padding: 3px; gap: 2px;

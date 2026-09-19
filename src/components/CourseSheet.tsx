@@ -276,6 +276,7 @@ export function CourseSheet({
             options={teacherOptions}
             value={teacherId}
             onChange={setTeacherId}
+            placeholder="Sin asignar"
             onCreate={(name) => quick.contact(name, "teacher")}
             createLabel="Nuevo maestro/a"
           />

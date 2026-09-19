@@ -216,6 +216,7 @@ export function AssignmentSheet({
             options={projectOptions}
             value={projectId}
             onChange={setProjectId}
+            placeholder="Ninguna"
             onCreate={(name) =>
               // Made for a tarea: in production, due when it is due, not inventory.
               quick.project(name || title, {

@@ -10,7 +10,7 @@ import {
   labelFor
 } from "../data/constants";
 import { describeCadence, monthlyEquivalent, nextOccurrence } from "../utils/recurrence";
-import { formatMXN, formatMXNShort, formatMXNShortSigned, subtractMoney, sumMoney } from "../utils/money";
+import { formatMXNShort, formatMXNShortSigned, subtractMoney, sumMoney } from "../utils/money";
 import { formatShort, todayISO } from "../utils/dates";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { EmptyState } from "../components/EmptyState";
@@ -204,7 +204,7 @@ function RuleSection({
                   ) : (
                     <span className="badge badge-amber">En pausa</span>
                   )}
-                  <span className={`row-amount ${kind === "income" ? "amount-paid" : ""}`}>{formatMXN(rule.amount)}</span>
+                  <span className={`row-amount ${kind === "income" ? "amount-paid" : ""}`}>{formatMXNShort(rule.amount)}</span>
                 </div>
                 <button
                   type="button"
