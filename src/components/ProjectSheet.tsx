@@ -9,6 +9,7 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
+import { Icon } from "./Icon";
 import { useQuickCreate } from "../hooks/useQuickCreate";
 import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
@@ -84,9 +85,9 @@ export function ProjectSheet({
     .map((c) => ({ value: c.id, label: c.name }));
   // Only for a piece that already has money attached — a brand-new one
   // has nothing to report, and an empty band would just add weight.
-  const economics = project
-    ? projectMargins([project.id], sales, payments, expenses)[0]?.economics
-    : undefined;
+  const linkedMoney = project ? projectMargins([project.id], sales, payments, expenses)[0]?.economics : undefined;
+  // A quoted sale or an unpaid link produces a row of zeros — nothing to report yet.
+  const economics = linkedMoney && (linkedMoney.revenue > 0 || linkedMoney.spent > 0) ? linkedMoney : undefined;
 
   async function handleSave() {
     if (!canSave || submitting) return;
@@ -285,7 +286,7 @@ export function ProjectSheet({
       ) : (
         <div className="input-group">
           <button type="button" className="btn btn-ghost btn-mini" onClick={() => setShowSheet(true)}>
-            + Ficha de la pieza (medidas, año, edición, lugar)
+            <Icon name="plus" size={14} strokeWidth={2.4} /> Ficha de la pieza (medidas, año, edición, lugar)
           </button>
         </div>
       )}
@@ -326,7 +327,7 @@ export function ProjectSheet({
         <div className="input-group">
           <div className="section-header" style={{ padding: "0 0 8px" }}>
             <span className="input-label" style={{ marginBottom: 0 }}>Fotos y archivos</span>
-            <button type="button" className="see-all btn-tap" onClick={() => setUploadOpen(true)}>+ Agregar</button>
+            <button type="button" className="see-all btn-tap" onClick={() => setUploadOpen(true)}><Icon name="plus" size={14} strokeWidth={2.4} /> Agregar</button>
           </div>
           <div className="money-list">
             <DocumentList documents={photos} onOpen={(d) => (d.kind === "link" && d.url ? window.open(d.url, "_blank", "noopener") : setDocOpen(d))} emptyBody="Fotos del proceso, de la pieza terminada, o el PDF de la ficha." />

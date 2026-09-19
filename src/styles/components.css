@@ -786,7 +786,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 .section { padding: 16px 16px 0; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .section-title { font-family: var(--font-d); font-size: var(--text-lg); font-weight: 800; color: var(--charcoal); }
-.see-all { font-size: var(--text-md); font-weight: 600; color: var(--accent-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+.see-all { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-md); font-weight: 600; color: var(--accent-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
 
 .card { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--border-lt); overflow: hidden; }
 
@@ -1110,7 +1110,7 @@ textarea.input { resize: none; line-height: 1.45; }
 .btn-ghost { background: transparent; color: var(--accent-dark); height: 44px; padding: 0 10px; font-size: var(--text-md); transition: background-color var(--dur-fast) ease; }
 .btn-danger { background: var(--red-bg); color: var(--red-text); box-shadow: none; width: 100%; }
 .btn-ghost--danger { color: var(--red-text); }
-.btn-ghost--success { color: var(--green); }
+.btn-ghost--success { color: var(--green-text); }
 
 
 
@@ -1429,6 +1429,10 @@ button.row-item {
   font-family: inherit; color: inherit; padding: 13px 16px;
 }
 .row-item--muted { opacity: 0.7; }
+/* A sub-line that is itself the warning (an overdue follow-up). */
+.row-sub--overdue { color: var(--red-text); font-weight: 600; }
+/* "Sin teléfono" where a value would go — quiet, not a dash. */
+.row-empty { color: var(--charcoal-xl); font-weight: 500; }
 /* Event-kind dot — inline color comes from EVENT_KIND[].color. */
 .event-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 /* Sheet body + sticky footer — Cardigan's inline recipe (PaymentModal:
@@ -1776,6 +1780,10 @@ button.row-item {
      negative margin keeps the strip exactly where it was. */
   padding: 4px 16px 12px; margin-top: -4px;
   scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  /* A chip cut mid-glyph at the edge reads as a bug; a fade says "more". */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  scroll-padding-inline: 16px;
 }
 .filter-row::-webkit-scrollbar { display: none; }
 .filter-row .chip { flex-shrink: 0; }
@@ -1791,7 +1799,7 @@ button.row-item {
   transition: transform var(--dur-base) var(--ease-spring), background var(--dur-fast) var(--ease-out);
 }
 .contact-action:active { transform: scale(0.95); background: var(--accent-mist); }
-.contact-action[aria-disabled="true"] { color: var(--charcoal-xl); pointer-events: none; }
+.contact-action[aria-disabled="true"] { color: var(--charcoal-xl); opacity: 0.55; cursor: not-allowed; pointer-events: none; }
 
 /* Pipeline (lead) columns rendered as stacked sections */
 .pipeline-stage-count { font-size: var(--text-xs); font-weight: 700; color: var(--charcoal-md); }

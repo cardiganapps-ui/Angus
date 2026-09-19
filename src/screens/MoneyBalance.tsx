@@ -27,7 +27,6 @@ const marginClass = (margin: number) =>
    pending/warning hue and it always ships with the words "Por devolver",
    the term Dinero already uses for the same pesos. Colour never carries
    it alone. */
-const REFUND_AMOUNT: CSSProperties = { color: "var(--amber)" };
 
 /* ── Balance ──
    The third money question: was it worth it? Per client, per piece, per
@@ -135,9 +134,7 @@ export function BalanceView({
                     )}
                     {refund && (
                       <>
-                        <span className="row-amount" style={REFUND_AMOUNT}>
-                          {formatMXNShort(client.refundable)}
-                        </span>
+                        <span className="row-amount money-refund">{formatMXNShort(client.refundable)}</span>
                         <span className="badge badge-amber">Por devolver</span>
                       </>
                     )}

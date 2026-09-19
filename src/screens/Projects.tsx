@@ -159,10 +159,9 @@ export function Projects() {
                   >
                     <div className="row-content">
                       <div className="row-title">{project.title}</div>
-                      <div className="row-sub">{meta || "Sin detalles"}</div>
-                    </div>
-                    <div className="money-row-right">
-                      <span className="money-badges">
+                      {/* Badges on the sub-line, so the price sits at the same
+                          height whether or not a row carries one. */}
+                      <div className="row-sub row-sub-inline">
                         {(filtering || g.title === null) && (
                           <span className={`badge ${PROJECT_STATUS_BADGE[project.status]}`}>
                             {labelFor(PROJECT_STATUS, project.status)}
@@ -174,9 +173,10 @@ export function Projects() {
                           </span>
                         )}
                         {course && <span className="badge badge-purple">Curso</span>}
-                      </span>
-                      {project.price !== null && <span className="row-amount">{formatMXNShort(project.price)}</span>}
+                        <span className="row-sub-detail">{meta || "Sin detalles"}</span>
+                      </div>
                     </div>
+                    {project.price !== null && <span className="row-amount">{formatMXNShort(project.price)}</span>}
                   </button>
                   </SwipeRow>
                 );

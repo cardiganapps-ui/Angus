@@ -9,7 +9,7 @@ import {
   labelFor
 } from "../data/constants";
 import { contactOwed } from "../utils/accounting";
-import { formatMXN } from "../utils/money";
+import { formatMXNShort } from "../utils/money";
 import { formatShort, todayISO } from "../utils/dates";
 import { matches } from "../utils/text";
 import { EmptyState } from "../components/EmptyState";
@@ -26,8 +26,8 @@ import { useFab } from "../context/FabContext";
 type View = "all" | "pipeline";
 type Filter = "all" | ContactRelationship;
 const VIEW_ITEMS = [
-  { k: "all", l: "Todos" },
-  { k: "pipeline", l: "Prospectos" }
+  { k: "all", l: "Lista" },
+  { k: "pipeline", l: "Seguimiento" }
 ];
 const STAGE_ORDER: LeadStage[] = ["new", "contacted", "negotiating", "won", "lost"];
 
@@ -127,10 +127,8 @@ export function Contacts() {
           stages.map((s) => (
             <div className="section" key={s.stage}>
               <div className="section-header">
-                <span className="section-title">
-                  <span className={`badge ${LEAD_STAGE_BADGE[s.stage]}`}>{labelFor(LEAD_STAGE, s.stage)}</span>
-                </span>
-                <span className="pipeline-stage-count">{s.items.length}</span>
+                <span className="section-title">{labelFor(LEAD_STAGE, s.stage)}</span>
+                <span className={`badge ${LEAD_STAGE_BADGE[s.stage]}`}>{s.items.length}</span>
               </div>
               <div className="card">
                 {s.items.map((c, i) => (
@@ -267,24 +265,18 @@ function Row({
     <button type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={onClick}>
       <div className="row-content">
         <div className="row-title">{contact.name}</div>
-        {owed > 0 ? (
-          <div className="row-sub row-sub-inline">
-            {badge}
-            {detail && <span className="row-sub-detail">{detail}</span>}
-          </div>
-        ) : (
-          <div className="row-sub" style={overdue ? { color: "var(--red)" } : undefined}>
-            {detail || "—"}
-          </div>
-        )}
+        {/* The badge always lives here, so it never jumps columns between
+            a contact who owes money and one who doesn't. */}
+        <div className="row-sub row-sub-inline">
+          {badge}
+          {detail && <span className={`row-sub-detail ${overdue ? "row-sub--overdue" : ""}`}>{detail}</span>}
+        </div>
       </div>
-      {owed > 0 ? (
+      {owed > 0 && (
         <div className="money-row-right">
-          <span className="row-amount amount-owe">{formatMXN(owed)}</span>
+          <span className="row-amount amount-owe">{formatMXNShort(owed)}</span>
           <span className="money-submeta">Te debe</span>
         </div>
-      ) : (
-        badge
       )}
       <span className="row-chevron" aria-hidden="true">
         <Icon name="chevron-right" size={16} />

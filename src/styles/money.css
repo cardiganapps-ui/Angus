@@ -272,6 +272,9 @@
 .money-switch { padding: 12px 16px 0; }
 /* Two accent-pale pills touching read as one broken control. */
 .money-switch + .period-picker { margin-top: 16px; }
+.money-switch + .search-field { margin-top: 12px; }
+/* Money she owes OUT: amber ("pending"), never the red of money owed IN. */
+.money-refund { color: var(--amber-text); }
 
 /* ── BALANCE (¿valió la pena?) ──
    Margin is the one figure here that can go either way, so it gets its
