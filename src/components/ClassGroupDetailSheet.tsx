@@ -23,7 +23,7 @@ import { PickerSheet } from "./PickerSheet";
 import { ClassGroupSheet } from "./ClassGroupSheet";
 import { AttendanceSheet } from "./AttendanceSheet";
 import { SaleDetailSheet } from "./SaleDetailSheet";
-import { ContactSheet } from "./ContactSheet";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { haptic } from "../lib/haptics";
 
 type Tab = "students" | "sessions" | "tuition";
@@ -65,10 +65,10 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
     updateRule
   } = useApp();
   const { showSuccess } = useToast();
+  const quick = useQuickCreate();
   const [tab, setTab] = useState<Tab>("students");
   const [editing, setEditing] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
-  const [newContact, setNewContact] = useState(false);
   const [session, setSession] = useState<ScheduleEvent | null>(null);
   const [saleId, setSaleId] = useState<string | null>(null);
   const closeRef = useRef<(() => void) | null>(null);
@@ -333,25 +333,18 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
       {enrolling && (
         <PickerSheet
           title="Inscribir alumno"
-          options={[{ value: "__new__", label: "+ Nuevo contacto" }, ...candidates]}
+          options={candidates}
           value=""
           placeholder="Elige un contacto"
           onSelect={(id) => {
             setEnrolling(false);
-            if (id === "__new__") setNewContact(true);
-            else if (id) void enroll(id);
+            if (id) void enroll(id);
           }}
           onClose={() => setEnrolling(false)}
-        />
-      )}
-      {newContact && (
-        <ContactSheet
-          contact={null}
-          onClose={() => setNewContact(false)}
-          onCreated={(id) => {
-            setNewContact(false);
-            void enroll(id);
-          }}
+          /* A student pays tuition through Por cobrar like any client; the
+             old path made every new alumno a "lead" and put them in the funnel. */
+          onCreate={(name) => quick.contact(name, "client")}
+          createLabel="Nuevo alumno"
         />
       )}
       {editing && (

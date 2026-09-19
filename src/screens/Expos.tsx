@@ -6,6 +6,8 @@ import { periodSummary } from "../utils/insights";
 import { formatMXNShort, formatMXNShortSigned, sumMoney } from "../utils/money";
 import { addMonths, formatWithWeekday, todayISO, yearRange } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
+import { SwipeRow } from "../components/SwipeRow";
+import { useToast } from "../context/ToastContext";
 import { EventSheet } from "../components/EventSheet";
 import { ExpoSheet } from "../components/ExpoSheet";
 import { useFab } from "../context/FabContext";
@@ -23,7 +25,13 @@ const SIGNAL_LABEL: Record<ExpoSignal, string> = {
    Every expo on the calendar with its economics: what it cost, what it
    sold, and a traffic light. Upcoming ones show budget vs spent so far. */
 export function Expos() {
-  const { events, sales, payments, expenses } = useApp();
+  const { events, sales, payments, expenses, removeEvent } = useApp();
+  const { showSuccess } = useToast();
+  const deleteExpo = async (id: string) => {
+    const ok = await removeEvent(id);
+    if (ok) showSuccess("Expo eliminada");
+    return ok;
+  };
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   useFab({ key: "expo", label: "Nueva expo", icon: "map-pin", onPick: () => setCreating(true) });
@@ -63,7 +71,7 @@ export function Expos() {
             <EmptyState
               icon="map-pin"
               title="Sin expos todavía"
-              body="Agrega una expo o feria a la agenda, ponle presupuesto y liga sus ventas y gastos. Angus te dice si valió la pena."
+              body="Agrega una expo o feria a la agenda, ponle presupuesto y liga sus ingresos y gastos. Angus te dice si valió la pena."
               actionLabel="Agregar expo"
               onAction={() => setCreating(true)}
             />
@@ -71,8 +79,8 @@ export function Expos() {
         </div>
       ) : (
         <>
-          <Section title="Próximas" rows={upcoming} onOpen={setOpen} emptyBody="Ninguna expo próxima en la agenda." upcoming />
-          <Section title="Pasadas" rows={past} onOpen={setOpen} emptyBody="Todavía no tienes expos pasadas." />
+          <Section title="Próximas" rows={upcoming} onOpen={setOpen} onDelete={deleteExpo} emptyBody="Ninguna expo próxima en la agenda." upcoming />
+          <Section title="Pasadas" rows={past} onOpen={setOpen} onDelete={deleteExpo} emptyBody="Todavía no tienes expos pasadas." />
         </>
       )}
 
@@ -87,12 +95,14 @@ function Section({
   title,
   rows,
   onOpen,
+  onDelete,
   emptyBody,
   upcoming
 }: {
   title: string;
   rows: { event: ScheduleEvent; report: ReturnType<typeof expoReport> }[];
   onOpen: (id: string) => void;
+  onDelete: (id: string) => Promise<boolean>;
   emptyBody: string;
   upcoming?: boolean;
 }) {
@@ -106,7 +116,13 @@ function Section({
           <div className="money-list-empty">{emptyBody}</div>
         ) : (
           rows.map(({ event, report }, i) => (
-            <button key={event.id} type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={() => onOpen(event.id)}>
+            <SwipeRow
+              key={event.id}
+              label={event.title}
+              question={`¿Eliminar la expo “${event.title}”? Sus ingresos y gastos quedan sin expo ligada.`}
+              onDelete={() => onDelete(event.id)}
+            >
+            <button type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={() => onOpen(event.id)}>
               <span className={`expo-signal expo-signal--${upcoming ? (report.budget && report.overBudget > 0 ? "red" : "none") : report.signal}`} aria-hidden="true" />
               <div className="row-content">
                 <div className="row-title">{event.title}</div>
@@ -129,6 +145,7 @@ function Section({
                 <span className="money-submeta">en mano</span>
               </div>
             </button>
+            </SwipeRow>
           ))
         )}
       </div>

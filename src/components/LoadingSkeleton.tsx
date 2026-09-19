@@ -37,7 +37,7 @@ export function LoadingSkeleton({ route = "home" }: { route?: Route }) {
           ))}
         </div>
       )}
-      {/* Dinero's segmented control (Ventas | Gastos) sits above the list. */}
+      {/* Dinero's segmented control (Ingresos | Gastos) sits above the list. */}
       {route === "money" && (
         <div className="section">
           <span className="sk-bar" style={{ display: "block", height: 40, borderRadius: 100 }} />

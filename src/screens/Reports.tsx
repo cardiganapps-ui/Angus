@@ -60,10 +60,10 @@ export function Reports() {
     const tag = `${range.from}_${range.to}`;
     const withTareas = assignments.length > 0;
     /* Every file is attempted. `&&` short-circuited here, so one refused
-       download silently cancelled the rest — she'd get "ventas" and
+       download silently cancelled the rest — she'd get "ingresos" and
        believe she had the set. */
     const files: [string, string][] = [
-      [`angus-ventas-${tag}.csv`, salesCsv(sales, payments, contacts, projects, range.from, range.to)],
+      [`angus-ingresos-${tag}.csv`, salesCsv(sales, payments, contacts, projects, range.from, range.to)],
       [`angus-pagos-${tag}.csv`, paymentsCsv(payments, sales, contacts, range.from, range.to)],
       [`angus-gastos-${tag}.csv`, expensesCsv(expenses, projects, events, range.from, range.to)],
       [`angus-cuotas-${tag}.csv`, installmentsCsv(installments, sales, payments, contacts, range.from, range.to)]
@@ -93,7 +93,7 @@ export function Reports() {
             <EmptyState
               icon="chart"
               title={`Nada que contar en ${range.label.toLowerCase()}`}
-              body="Cuando registres ventas, pagos o gastos en este periodo, aquí verás de dónde vino el dinero y a dónde fue."
+              body="Cuando registres ingresos, pagos o gastos en este periodo, aquí verás de dónde vino el dinero y a dónde fue."
             />
           </div>
         </div>
@@ -169,10 +169,10 @@ export function Reports() {
           />
 
           {mediums.length > 0 && (
-            <Ranked title="Por medio" rows={mediums} unit={(r) => `${r.count} ${r.count === 1 ? "venta" : "ventas"}`} />
+            <Ranked title="Por medio" rows={mediums} unit={(r) => `${r.count} ${r.count === 1 ? "ingreso" : "ingresos"}`} />
           )}
           {clients.length > 0 && (
-            <Ranked title="Quién compró" rows={clients} unit={(r) => `${r.count} ${r.count === 1 ? "venta" : "ventas"}`} />
+            <Ranked title="Quién te pagó" rows={clients} unit={(r) => `${r.count} ${r.count === 1 ? "ingreso" : "ingresos"}`} />
           )}
           {studies.length > 0 && (
             <Ranked title="Lo que invertiste en estudiar" rows={studies} unit={(r) => `${r.count} ${r.count === 1 ? "pago" : "pagos"}`} />
@@ -200,8 +200,8 @@ export function Reports() {
               <div className="input-help" style={{ padding: "0 14px 14px", marginTop: 0 }}>
                 {funnel.open > 0 ? `${funnel.open} ${funnel.open === 1 ? "prospecto abierto" : "prospectos abiertos"} · ` : ""}
                 {daysToCollect === null
-                  ? "Aún no hay ventas liquidadas para medir cuánto tardas en cobrar."
-                  : `Tardas en promedio ${daysToCollect} ${daysToCollect === 1 ? "día" : "días"} en cobrar una venta completa.`}
+                  ? "Aún no hay ingresos liquidados para medir cuánto tardas en cobrar."
+                  : `Tardas en promedio ${daysToCollect} ${daysToCollect === 1 ? "día" : "días"} en cobrar un ingreso completo.`}
               </div>
             </div>
           </div>
@@ -219,7 +219,7 @@ export function Reports() {
             </span>
             <div className="row-content">
               <div className="row-title">Descargar CSV · {range.label}</div>
-              <div className="row-sub">Ventas, pagos, gastos{assignments.length > 0 ? " y tareas" : ""}, listos para Excel o tu contador.</div>
+              <div className="row-sub">Ingresos, pagos, gastos{assignments.length > 0 ? " y tareas" : ""}, listos para Excel o tu contador.</div>
             </div>
             <span className="row-chevron" aria-hidden="true">
               <Icon name="chevron-right" size={16} />

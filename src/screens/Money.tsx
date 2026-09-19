@@ -29,11 +29,13 @@ import { SegmentedControl } from "../components/SegmentedControl";
 import { TrendChart } from "../components/TrendChart";
 import { Icon } from "../components/Icon";
 import { SaleSheet } from "../components/SaleSheet";
+import { SwipeRow } from "../components/SwipeRow";
 import { SaleDetailSheet } from "../components/SaleDetailSheet";
 import { ExpenseSheet } from "../components/ExpenseSheet";
 import { BalanceView } from "./MoneyBalance";
 import { useFab } from "../context/FabContext";
 import { haptic } from "../lib/haptics";
+import { useToast } from "../context/ToastContext";
 import type { Route } from "../hooks/useNavigation";
 
 type View = "sales" | "expenses" | "balance";
@@ -43,13 +45,13 @@ type View = "sales" | "expenses" | "balance";
    session should land where she left off. */
 let lastView: View = "sales";
 
-/* Same reasoning for the Ventas fold: closed sales stay tucked away by
+/* Same reasoning for the Ingresos fold: closed sales stay tucked away by
    default, but if she opened them she shouldn't have to do it again the
    next time she comes back to Dinero in the same session. */
 let lastClosedOpen = false;
 
 const VIEW_ITEMS = [
-  { k: "sales", l: "Ventas" },
+  { k: "sales", l: "Ingresos" },
   { k: "expenses", l: "Gastos" },
   { k: "balance", l: "Balance" }
 ];
@@ -64,7 +66,8 @@ const MONEY_LINKS: { route: Route; label: string }[] = [
 ];
 
 export function Money({ navigate }: { navigate: (r: Route) => void }) {
-  const { sales, payments, expenses, contacts, projects, events, rules } = useApp();
+  const { sales, payments, expenses, contacts, projects, events, rules, removeSale, removeExpense } = useApp();
+  const { showSuccess } = useToast();
   const [view, setView] = useState<View>(lastView);
   const [period, setPeriod] = useState<Period>(() => currentPeriod("month", todayISO()));
   const [editingSale, setEditingSale] = useState<Sale | "new" | null>(null);
@@ -73,7 +76,7 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
   useFab(
     view === "expenses"
       ? { key: "expense", label: "Nuevo gasto", icon: "receipt", onPick: () => setEditingExpense("new") }
-      : { key: "sale", label: "Nueva venta", icon: "banknote", onPick: () => setEditingSale("new") }
+      : { key: "sale", label: "Nuevo ingreso", icon: "banknote", onPick: () => setEditingSale("new") }
   );
 
   const today = todayISO();
@@ -140,7 +143,7 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
           value={view}
           onChange={(k) => switchView(k as View)}
           size="md"
-          ariaLabel="Ventas o gastos"
+          ariaLabel="Ingresos o gastos"
         />
       </div>
 
@@ -150,6 +153,11 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
           payments={payments}
           contacts={contacts}
           onSelect={setDetailSaleId}
+          onDelete={async (sale) => {
+            const ok = await removeSale(sale.id);
+            if (ok) showSuccess("Ingreso eliminado");
+            return ok;
+          }}
         />
       ) : view === "expenses" ? (
         <ExpensesView
@@ -157,6 +165,11 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
           period={period}
           onPeriodChange={setPeriod}
           onSelect={setEditingExpense}
+          onDelete={async (expense) => {
+            const ok = await removeExpense(expense.id);
+            if (ok) showSuccess("Gasto eliminado");
+            return ok;
+          }}
         />
       ) : (
         <>
@@ -211,12 +224,14 @@ function SalesView({
   sales,
   payments,
   contacts,
-  onSelect
+  onSelect,
+  onDelete
 }: {
   sales: Sale[];
   payments: Payment[];
   contacts: Contact[];
   onSelect: (id: string) => void;
+  onDelete: (sale: Sale) => Promise<boolean>;
 }) {
   const [closedOpen, setClosedOpen] = useState(lastClosedOpen);
   const sorted = [...sales].sort(
@@ -235,8 +250,8 @@ function SalesView({
         <div className="card">
           <EmptyState
             icon="banknote"
-            title="Sin ventas todavía"
-            body="Registra una venta para llevar la cuenta de lo que ya te pagaron y lo que te deben."
+            title="Sin ingresos todavía"
+            body="Registra un ingreso para llevar la cuenta de lo que ya te pagaron y lo que te deben."
           />
         </div>
       </div>
@@ -266,6 +281,7 @@ function SalesView({
                 contacts={contacts}
                 index={i}
                 onSelect={onSelect}
+                onDelete={onDelete}
               />
             ))
           )}
@@ -278,17 +294,17 @@ function SalesView({
             type="button"
             className="money-fold-head btn-tap"
             aria-expanded={closedOpen}
-            aria-controls="ventas-cerradas"
+            aria-controls="ingresos-cerrados"
             onClick={toggleClosed}
           >
-            <span className="money-fold-title">Entregadas y pagadas</span>
+            <span className="money-fold-title">Entregados y pagados</span>
             <span className="money-fold-count">{closed.length}</span>
             <span className={`money-fold-chevron ${closedOpen ? "is-open" : ""}`} aria-hidden="true">
               <Icon name="chevron-down" size={18} strokeWidth={2.2} />
             </span>
           </button>
           <div
-            id="ventas-cerradas"
+            id="ingresos-cerrados"
             className={`money-fold-body ${closedOpen ? "is-open" : ""}`}
             aria-hidden={!closedOpen}
           >
@@ -303,6 +319,7 @@ function SalesView({
                     index={i}
                     tabbable={closedOpen}
                     onSelect={onSelect}
+                    onDelete={onDelete}
                   />
                 ))}
               </div>
@@ -320,7 +337,8 @@ function SaleRow({
   contacts,
   index,
   tabbable = true,
-  onSelect
+  onSelect,
+  onDelete
 }: {
   sale: Sale;
   payments: Payment[];
@@ -329,12 +347,24 @@ function SaleRow({
   /** Rows inside a collapsed fold stay out of the tab order. */
   tabbable?: boolean;
   onSelect: (id: string) => void;
+  onDelete: (sale: Sale) => Promise<boolean>;
 }) {
   const balance = saleBalance(sale, payments);
   const contact = contacts.find((c) => c.id === sale.contactId);
   const counting = saleCountsTowardRevenue(sale);
   const owes = counting && balance.owed > 0;
+  const hasMoney = balance.paid > 0;
   return (
+    <SwipeRow
+      label={sale.title}
+      question={
+        hasMoney
+          ? `¿Eliminar “${sale.title}”? Se borran también sus ${formatMXN(balance.paid)} pagados y sus cuotas.`
+          : undefined
+      }
+      onDelete={() => onDelete(sale)}
+      disabled={!tabbable}
+    >
     <button
       type="button"
       className="row-item list-entry-stagger"
@@ -381,6 +411,7 @@ function SaleRow({
         )}
       </div>
     </button>
+    </SwipeRow>
   );
 }
 
@@ -388,12 +419,14 @@ function ExpensesView({
   expenses,
   period,
   onPeriodChange,
-  onSelect
+  onSelect,
+  onDelete
 }: {
   expenses: Expense[];
   period: Period;
   onPeriodChange: (p: Period) => void;
   onSelect: (expense: Expense) => void;
+  onDelete: (expense: Expense) => Promise<boolean>;
 }) {
   const range = periodRange(period);
   const sorted = [...expenses]
@@ -454,8 +487,8 @@ function ExpensesView({
           </div>
           <div className="card">
             {rows.map((expense, i) => (
+              <SwipeRow key={expense.id} label={expense.title} onDelete={() => onDelete(expense)}>
               <button
-                key={expense.id}
                 type="button"
                 className="row-item list-entry-stagger"
                 style={stagger(i)}
@@ -476,6 +509,7 @@ function ExpensesView({
                   <span className="row-amount">{formatMXN(expense.amount)}</span>
                 </div>
               </button>
+              </SwipeRow>
             ))}
           </div>
         </div>

@@ -10,6 +10,8 @@ import {
 } from "../data/constants";
 import { formatMXNShort } from "../utils/money";
 import { EmptyState } from "../components/EmptyState";
+import { SwipeRow } from "../components/SwipeRow";
+import { useToast } from "../context/ToastContext";
 import { ProjectSheet } from "../components/ProjectSheet";
 import { SearchField } from "../components/SearchField";
 import { matches } from "../utils/text";
@@ -34,7 +36,8 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    production status and availability, sort. Grouped by status so
    "what am I working on" is the first thing on screen. */
 export function Projects() {
-  const { projects, contacts, courses } = useApp();
+  const { projects, contacts, courses, removeProject } = useApp();
+  const { showSuccess } = useToast();
   const [editing, setEditing] = useState<Project | null | "new">(null);
   useFab({ key: "project", label: "Nueva pieza", icon: "palette", onPick: () => setEditing("new") });
   const [query, setQuery] = useState("");
@@ -138,8 +141,17 @@ export function Projects() {
                   .filter(Boolean)
                   .join(" · ");
                 return (
-                  <button
+                  <SwipeRow
                     key={project.id}
+                    label={project.title}
+                    question={`¿Eliminar “${project.title}”? Sus ingresos y gastos quedan sin pieza ligada.`}
+                    onDelete={async () => {
+                      const ok = await removeProject(project.id);
+                      if (ok) showSuccess("Pieza eliminada");
+                      return ok;
+                    }}
+                  >
+                  <button
                     type="button"
                     className="row-item list-entry-stagger"
                     style={stagger(i)}
@@ -166,6 +178,7 @@ export function Projects() {
                       {project.price !== null && <span className="row-amount">{formatMXNShort(project.price)}</span>}
                     </div>
                   </button>
+                  </SwipeRow>
                 );
               })}
             </div>

@@ -211,7 +211,10 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
   async function deletePlan() {
     if (!sale || working) return;
     setWorking(true);
-    await removeInstallments(plan.map((status) => status.installment.id));
+    if (!(await removeInstallments(plan.map((status) => status.installment.id)))) {
+      setWorking(false);
+      return;
+    }
     haptic.warn();
     showSuccess("Plan de pagos eliminado");
     setConfirmingPlan(false);
@@ -252,7 +255,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
                 onClick={() => setEditing(true)}
                 disabled={working}
               >
-                Editar venta
+                Editar ingreso
               </button>
             </div>
           </div>
@@ -368,7 +371,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
           <div className="money-panel" style={{ marginBottom: 10 }}>
             <span className="badge badge-amber">Plan sin cuadrar</span>
             <div className="input-help" style={{ marginTop: 8 }}>
-              Las cuotas suman {formatMXN(mismatch.planned)} y la venta vale {formatMXN(sale.amount)} —{" "}
+              Las cuotas suman {formatMXN(mismatch.planned)} y el ingreso vale {formatMXN(sale.amount)} —{" "}
               {formatMXN(Math.abs(mismatch.difference))} de {mismatch.kind === "over" ? "más" : "menos"}.
             </div>
             {fixingPlan && fix ? (
@@ -494,7 +497,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
         ) : (
           <div className="money-list">
             <div className="money-list-empty" style={{ paddingBottom: 0 }}>
-              Sin plan de pagos. Divide esta venta en cuotas para darle seguimiento.
+              Sin plan de pagos. Divide este ingreso en cuotas para darle seguimiento.
             </div>
             <div style={{ padding: 14 }}>
               <button

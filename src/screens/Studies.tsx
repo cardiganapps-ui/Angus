@@ -10,6 +10,8 @@ import { formatMXNShort } from "../utils/money";
 import { addDays, formatWithWeekday, todayISO } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
+import { SwipeRow } from "../components/SwipeRow";
+import { useToast } from "../context/ToastContext";
 import { CourseSheet } from "../components/CourseSheet";
 import { CourseDetailSheet } from "../components/CourseDetailSheet";
 import { useFab } from "../context/FabContext";
@@ -20,7 +22,8 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    The courses she takes, at a glance: what's next, what each one has
    cost her, and (from Stage 2) what she owes them in tareas. */
 export function Studies() {
-  const { courses, events, expenses, assignments } = useApp();
+  const { courses, events, expenses, assignments, removeCourse } = useApp();
+  const { showSuccess } = useToast();
   const [creating, setCreating] = useState(false);
   useFab({ key: "course", label: "Nuevo curso", icon: "book", onPick: () => setCreating(true) });
   const [open, setOpen] = useState<string | null>(null);
@@ -52,7 +55,17 @@ export function Studies() {
     const cost = courseCost(course, expenses, sessions);
     const tareas = courseTareas(assignments.filter((a) => a.courseId === course.id), today);
     return (
-      <button key={course.id} type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={() => setOpen(course.id)}>
+      <SwipeRow
+        key={course.id}
+        label={course.name}
+        question={`¿Eliminar el curso “${course.name}”? Se quitan sus sesiones y su material; tus gastos, notas y piezas se conservan.`}
+        onDelete={async () => {
+          const ok = await removeCourse(course.id);
+          if (ok) showSuccess("Curso eliminado");
+          return ok;
+        }}
+      >
+      <button type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={() => setOpen(course.id)}>
         <div className="row-content">
           <div className="row-title">{course.name}</div>
           <div className="row-sub">
@@ -81,6 +94,7 @@ export function Studies() {
           <Icon name="chevron-right" size={16} />
         </span>
       </button>
+      </SwipeRow>
     );
   };
 

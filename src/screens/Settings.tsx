@@ -267,7 +267,7 @@ export function Settings({ navigate }: { navigate: (r: Route) => void }) {
         <Row
           icon="download"
           label="Exportar a CSV"
-          hint="Ventas, pagos y gastos por periodo, desde Reportes."
+          hint="Ingresos, pagos y gastos por periodo, desde Reportes."
           onClick={() => navigate("reports")}
         />
         <Row

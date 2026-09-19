@@ -7,6 +7,7 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { SegmentedControl } from "./SegmentedControl";
 import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
@@ -82,9 +83,11 @@ export function EventSheet({
     events,
     projects,
     contacts,
-    courses
+    courses,
+    settings
   } = useApp();
   const { showSuccess, showToast } = useToast();
+  const quick = useQuickCreate();
   const parent: EventSeries | null = event?.seriesId ? (allSeries.find((s) => s.id === event.seriesId) ?? null) : null;
 
   const [title, setTitle] = useState(event?.title ?? initialTitle ?? "");
@@ -221,7 +224,14 @@ export function EventSheet({
     // ── "Toda la serie": rewrite the rule + every future non-detached row ──
     if (scope === "all") {
       const shape = seriesShape(parent.startDate);
-      void updateSeries(parent.id, shape);
+      /* The rule is capped FIRST and awaited. Dropping the dates while a
+         refused reshape reverts leaves them "missing" under the old shape,
+         and the generator simply refills what she just cleared. */
+      if (!(await updateSeries(parent.id, shape))) {
+        setSubmitting(false);
+        showToast("No se pudo actualizar la serie. Nada se cambió.", "error", { persistent: true });
+        return;
+      }
       const { keep, drop, patch } = reshapeFuture(parent, shape, events, todayISO());
       for (const occ of keep) void updateEvent(occ.id, patch);
       if (drop.length) void removeEvents(drop.map((e) => e.id));
@@ -347,10 +357,19 @@ export function EventSheet({
         <ChipSelect options={EVENT_KIND} value={kind} onChange={setKind} ariaLabel="Tipo de evento" />
       </div>
 
-      {(kind === "class" || kind === "other") && courseOptions.length > 0 && (
+      {(kind === "class" || kind === "other") && (settings.practice.includes("studies") || courses.length > 0) && (
         <div className="input-group">
           <span className="input-label" id={`${uid}-course`}>Curso que tomas</span>
-          <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} placeholder="Ninguno" />
+          <PickerField
+            labelId={`${uid}-course`}
+            title="Curso"
+            options={courseOptions}
+            value={courseId}
+            onChange={setCourseId}
+            placeholder="Ninguno"
+            onCreate={(name) => quick.course(name, { startDate: date })}
+            createLabel="Nuevo curso"
+          />
         </div>
       )}
 
@@ -435,12 +454,39 @@ export function EventSheet({
 
       <div className="input-group">
         <span className="input-label" id={`${uid}-project`}>Pieza relacionada</span>
-        <PickerField labelId={`${uid}-project`} title="Pieza relacionada" options={projectOptions} value={projectId} onChange={setProjectId} />
+        <PickerField
+          labelId={`${uid}-project`}
+          title="Pieza relacionada"
+          options={projectOptions}
+          value={projectId}
+          onChange={setProjectId}
+          onCreate={(name) =>
+            // The kind already says what the piece is: shown at an expo →
+            // finished; a deadline → in progress and due that day.
+            quick.project(
+              name,
+              kind === "expo"
+                ? { status: "completed", contactId: contactId || null }
+                : kind === "deadline"
+                  ? { status: "in_progress", dueDate: date, contactId: contactId || null }
+                  : { contactId: contactId || null }
+            )
+          }
+          createLabel="Nueva pieza"
+        />
       </div>
 
       <div className="input-group">
         <span className="input-label" id={`${uid}-contact`}>Contacto relacionado</span>
-        <PickerField labelId={`${uid}-contact`} title="Contacto relacionado" options={contactOptions} value={contactId} onChange={setContactId} />
+        <PickerField
+          labelId={`${uid}-contact`}
+          title="Contacto relacionado"
+          options={contactOptions}
+          value={contactId}
+          onChange={setContactId}
+          onCreate={(name) => quick.contact(name, kind === "expo" ? "gallery" : "other")}
+          createLabel="Nuevo contacto"
+        />
       </div>
 
       <div className="input-group">

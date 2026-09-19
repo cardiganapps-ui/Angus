@@ -361,7 +361,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
               <span className="dash-figure-meta">ideas y pausas</span>
             </button>
             <button type="button" className="dash-figure btn-tap" onClick={() => goTo("money")}>
-              <span className="dash-figure-label">Vendidas</span>
+              <span className="dash-figure-label">Ingresos</span>
               <span className="dash-figure-value">
                 <AnimatedNumber value={snapshot.soldThisMonth} />
               </span>
@@ -463,7 +463,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
                 </span>
               </div>
               <div className="money-submeta" style={REFUND_NOTE}>
-                Entró este mes, pero viene de ventas canceladas: es de tus clientes hasta que se
+                Entró este mes, pero viene de ingresos cancelados: es de tus clientes hasta que se
                 los devuelvas{goal ? " y no cuenta para tu meta" : ""}.
               </div>
             </div>

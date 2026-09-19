@@ -55,7 +55,7 @@ export function ExpoSheet({ eventId, onClose }: { eventId: string; onClose: () =
           <div className="sheet-actions">
             <div className="sheet-actions-state">
               <button type="button" className="btn btn-primary" onClick={() => setNewSale(true)}>
-                Registrar venta aquí
+                Registrar ingreso aquí
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => setNewExpense(true)}>
                 Registrar gasto
@@ -140,11 +140,11 @@ export function ExpoSheet({ eventId, onClose }: { eventId: string; onClose: () =
         </div>
 
         <div className="money-sheet-section">
-          <span className="money-sheet-section-title">Ventas en esta expo</span>
+          <span className="money-sheet-section-title">Ingresos en esta expo</span>
         </div>
         <div className="money-list">
           {expoSales.length === 0 ? (
-            <div className="money-list-empty">Ninguna venta ligada todavía.</div>
+            <div className="money-list-empty">Ningún ingreso ligado todavía.</div>
           ) : (
             expoSales.map((s: Sale) => {
               const b = saleBalance(s, payments);

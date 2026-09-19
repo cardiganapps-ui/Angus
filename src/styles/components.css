@@ -1598,6 +1598,74 @@ button.row-item {
   .picker-field:hover { border-color: var(--charcoal-xl); }
 }
 .picker-field:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+/* ── SWIPE ROW ──
+   Wraps a .row-item. The red action panel sits UNDER the content, which
+   slides left to reveal it; the confirm state replaces the content in
+   the same footprint so the list never jumps. Tokens only: red is the
+   one destructive hue, and the label rides on --red-bg / --red like
+   .btn-danger, never white-on-red (3.9:1 in light). */
+.swipe-row { position: relative; overflow: hidden; touch-action: pan-y; }
+.swipe-row-content {
+  position: relative;
+  background: var(--white);
+  transition: transform var(--dur-base) var(--ease-out);
+  will-change: transform;
+}
+.swipe-row.is-dragging .swipe-row-content { transition: none; }
+/* The wrapper takes :last-child from the row, so restore its rule. */
+.swipe-row:last-child .row-item { border-bottom: none; }
+.swipe-row-actions {
+  position: absolute; inset: 0 0 0 auto; width: 96px;
+  display: flex;
+  background: var(--red-bg);
+}
+.swipe-row-delete {
+  flex: 1; border: none; background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font-family: var(--font-d); font-weight: 800; font-size: var(--text-sm);
+  color: var(--red); -webkit-tap-highlight-color: transparent;
+  opacity: 0; transform: scale(0.9);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring);
+}
+.swipe-row.is-open .swipe-row-delete, .swipe-row.is-dragging .swipe-row-delete { opacity: 1; transform: none; }
+.swipe-row-delete:active { transform: scale(0.95); }
+
+/* Pointer devices: a trash button on hover / keyboard focus. Touch never
+   sees it (no hover), so nothing crowds the row on a phone. */
+.swipe-row-trash {
+  position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+  width: 36px; height: 36px; min-height: 36px; border-radius: 50%;
+  border: none; background: var(--red-bg); color: var(--red); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) {
+  .swipe-row:hover .swipe-row-trash { opacity: 1; pointer-events: auto; }
+}
+.swipe-row-trash:focus-visible { opacity: 1; pointer-events: auto; outline: none; box-shadow: var(--focus-ring); }
+
+.swipe-row-confirm {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  min-height: 62px; padding: 12px 16px;
+  background: var(--red-bg);
+  border-bottom: 1px solid var(--border-lt);
+  animation: sheetActionsIn var(--dur-base) var(--ease-out);
+}
+.swipe-row:last-child .swipe-row-confirm { border-bottom: none; }
+.swipe-row-question {
+  flex: 1 1 160px; min-width: 0;
+  font-family: var(--font-d); font-weight: 700; font-size: var(--text-md); color: var(--charcoal);
+  overflow-wrap: anywhere;
+}
+.swipe-row-confirm-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
+.swipe-row-confirm .btn-danger { background: var(--white); }
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe-row-content, .swipe-row-delete, .swipe-row-trash { transition: none; }
+  .swipe-row-confirm { animation: none; }
+}
+
 /* PickerSheet rows: .row-item as a full-width button (UA reset), a
    accent check on the selected row, "Ninguno" in placeholder color. */
 .picker-list { margin-bottom: 8px; }

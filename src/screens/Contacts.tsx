@@ -14,6 +14,8 @@ import { formatShort, todayISO } from "../utils/dates";
 import { matches } from "../utils/text";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
+import { SwipeRow } from "../components/SwipeRow";
+import { useToast } from "../context/ToastContext";
 import { ContactSheet } from "../components/ContactSheet";
 import { ContactDetailSheet } from "../components/ContactDetailSheet";
 import { SearchField } from "../components/SearchField";
@@ -36,7 +38,13 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    view that groups leads by stage with their next follow-up. Tapping a
    row opens the detail sheet (reach out, balance, sales, agenda). */
 export function Contacts() {
-  const { contacts, sales, payments } = useApp();
+  const { contacts, sales, payments, removeContact } = useApp();
+  const { showSuccess } = useToast();
+  const deleteContact = async (id: string) => {
+    const ok = await removeContact(id);
+    if (ok) showSuccess("Contacto eliminado");
+    return ok;
+  };
   const [view, setView] = useState<View>("all");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -134,6 +142,7 @@ export function Contacts() {
                     detail={followUpLabel(c, today)}
                     overdue={!!c.followUpDate && c.followUpDate < today}
                     onClick={() => setDetailId(c.id)}
+                    onDelete={() => deleteContact(c.id)}
                   />
                 ))}
               </div>
@@ -179,6 +188,7 @@ export function Contacts() {
                       owed={owed}
                       detail={detail}
                       onClick={() => setDetailId(contact.id)}
+                      onDelete={() => deleteContact(contact.id)}
                     />
                   );
                 })}
@@ -232,7 +242,8 @@ function Row({
   owed,
   detail,
   overdue,
-  onClick
+  onClick,
+  onDelete
 }: {
   contact: Contact;
   i: number;
@@ -240,6 +251,7 @@ function Row({
   detail: string;
   overdue?: boolean;
   onClick: () => void;
+  onDelete: () => Promise<boolean>;
 }) {
   const badge = (
     <span className={`badge ${CONTACT_RELATIONSHIP_BADGE[contact.relationship]}`}>
@@ -247,6 +259,11 @@ function Row({
     </span>
   );
   return (
+    <SwipeRow
+      label={contact.name}
+      question={`¿Eliminar a “${contact.name}”? Sus ingresos y eventos quedan sin contacto, sus cobros fijos se detienen.`}
+      onDelete={onDelete}
+    >
     <button type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={onClick}>
       <div className="row-content">
         <div className="row-title">{contact.name}</div>
@@ -273,5 +290,6 @@ function Row({
         <Icon name="chevron-right" size={16} />
       </span>
     </button>
+    </SwipeRow>
   );
 }

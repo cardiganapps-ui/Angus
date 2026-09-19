@@ -85,7 +85,7 @@ export function saleBalance(sale: Sale, payments: Payment[]): SaleBalance {
    left the studio and the money landed. Deliberately NOT `saleBalance().settled`,
    which is also true for a quote nobody has paid and for a cancelled sale
    that never took a deposit. Those still need her attention; this one
-   doesn't, which is why Ventas folds it away. */
+   doesn't, which is why Ingresos folds it away. */
 export function saleIsClosed(sale: Sale, payments: Payment[]): boolean {
   if (sale.status !== "delivered") return false;
   return toCents(saleBalance(sale, payments).owed) === 0;

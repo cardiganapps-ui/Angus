@@ -8,7 +8,7 @@ import { SheetActions } from "./SheetActions";
 import { ChipSelect } from "./ChipSelect";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
-import { ContactSheet } from "./ContactSheet";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { ScheduleFields, type ScheduleValue } from "./ScheduleFields";
 import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
@@ -53,6 +53,7 @@ export function CourseSheet({
     contacts
   } = useApp();
   const { showSuccess } = useToast();
+  const quick = useQuickCreate();
   const parent: EventSeries | null = course?.seriesId ? (allSeries.find((s) => s.id === course.seriesId) ?? null) : null;
   const rule = course?.recurringRuleId ? (rules.find((r) => r.id === course.recurringRuleId) ?? null) : null;
   const today = todayISO();
@@ -62,7 +63,6 @@ export function CourseSheet({
   const [status, setStatus] = useState<CourseStatus>(course?.status ?? "active");
   const [institution, setInstitution] = useState(course?.institution ?? "");
   const [teacherId, setTeacherId] = useState(course?.teacherContactId ?? "");
-  const [newTeacher, setNewTeacher] = useState(false);
   const [modality, setModality] = useState<CourseModality>(course?.modality ?? "in_person");
   const [location, setLocation] = useState(course?.location ?? parent?.location ?? "");
   const [url, setUrl] = useState(course?.url ?? "");
@@ -155,17 +155,22 @@ export function CourseSheet({
       // Schedule: reshape, create, or retire.
       if (parent && wantsSeries) {
         const shape = seriesShape(course.id);
-        void updateSeries(parent.id, shape);
-        const { keep, drop, patch: rowPatch } = reshapeFuture(parent, shape, events, today);
-        for (const occ of keep) void updateEvent(occ.id, rowPatch);
-        if (drop.length) void removeEvents(drop.map((e) => e.id));
+        // Rule first, dates second — a refused reshape must not leave
+        // dropped dates for the generator to refill (see EventSheet).
+        void updateSeries(parent.id, shape).then((ok) => {
+          if (!ok) return;
+          const { keep, drop, patch: rowPatch } = reshapeFuture(parent, shape, events, today);
+          for (const occ of keep) void updateEvent(occ.id, rowPatch);
+          if (drop.length) void removeEvents(drop.map((e) => e.id));
+        });
       } else if (parent && !wantsSeries) {
         // Stop scheduling without touching the past: the series ends
         // today, only future occurrences go, and attended sessions (with
         // their "Falté" flags and apuntes) stay on the course.
-        void updateSeries(parent.id, { endDate: today });
         const future = events.filter((e) => e.seriesId === parent.id && e.date > today);
-        if (future.length) void removeEvents(future.map((e) => e.id));
+        void updateSeries(parent.id, { endDate: today }).then((ok) => {
+          if (ok && future.length) void removeEvents(future.map((e) => e.id));
+        });
         void updateCourse(course.id, { seriesId: null });
       } else if (!parent && wantsSeries) {
         const seriesId = makeId();
@@ -268,9 +273,11 @@ export function CourseSheet({
           <PickerField
             labelId={`${uid}-teacher`}
             title="Maestro/a"
-            options={[{ value: "__new__", label: "+ Nuevo contacto" }, ...teacherOptions]}
+            options={teacherOptions}
             value={teacherId}
-            onChange={(v) => (v === "__new__" ? setNewTeacher(true) : setTeacherId(v))}
+            onChange={setTeacherId}
+            onCreate={(name) => quick.contact(name, "teacher")}
+            createLabel="Nuevo maestro/a"
           />
         </div>
 
@@ -355,16 +362,6 @@ export function CourseSheet({
         </div>
       </Sheet>
 
-      {newTeacher && (
-        <ContactSheet
-          contact={null}
-          onClose={() => setNewTeacher(false)}
-          onCreated={(id) => {
-            setNewTeacher(false);
-            setTeacherId(id);
-          }}
-        />
-      )}
     </>
   );
 }

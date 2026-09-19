@@ -43,8 +43,8 @@ export function PickerField({
   placeholder?: string;
   /** id of the visible .input-label above this field. */
   labelId?: string;
-  /** Offer a "Crear …" row inside the picker; see PickerSheet. */
-  onCreate?: (typed: string) => void;
+  /** Create from what she typed and answer with the new id; see PickerSheet. */
+  onCreate?: (typed: string) => Promise<string | null>;
   createLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -75,13 +75,7 @@ export function PickerField({
           placeholder={placeholder}
           onSelect={onChange}
           onClose={() => setOpen(false)}
-          onCreate={
-            onCreate &&
-            ((typed) => {
-              setOpen(false);
-              onCreate(typed);
-            })
-          }
+          onCreate={onCreate}
           createLabel={createLabel}
         />
       )}

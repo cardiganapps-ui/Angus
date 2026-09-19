@@ -224,7 +224,7 @@ export function GlobalSearchSheet({ onClose }: { onClose: () => void }) {
                 aria-controls="gsearch-results"
                 aria-autocomplete="list"
                 aria-activedescendant={active >= 0 ? optionId(active) : undefined}
-                placeholder="Obra, contactos, ventas, notas…"
+                placeholder="Obra, contactos, ingresos, notas…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onKeyDown}
@@ -252,7 +252,7 @@ export function GlobalSearchSheet({ onClose }: { onClose: () => void }) {
             <EmptyState
               icon="search"
               title="Busca en todo tu estudio"
-              body="Una pieza, un contacto, una venta, un gasto, algo de tu agenda, un curso, una tarea, una nota o una clase. Escribe dos letras y empieza."
+              body="Una pieza, un contacto, un ingreso, un gasto, algo de tu agenda, un curso, una tarea, una nota o una clase. Escribe dos letras y empieza."
             />
           ) : count === 0 ? (
             <EmptyState

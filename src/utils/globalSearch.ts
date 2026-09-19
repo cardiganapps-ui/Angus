@@ -30,7 +30,7 @@ import { notePreview } from "./noteText";
 
 /* ── Global search ───────────────────────────────────────────────────
    One query over everything she has ever written down: obra, contactos,
-   ventas, gastos, agenda, cursos, tareas, notas y clases.
+   ingresos, gastos, agenda, cursos, tareas, notas y clases.
 
    Two halves, on purpose:
 
@@ -71,7 +71,7 @@ export type SearchKind =
 export const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
   project: "Obra",
   contact: "Contactos",
-  sale: "Ventas",
+  sale: "Ingresos",
   expense: "Gastos",
   event: "Agenda",
   course: "Estudios",

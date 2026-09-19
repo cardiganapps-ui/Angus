@@ -36,7 +36,7 @@ import { haptic } from "../lib/haptics";
 type Tab = "info" | "sales" | "agenda" | "classes" | "studies";
 const TAB_ITEMS = [
   { k: "info", l: "Info" },
-  { k: "sales", l: "Ventas" },
+  { k: "sales", l: "Ingresos" },
   { k: "agenda", l: "Agenda" },
   { k: "classes", l: "Clases" },
   { k: "studies", l: "Estudios" }
@@ -165,7 +165,7 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
           <div className="money-panel money-panel--compact" style={{ marginBottom: 14 }}>
             <div className="money-stats" style={{ marginBottom: 0 }}>
               <div>
-                <div className="money-stat-label">Vendido</div>
+                <div className="money-stat-label">Acordado</div>
                 <div className="money-stat-value">{formatMXNShort(t.committed)}</div>
               </div>
               <div>
@@ -240,7 +240,7 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
         {tab === "sales" && (
           <div className="money-list" style={{ marginTop: 14 }}>
             {clientSales.length === 0 ? (
-              <div className="money-list-empty">Sin ventas con este contacto todavía.</div>
+              <div className="money-list-empty">Sin ingresos con este contacto todavía.</div>
             ) : (
               clientSales.map((sale) => {
                 const b = saleBalance(sale, payments);

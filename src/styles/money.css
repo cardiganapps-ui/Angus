@@ -187,7 +187,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── FOLD (Ventas → Entregadas y pagadas) ──
+/* ── FOLD (Ingresos → Entregados y pagados) ──
    A finished sale is still hers to look up, just not hers to act on, so
    it collapses behind a header instead of leaving the list. The body
    animates with grid-template-rows 0fr → 1fr: height:auto can't be

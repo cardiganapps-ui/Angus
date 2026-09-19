@@ -9,6 +9,7 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
@@ -41,6 +42,7 @@ export function ProjectSheet({
 }) {
   const { addProject, updateProject, removeProject, contacts, courses, sales, payments, expenses, projects, settings } =
     useApp();
+  const quick = useQuickCreate();
   const { showSuccess } = useToast();
   const [title, setTitle] = useState(project?.title ?? initialTitle ?? "");
   const [medium, setMedium] = useState(project?.medium ?? "");
@@ -124,7 +126,11 @@ export function ProjectSheet({
   async function handleDelete() {
     if (!project || submitting) return;
     setSubmitting(true);
-    await removeProject(project.id);
+    if (!(await removeProject(project.id))) {
+      // The store reverted and reported why; nothing was removed.
+      setSubmitting(false);
+      return;
+    }
     haptic.warn();
     showSuccess("Pieza eliminada");
     onClose();
@@ -146,7 +152,7 @@ export function ProjectSheet({
           submitting={submitting}
           onSave={() => void handleSave()}
           onDelete={project ? () => void handleDelete() : undefined}
-          confirmText="¿Eliminar esta pieza? Sus ventas y gastos quedan sin pieza ligada."
+          confirmText="¿Eliminar esta pieza? Sus ingresos y gastos quedan sin pieza ligada."
         />
       }
     >
@@ -292,13 +298,27 @@ export function ProjectSheet({
           options={contactOptions}
           value={contactId}
           onChange={setContactId}
+          onCreate={(name) =>
+            // A sold or reserved piece has a client; anyone attached to an
+            // available one is a prospect, which is ContactSheet's own default.
+            quick.contact(name, availability === "sold" || availability === "reserved" ? "client" : "lead")
+          }
+          createLabel="Nuevo contacto"
         />
       </div>
 
-      {courseOptions.length > 0 && (
+      {(settings.practice.includes("studies") || courses.length > 0) && (
         <div className="input-group">
           <span className="input-label" id={`${uid}-course`}>Para el curso</span>
-          <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
+          <PickerField
+            labelId={`${uid}-course`}
+            title="Curso"
+            options={courseOptions}
+            value={courseId}
+            onChange={setCourseId}
+            onCreate={(name) => quick.course(name)}
+            createLabel="Nuevo curso"
+          />
         </div>
       )}
 

@@ -59,7 +59,7 @@ export function salesCsv(
 export function paymentsCsv(payments: Payment[], sales: Sale[], contacts: Contact[], from: string, to: string): string {
   const sale = new Map(sales.map((s) => [s.id, s]));
   const name = new Map(contacts.map((c) => [c.id, c.name]));
-  const rows: (string | number | null)[][] = [["Fecha", "Monto", "Método", "Venta", "Cliente", "Notas"]];
+  const rows: (string | number | null)[][] = [["Fecha", "Monto", "Método", "Ingreso", "Cliente", "Notas"]];
   for (const p of [...payments].filter((p) => inRange(p.date, from, to)).sort((a, b) => a.date.localeCompare(b.date))) {
     const s = sale.get(p.saleId);
     rows.push([
@@ -100,7 +100,7 @@ export function installmentsCsv(
     overdue: "Vencida"
   };
   const rows: (string | number | null)[][] = [
-    ["Vence", "Monto", "Cubierto", "Falta", "Estado", "Venta", "Cliente"]
+    ["Vence", "Monto", "Cubierto", "Falta", "Estado", "Ingreso", "Cliente"]
   ];
   const withPlans = sales.filter((s) => installments.some((i) => i.saleId === s.id));
   const steps = withPlans.flatMap((s) =>

@@ -22,7 +22,7 @@ const REFUND_BAND: CSSProperties = {
 };
 
 /* One client's sales and what each one still owes. Opened from the
-   Balance view; every row leads to the same SaleDetailSheet the Ventas
+   Balance view; every row leads to the same SaleDetailSheet the Ingresos
    list uses, so there is only one place a sale is managed. */
 export function ClientBalanceSheet({
   contactId,
@@ -37,7 +37,7 @@ export function ClientBalanceSheet({
   const contact = contacts.find((c) => c.id === contactId);
   /* Mirrors `clientBalances`: counting sales AND cancelled ones. Filtering
      to counting sales here is what made a client she owes a refund open to
-     $0 / $0 / $0 and "sin ventas" — the row exists in the list precisely
+     $0 / $0 / $0 and "sin ingresos" — the row exists in the list precisely
      because of the cancelled sale it was hiding. `totals` partitions the
      two sides, so committed / paid / owed are unaffected. */
   const clientSales = sales
@@ -55,7 +55,7 @@ export function ClientBalanceSheet({
         <div className="money-panel">
           <div className="money-stats" style={{ marginBottom: 0 }}>
             <div>
-              <div className="money-stat-label">Vendido</div>
+              <div className="money-stat-label">Acordado</div>
               <div className="money-stat-value">{formatMXN(t.committed)}</div>
             </div>
             <div>
@@ -76,7 +76,7 @@ export function ClientBalanceSheet({
             <div style={REFUND_BAND}>
               <div>
                 <div className="money-stat-label">Por devolver</div>
-                <div className="money-submeta">Pagos de una venta cancelada</div>
+                <div className="money-submeta">Pagos de un ingreso cancelado</div>
               </div>
               <div className="money-stat-value" style={REFUND_TEXT}>
                 {formatMXN(t.refundable)}
@@ -86,12 +86,12 @@ export function ClientBalanceSheet({
         </div>
 
         <div className="money-sheet-section">
-          <span className="money-sheet-section-title">Ventas</span>
+          <span className="money-sheet-section-title">Ingresos</span>
         </div>
         <div className="money-list">
           {clientSales.length === 0 ? (
             <div className="money-list-empty">
-              Sin ventas confirmadas todavía. Confirma una venta para verla aquí.
+              Sin ingresos confirmados todavía. Confirma un ingreso para verlo aquí.
             </div>
           ) : (
             clientSales.map((sale) => {

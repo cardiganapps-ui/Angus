@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { IncomeCategory, PaymentTerms, Sale, SaleStatus } from "../types";
@@ -8,10 +8,10 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
-import { ContactSheet } from "./ContactSheet";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { PlanBuilder, PlanPreview } from "./PlanBuilder";
 import { planRows, type PlanDraft } from "../utils/plan";
-import { makeId } from "../utils/id";
+import { domId, makeId } from "../utils/id";
 import { addMonths, formatShort, todayISO } from "../utils/dates";
 import { paidForSale, planMismatch, rebuildPlan } from "../utils/accounting";
 import { formatMXN, toCents } from "../utils/money";
@@ -81,10 +81,10 @@ export function SaleSheet({
   const [notes, setNotes] = useState(sale?.notes ?? "");
   const [planChoice, setPlanChoice] = useState<PlanChoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  /* A client she hasn't saved yet: the picker hands back whatever she
-     typed and we open a real ContactSheet on top, pre-filled. `null`
-     means closed — an empty string is a legitimate "create, blank". */
-  const [newContactName, setNewContactName] = useState<string | null>(null);
+  /* A client, piece or expo she hasn't saved yet is created from the
+     picker itself, with only the name — see hooks/useQuickCreate.ts. */
+  const quick = useQuickCreate();
+  const uid = domId(useId());
 
   const safeClose = submitting ? null : onClose;
   const parsedAmount = Number(amount);
@@ -125,7 +125,7 @@ export function SaleSheet({
   const expoOptions = events
     .filter((e) => e.kind === "expo")
     .sort((a, b) => b.date.localeCompare(a.date))
-    .map((e) => ({ value: e.id, label: `${e.title} · ${formatShort(e.date)}` }));
+    .map((e) => ({ value: e.id, label: `${e.title} · ${formatShort(e.date)}`, name: e.title }));
 
   /* Flipping a paid sale to "cancelada" used to drop that cash out of
      every total with no warning at all. It is now a liability rather
@@ -161,7 +161,7 @@ export function SaleSheet({
         }))
       : null;
     /* The sale has to land before its cuotas: they carry its id as an
-       FK. Awaited either way now — a "Venta y plan de pagos creados"
+       FK. Awaited either way now — an "Ingreso y plan de pagos registrados"
        toast over a rejected insert tells her a commitment exists that
        the server never recorded. */
     const ok = sale
@@ -191,21 +191,21 @@ export function SaleSheet({
         : true;
     haptic.success();
     if (!planned) {
-      showToast("Guardamos la venta, pero no el plan de pagos. Ábrela para volver a intentarlo.", "error", {
+      showToast("Guardamos el ingreso, pero no el plan de pagos. Ábrelo para volver a intentarlo.", "error", {
         persistent: true
       });
     } else if (!rebuilt) {
       showToast(
-        "Guardamos el monto, pero no se pudieron ajustar todas las cuotas. Abre la venta para terminar de cuadrar el plan.",
+        "Guardamos el monto, pero no se pudieron ajustar todas las cuotas. Abre el ingreso para terminar de cuadrar el plan.",
         "error",
         { persistent: true }
       );
     } else if (pendingMismatch && planChoice === "rebuild") {
-      showSuccess(`Venta actualizada · plan ajustado a ${formatMXN(parsedAmount)}`);
+      showSuccess(`Ingreso actualizado · plan ajustado a ${formatMXN(parsedAmount)}`);
     } else if (pendingMismatch) {
-      showSuccess(`Venta actualizada · el plan sigue en ${formatMXN(pendingMismatch.planned)}`);
+      showSuccess(`Ingreso actualizado · el plan sigue en ${formatMXN(pendingMismatch.planned)}`);
     } else {
-      showSuccess(sale ? "Venta actualizada" : rows ? "Venta y plan de pagos creados" : "Venta creada");
+      showSuccess(sale ? "Ingreso actualizado" : rows ? "Ingreso y plan de pagos registrados" : "Ingreso registrado");
     }
     onClose();
   }
@@ -242,14 +242,13 @@ export function SaleSheet({
       return;
     }
     haptic.warn();
-    showSuccess("Venta eliminada");
+    showSuccess("Ingreso eliminado");
     (onDeleted ?? onClose)();
   }
 
   return (
-    <>
     <Sheet
-      title={sale ? "Editar venta" : "Nueva venta"}
+      title={sale ? "Editar ingreso" : "Nuevo ingreso"}
       onClose={safeClose}
       footer={
         <SheetActions
@@ -257,7 +256,7 @@ export function SaleSheet({
           submitting={submitting}
           onSave={() => void handleSave()}
           onDelete={sale ? () => void handleDelete() : undefined}
-          confirmText="¿Eliminar esta venta? Se eliminarán también sus pagos y cuotas."
+          confirmText="¿Eliminar este ingreso? Se eliminarán también sus pagos y cuotas."
         />
       }
     >
@@ -268,7 +267,7 @@ export function SaleSheet({
           className="input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Retrato por encargo, pieza en expo…"
+          placeholder="Retrato por encargo, pieza en expo, colegiatura de marzo…"
           autoFocus={sale === null && prefersAutoFocus()}
         />
       </div>
@@ -323,7 +322,7 @@ export function SaleSheet({
         />
         <div className="input-help">
           {hasPlan && terms !== "single"
-            ? "El plan de pagos existente se administra desde la venta."
+            ? "El plan de pagos existente se administra desde el ingreso."
             : TERMS_HELP[terms]}
         </div>
       </div>
@@ -370,7 +369,7 @@ export function SaleSheet({
           )}
           {planChoice === "keep" && (
             <div className="input-help" style={{ marginTop: 10 }}>
-              Las cuotas se quedan tal cual. La venta va a aparecer marcada como "Plan sin cuadrar"
+              Las cuotas se quedan tal cual. El ingreso va a aparecer marcado como "Plan sin cuadrar"
               hasta que lo ajustes.
             </div>
           )}
@@ -385,47 +384,64 @@ export function SaleSheet({
           onChange={(k) => setStatus(k as SaleStatus)}
           size="sm"
           role="radiogroup"
-          ariaLabel="Estado de la venta"
+          ariaLabel="Estado del ingreso"
         />
         <div className="input-help">
           {cancellingWithMoney
-            ? `Ya recibiste ${formatMXN(alreadyPaid)} de esta venta. Al cancelarla ese dinero pasa a "Por devolver" y la venta deja de contar en Por cobrar. Los pagos quedan registrados.`
-            : "Solo las ventas confirmadas y entregadas cuentan para lo que te deben."}
+            ? `Ya recibiste ${formatMXN(alreadyPaid)} de este ingreso. Al cancelarlo ese dinero pasa a "Por devolver" y el ingreso deja de contar en Por cobrar. Los pagos quedan registrados.`
+            : "Solo los ingresos confirmados y entregados cuentan para lo que te deben."}
         </div>
       </div>
 
       <div className="input-group">
-        <span className="input-label">Cliente</span>
+        <span className="input-label" id={`${uid}-contact`}>Cliente</span>
         <PickerField
+          labelId={`${uid}-contact`}
           title="Cliente"
           options={contactOptions}
           value={contactId}
           onChange={setContactId}
-          onCreate={setNewContactName}
+          onCreate={(name) => quick.contact(name, "client")}
           createLabel="Nuevo contacto"
         />
-        <div className="input-help">
-          ¿No está en tu agenda? Escribe su nombre en el buscador y créalo desde ahí.
-        </div>
       </div>
 
       <div className="input-group">
-        <span className="input-label">Pieza</span>
+        <span className="input-label" id={`${uid}-project`}>Pieza</span>
         <PickerField
+          labelId={`${uid}-project`}
           title="Pieza"
           options={projectOptions}
           value={projectId}
           onChange={setProjectId}
+          onCreate={(name) =>
+            /* A piece born from an ingreso already has a story: sold and
+               finished, reserved while a commission is made, or reserved
+               by a quote. The price and the buyer are on screen too. */
+            quick.project(name, {
+              status: category === "commission" ? "in_progress" : "completed",
+              availability: status === "quoted" || category === "commission" ? "reserved" : "sold",
+              contactId: contactId || null,
+              price: parsedAmount > 0 ? parsedAmount : null
+            })
+          }
+          createLabel="Nueva pieza"
         />
       </div>
 
-      {expoOptions.length > 0 && (
-        <div className="input-group">
-          <span className="input-label">Expo</span>
-          <PickerField title="Expo" options={expoOptions} value={eventId} onChange={setEventId} />
-          <div className="input-help">Para saber si la expo se pagó sola.</div>
-        </div>
-      )}
+      <div className="input-group">
+        <span className="input-label" id={`${uid}-expo`}>Expo</span>
+        <PickerField
+          labelId={`${uid}-expo`}
+          title="Expo"
+          options={expoOptions}
+          value={eventId}
+          onChange={setEventId}
+          onCreate={(name) => quick.expo(name, date)}
+          createLabel="Nueva expo"
+        />
+        <div className="input-help">Para saber si la expo se pagó sola.</div>
+      </div>
 
       <div className="input-group">
         <label className="input-label" htmlFor="sale-notes">Notas</label>
@@ -438,18 +454,5 @@ export function SaleSheet({
         />
       </div>
     </Sheet>
-    {newContactName !== null && (
-      <ContactSheet
-        contact={null}
-        initialName={newContactName}
-        initialRelationship="client"
-        onClose={() => setNewContactName(null)}
-        onCreated={(id) => {
-          setNewContactName(null);
-          setContactId(id);
-        }}
-      />
-    )}
-    </>
   );
 }

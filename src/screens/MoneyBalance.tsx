@@ -82,7 +82,7 @@ export function BalanceView({
           <EmptyState
             icon="banknote"
             title="Todavía no hay nada que comparar"
-            body="Registra ventas y gastos, y enlázalos a una pieza o a una expo: aquí verás quién te debe y qué tanto te dejó cada cosa."
+            body="Registra ingresos y gastos, y enlázalos a una pieza o a una expo: aquí verás quién te debe y qué tanto te dejó cada cosa."
           />
         </div>
       </div>
@@ -120,8 +120,8 @@ export function BalanceView({
                     <div className="row-title">{contact?.name ?? "Cliente sin nombre"}</div>
                     <div className="row-sub">
                       {client.saleCount === 0
-                        ? "Sin ventas activas · su venta se canceló"
-                        : `${client.saleCount} ${client.saleCount === 1 ? "venta" : "ventas"} · ${formatMXNShort(client.committed)}`}
+                        ? "Sin ingresos activos · su ingreso se canceló"
+                        : `${client.saleCount} ${client.saleCount === 1 ? "ingreso" : "ingresos"} · ${formatMXNShort(client.committed)}`}
                     </div>
                   </div>
                   <div className="money-row-right">
