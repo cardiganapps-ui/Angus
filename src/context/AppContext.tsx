@@ -175,6 +175,10 @@ interface AppContextValue {
 
   noteTags: NoteTag[];
   addNoteTag: (t: NoteTag) => Promise<boolean>;
+  /** The tag with this label as of RIGHT NOW — after an awaited add that
+      converged on a twin (lower(label) is unique), the id the caller
+      minted is not the one that survived. */
+  findNoteTagByLabel: (label: string) => NoteTag | null;
   updateNoteTag: (id: string, patch: Partial<NoteTag>) => Promise<boolean>;
   removeNoteTag: (id: string) => Promise<boolean>;
 
@@ -228,7 +232,12 @@ export function AppProvider({
   const documents = useCloudStore(workspaceId, documentStore);
   const noteAttachments = useCloudStore(workspaceId, noteAttachmentStore);
 
+  /* The skips store is in every aggregate below on purpose. It used to be
+     in none of them: `loading` could flip false while skips were still
+     fetching, canDiff accepted the never-loaded EMPTY_LOAD, and the first
+     materializer pass regenerated every period she had deleted. */
   const loading =
+    skips.loading ||
     projects.loading ||
     contacts.loading ||
     events.loading ||
@@ -279,9 +288,19 @@ export function AppProvider({
   const expensesLoad = expenses.load;
   const skipsLoad = skips.load;
   const skipItems = skips.items;
+  const salesInflight = sales.inflight;
+  const expensesInflight = expenses.inflight;
+  const skipsInflight = skips.inflight;
   useEffect(() => {
     // A rule that hasn't landed yet can't be referenced by its rows.
     if (loading || materializing.current || rulesInflight > 0) return;
+    /* Nor may a diff run while one of the lists it reads is mid-flight.
+       A delete drops the row locally BEFORE the server answers, so a diff
+       taken in that window sees the period as missing and re-inserts it —
+       against a row Postgres still holds (23505, and the "ya estaba
+       guardado" toast she reported) or, if the delete won the race, back
+       into her ledger as if she had never touched it. */
+    if (salesInflight > 0 || expensesInflight > 0 || skipsInflight > 0) return;
     const today = todayISO();
     const earliestRule = ruleItems
       .filter((r) => r.active)
@@ -319,7 +338,7 @@ export function AppProvider({
       .finally(() => {
         materializing.current = false;
       });
-  }, [loading, rulesInflight, ruleItems, saleItems, expenseItems, skipItems, addSales, addExpenses, rulesLoad, salesLoad, expensesLoad, skipsLoad]);
+  }, [loading, rulesInflight, salesInflight, expensesInflight, skipsInflight, ruleItems, saleItems, expenseItems, skipItems, addSales, addExpenses, rulesLoad, salesLoad, expensesLoad, skipsLoad]);
 
   // Same idea for recurring sessions: keep ~12 weeks of occurrences on
   // the calendar. Waits for a just-created series to land (FK).
@@ -328,11 +347,13 @@ export function AppProvider({
   const seriesItems = series.items;
   const seriesInflight = series.inflight;
   const eventItems = events.items;
+  const eventsInflight = events.inflight;
   const addEvents = events.addMany;
   const seriesLoad = series.load;
   const eventsLoad = events.load;
   useEffect(() => {
-    if (loading || generating.current || seriesInflight > 0) return;
+    // Same window as the materializer: never diff against a list mid-delete.
+    if (loading || generating.current || seriesInflight > 0 || eventsInflight > 0) return;
     const today = todayISO();
     if (!canDiff([seriesLoad, eventsLoad], today, addDays(today, SERIES_HORIZON_DAYS))) return;
     const pending = pendingOccurrences(seriesItems, eventItems, today);
@@ -352,7 +373,7 @@ export function AppProvider({
       .finally(() => {
         generating.current = false;
       });
-  }, [loading, seriesInflight, seriesItems, eventItems, addEvents, seriesLoad, eventsLoad]);
+  }, [loading, seriesInflight, eventsInflight, seriesItems, eventItems, addEvents, seriesLoad, eventsLoad]);
   const importedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -372,6 +393,7 @@ export function AppProvider({
      save was rejected and reverted; everything below means the app is
      looking at less than she has. */
   const readError =
+    skips.load.readError ??
     projects.load.readError ??
     contacts.load.readError ??
     events.load.readError ??
@@ -393,7 +415,7 @@ export function AppProvider({
     noteAttachments.load.readError;
   const partialOf = [
     events.load.truncated && "tu agenda",
-    sales.load.truncated && "tus ventas",
+    sales.load.truncated && "tus ingresos",
     payments.load.truncated && "tus pagos",
     installments.load.truncated && "las cuotas",
     expenses.load.truncated && "tus gastos",
@@ -411,6 +433,7 @@ export function AppProvider({
     noteTagLinks.load.truncated && "las etiquetas",
     documents.load.truncated && "tu material",
     noteAttachments.load.truncated && "las imágenes",
+    skips.load.truncated && "lo que borraste de tus fijos",
   ].filter((x): x is string => typeof x === "string");
   const partialKey = [...new Set(partialOf)].join("|");
   const generatorsBlocked = materializeBreaker.current.tripped || generateBreaker.current.tripped;
@@ -419,19 +442,34 @@ export function AppProvider({
      data/rows.ts and against Postgres, both of which use the real name. */
   /* A rule-generated row she deleted must not be regenerated. Recorded
      HERE rather than in each sheet, so every delete path gets it for
-     free — and only after the server accepted the delete, so a refused
-     delete never leaves a tombstone for a row that still exists. The
-     insert is idempotent: re-deleting a row that already came back once
-     trips the unique index, which the store treats as convergence. */
+     free — and BEFORE the delete, so there is no instant in which the
+     row is gone and nothing says "leave it gone": that instant is where
+     the materializer used to put it straight back. A refused delete
+     then takes the tombstone away again (`forgetSkip`), so a row that
+     still exists is never marked as one she removed. The insert is
+     idempotent: re-deleting a row that once came back trips the unique
+     index, which the store now reads as convergence by natural key. */
+  type SkipHold = { needed: boolean; ok: boolean; id: string | null };
   const rememberSkip = useCallback(
-    async (row: { recurringRuleId: string | null; periodKey: string | null } | undefined) => {
-      if (!row?.recurringRuleId || !row.periodKey) return;
-      await skips.add({
-        id: makeId(),
+    async (row: { recurringRuleId: string | null; periodKey: string | null } | undefined): Promise<SkipHold> => {
+      if (!row?.recurringRuleId || !row.periodKey) return { needed: false, ok: true, id: null };
+      const id = makeId();
+      const ok = await skips.add({
+        id,
         createdAt: todayISO(),
         recurringRuleId: row.recurringRuleId,
         periodKey: row.periodKey
       });
+      return { needed: true, ok, id };
+    },
+    [skips]
+  );
+  /* Only the tombstone THIS delete wrote: when the skip converged onto a
+     row another delete left, `id` names nothing local and this is a no-op,
+     which is right — that earlier deletion still stands. */
+  const forgetSkip = useCallback(
+    (hold: SkipHold) => {
+      if (hold.needed && hold.id) void skips.remove(hold.id);
     },
     [skips]
   );
@@ -457,6 +495,7 @@ export function AppProvider({
     { table: "note_tag_links", report: noteTagLinks.load },
     { table: "documents", report: documents.load },
     { table: "note_attachments", report: noteAttachments.load },
+    { table: "materializer_skips", report: skips.load },
     ],
     [
       projects.load,
@@ -478,6 +517,7 @@ export function AppProvider({
       noteTagLinks.load,
       documents.load,
       noteAttachments.load,
+      skips.load
     ]
   );
 
@@ -533,7 +573,8 @@ export function AppProvider({
         noteTags.error ??
         noteTagLinks.error ??
         documents.error ??
-        noteAttachments.error,
+        noteAttachments.error ??
+        skips.error,
       clearError: () => {
         actions.clearError();
         projects.clearError();
@@ -555,6 +596,7 @@ export function AppProvider({
         noteTagLinks.clearError();
         documents.clearError();
         noteAttachments.clearError();
+        skips.clearError();
       },
       refreshAll: async () => {
         failedMaterialization.current = null;
@@ -578,13 +620,26 @@ export function AppProvider({
           noteTags.reload(),
           noteTagLinks.reload(),
           documents.reload(),
-          noteAttachments.reload()
+          noteAttachments.reload(),
+          skips.reload()
         ]);
       },
       projects: projects.items,
       addProject: projects.add,
       updateProject: projects.update,
-      removeProject: projects.remove,
+      /* Her photos of the piece live in R2 under documents.project_id,
+         which only goes NULL on delete: the rows became orphans nothing
+         lists and the bytes stayed forever. Same order as removeCourse —
+         the revocable row delete first, then rows, then bytes. */
+      removeProject: async (id: string) => {
+        const photos = documents.items.filter((d) => d.projectId === id);
+        const ok = await projects.remove(id);
+        if (!ok) return false;
+        if (photos.length && (await documents.removeMany(photos.map((d) => d.id)))) {
+          await Promise.all(photos.filter((d) => d.r2Path).map((d) => deleteFile(d.r2Path as string).catch(() => false)));
+        }
+        return true;
+      },
       contacts: contacts.items,
       addContact: contacts.add,
       updateContact: contacts.update,
@@ -611,10 +666,17 @@ export function AppProvider({
       addEvents: events.addMany,
       updateEvent: events.update,
       // Attendance rows cascade with their session; mirror it locally.
+      // Files attached to the event (documents.event_id nulls on delete)
+      // go the same way a piece's photos do — rows, then bytes.
       removeEvent: async (id: string) => {
+        const files = documents.items.filter((d) => d.eventId === id && !d.projectId && !d.courseId && !d.assignmentId);
         const ok = await events.remove(id);
-        if (ok) attendance.dropLocal((a) => a.eventId === id);
-        return ok;
+        if (!ok) return false;
+        attendance.dropLocal((a) => a.eventId === id);
+        if (files.length && (await documents.removeMany(files.map((d) => d.id)))) {
+          await Promise.all(files.filter((d) => d.r2Path).map((d) => deleteFile(d.r2Path as string).catch(() => false)));
+        }
+        return true;
       },
       removeEvents: async (ids: string[]) => {
         const ok = await events.removeMany(ids);
@@ -646,6 +708,11 @@ export function AppProvider({
       // locally so no balance is ever derived from orphaned rows.
       removeSale: async (id: string) => {
         const doomed = sales.items.find((s) => s.id === id);
+        /* Tombstone first (see rememberSkip). If it could not be written,
+           deleting now would only have the row regenerated on the next
+           pass — the store has already told her why the write failed. */
+        const hold = await rememberSkip(doomed);
+        if (!hold.ok) return false;
         const ok = await sales.remove(id);
         /* A rejected delete restores the sale. Dropping its payments and
            cuotas anyway would leave the sale reading as fully unpaid and
@@ -653,7 +720,8 @@ export function AppProvider({
         if (ok) {
           payments.dropLocal((p) => p.saleId === id);
           installments.dropLocal((i) => i.saleId === id);
-          await rememberSkip(doomed);
+        } else {
+          forgetSkip(hold);
         }
         return ok;
       },
@@ -673,8 +741,10 @@ export function AppProvider({
       updateExpense: expenses.update,
       removeExpense: async (id: string) => {
         const doomed = expenses.items.find((e) => e.id === id);
+        const hold = await rememberSkip(doomed);
+        if (!hold.ok) return false;
         const ok = await expenses.remove(id);
-        if (ok) await rememberSkip(doomed);
+        if (!ok) forgetSkip(hold);
         return ok;
       },
       rules: rules.items,
@@ -786,6 +856,10 @@ export function AppProvider({
       },
       noteTags: noteTags.items,
       addNoteTag: noteTags.add,
+      findNoteTagByLabel: (label: string) => {
+        const wanted = label.trim().toLocaleLowerCase();
+        return noteTags.current().find((t) => t.label.trim().toLocaleLowerCase() === wanted) ?? null;
+      },
       updateNoteTag: noteTags.update,
       removeNoteTag: async (id: string) => {
         const ok = await noteTags.remove(id);
@@ -829,7 +903,9 @@ export function AppProvider({
       noteTagLinks,
       documents,
       noteAttachments,
-      rememberSkip
+      skips,
+      rememberSkip,
+      forgetSkip
     ]
   );
 

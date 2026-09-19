@@ -34,6 +34,7 @@ export function useNotes() {
     noteTags,
     noteTagLinks,
     addNoteTag,
+    findNoteTagByLabel,
     addNoteTagLink,
     removeNoteTagLink,
     noteAttachments
@@ -140,9 +141,12 @@ export function useNotes() {
       if (existing) return existing;
       const tag: NoteTag = { id: makeId(), label: clean, color: "accent", createdAt: todayISO() };
       const ok = await addNoteTag(tag);
-      return ok ? tag : (noteTags.find((t) => t.label.toLowerCase() === clean.toLowerCase()) ?? null);
+      /* The store may have converged on a twin another device made first
+         (labels are unique, case-insensitively); the row that survived is
+         the one to link, whatever id we minted. */
+      return ok ? (findNoteTagByLabel(clean) ?? tag) : findNoteTagByLabel(clean);
     },
-    [noteTags, addNoteTag]
+    [noteTags, addNoteTag, findNoteTagByLabel]
   );
 
   const linkTag = useCallback(

@@ -177,6 +177,7 @@ export const contactStore: CloudStoreConfig<Contact, ContactRow> = {
 export const eventStore: CloudStoreConfig<ScheduleEvent, EventRow> = {
   table: "events",
   cap: 20_000,
+  sameAs: sameOccurrence,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -528,6 +529,7 @@ export interface NoteTagRow {
 export const noteTagStore: CloudStoreConfig<NoteTag, NoteTagRow> = {
   table: "note_tags",
   cap: 200,
+  sameAs: sameNoteTag,
   fromRow: (r) => ({ id: r.id, label: r.label, color: r.color, createdAt: r.created_at.slice(0, 10) }),
   toRow: (t) => {
     const row: Partial<NoteTagRow> = {};
@@ -548,6 +550,7 @@ export interface NoteTagLinkRow {
 export const noteTagLinkStore: CloudStoreConfig<NoteTagLink, NoteTagLinkRow> = {
   table: "note_tag_links",
   cap: 20_000,
+  sameAs: sameNoteTagLink,
   fromRow: (r) => ({ id: r.id, noteId: r.note_id, tagId: r.tag_id, createdAt: r.created_at.slice(0, 10) }),
   toRow: (l) => {
     const row: Partial<NoteTagLinkRow> = {};
@@ -625,6 +628,7 @@ export const classGroupStore: CloudStoreConfig<ClassGroup, ClassGroupRow> = {
 export const classEnrollmentStore: CloudStoreConfig<ClassEnrollment, ClassEnrollmentRow> = {
   table: "class_enrollments",
   cap: 2_000,
+  sameAs: sameEnrollment,
   fromRow: (r) => ({
     id: r.id,
     groupId: r.group_id,
@@ -655,6 +659,7 @@ export const classEnrollmentStore: CloudStoreConfig<ClassEnrollment, ClassEnroll
 export const attendanceStore: CloudStoreConfig<Attendance, AttendanceRow> = {
   table: "attendance",
   cap: 40_000,
+  sameAs: sameAttendance,
   fromRow: (r) => ({
     id: r.id,
     eventId: r.event_id,
@@ -747,9 +752,58 @@ export interface RecurringRuleRow {
   created_at: string;
 }
 
+/* ── Natural keys ──
+   Mirrors of the partial unique indexes in supabase/migrations, so a
+   23505 can be read as "already there under another id" (see
+   CloudStoreConfig.sameAs). Keep each one in step with its index. */
+
+/** sales_rule_period_uidx + sales_session_contact_uidx (migrations 006, 021). */
+export function sameSale(a: Sale, b: Sale): boolean {
+  if (a.periodKey === null || a.periodKey !== b.periodKey) return false;
+  if (a.recurringRuleId !== null || b.recurringRuleId !== null) return a.recurringRuleId === b.recurringRuleId;
+  // Per-session tuition: the period IS the session, one sale per student.
+  return a.contactId !== null && a.contactId === b.contactId;
+}
+
+/** expenses_rule_period_uidx (migration 006). */
+export function sameExpense(a: Expense, b: Expense): boolean {
+  return a.recurringRuleId !== null && a.recurringRuleId === b.recurringRuleId && a.periodKey === b.periodKey;
+}
+
+/** materializer_skips_rule_period_uidx (migration 022). */
+export function sameSkip(a: MaterializerSkip, b: MaterializerSkip): boolean {
+  return a.recurringRuleId === b.recurringRuleId && a.periodKey === b.periodKey;
+}
+
+/** events (series_id, date) (migration 007). */
+export function sameOccurrence(a: ScheduleEvent, b: ScheduleEvent): boolean {
+  return a.seriesId !== null && a.seriesId === b.seriesId && a.date === b.date;
+}
+
+/** class_enrollments (group_id, contact_id) (migration 009). */
+export function sameEnrollment(a: ClassEnrollment, b: ClassEnrollment): boolean {
+  return a.groupId === b.groupId && a.contactId === b.contactId;
+}
+
+/** attendance (event_id, contact_id) (migration 009). */
+export function sameAttendance(a: Attendance, b: Attendance): boolean {
+  return a.eventId === b.eventId && a.contactId === b.contactId;
+}
+
+/** note_tags unique by lower(label) per workspace (migration 013). */
+export function sameNoteTag(a: NoteTag, b: NoteTag): boolean {
+  return a.label.trim().toLocaleLowerCase() === b.label.trim().toLocaleLowerCase();
+}
+
+/** note_tag_links (note_id, tag_id) (migration 013). */
+export function sameNoteTagLink(a: NoteTagLink, b: NoteTagLink): boolean {
+  return a.noteId === b.noteId && a.tagId === b.tagId;
+}
+
 export const saleStore: CloudStoreConfig<Sale, SaleRow> = {
   table: "sales",
   cap: 20_000,
+  sameAs: sameSale,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -834,6 +888,7 @@ export const installmentStore: CloudStoreConfig<Installment, InstallmentRow> = {
 export const expenseStore: CloudStoreConfig<Expense, ExpenseRow> = {
   table: "expenses",
   cap: 20_000,
+  sameAs: sameExpense,
   fromRow: (r) => ({
     id: r.id,
     title: r.title,
@@ -922,6 +977,7 @@ interface MaterializerSkipRow {
 export const materializerSkipStore: CloudStoreConfig<MaterializerSkip, MaterializerSkipRow> = {
   table: "materializer_skips",
   cap: 5_000,
+  sameAs: sameSkip,
   fromRow: (r) => ({
     id: r.id,
     recurringRuleId: r.recurring_rule_id,

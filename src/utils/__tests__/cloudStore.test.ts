@@ -11,6 +11,7 @@ import {
   loadPlan,
   makeBreaker,
   mergeLoaded,
+  settleDuplicates,
   truncationOf,
   type CloudStoreConfig,
   type Entity,
@@ -222,6 +223,53 @@ describe("mergeLoaded", () => {
     const pending = new Map([["x", "write" as const]]);
     const out = mergeLoaded([thing("x")], [thing("c"), thing("b"), thing("a")], pending);
     expect(out.map((t) => t.id)).toEqual(["x", "c", "b", "a"]);
+  });
+});
+
+/* The 23505 convergence bug behind "Eso ya estaba guardado… la versión
+   del servidor" after a delete: a generator's re-insert of a (rule,
+   period) the server still held was judged by id, and the server's row
+   has a different id, so a converged write read as a failed one. */
+describe("settleDuplicates", () => {
+  interface Keyed extends Entity {
+    id: string;
+    rule: string | null;
+    period: string | null;
+  }
+  const row = (id: string, rule: string | null, period: string | null): Keyed => ({ id, rule, period });
+  const sameKey = (a: Keyed, b: Keyed) => a.rule !== null && a.rule === b.rule && a.period === b.period;
+
+  it("counts a row landed by id", () => {
+    const out = settleDuplicates([row("a", null, null)], [row("a", null, null)]);
+    expect(out.landed.map((r) => r.id)).toEqual(["a"]);
+    expect(out.missing).toEqual([]);
+  });
+
+  it("counts a row landed by natural key under another id", () => {
+    const out = settleDuplicates([row("new", "r1", "2026-09")], [row("server", "r1", "2026-09")], sameKey);
+    expect(out.landed.map((r) => r.id)).toEqual(["new"]);
+    expect(out.missing).toEqual([]);
+  });
+
+  it("without a natural key, another id is still missing", () => {
+    const out = settleDuplicates([row("new", "r1", "2026-09")], [row("server", "r1", "2026-09")]);
+    expect(out.landed).toEqual([]);
+    expect(out.missing.map((r) => r.id)).toEqual(["new"]);
+  });
+
+  it("splits a batch: one converged, one refused by something else", () => {
+    const out = settleDuplicates(
+      [row("x", "r1", "2026-08"), row("y", "r1", "2026-09")],
+      [row("old", "r1", "2026-08")],
+      sameKey
+    );
+    expect(out.landed.map((r) => r.id)).toEqual(["x"]);
+    expect(out.missing.map((r) => r.id)).toEqual(["y"]);
+  });
+
+  it("a null key never matches another null key", () => {
+    const out = settleDuplicates([row("a", null, null)], [row("b", null, null)], sameKey);
+    expect(out.missing.map((r) => r.id)).toEqual(["a"]);
   });
 });
 
