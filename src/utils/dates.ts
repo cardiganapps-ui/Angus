@@ -66,10 +66,16 @@ export function monthName(iso: string): string {
   return MONTHS_LONG[m - 1].toLowerCase();
 }
 
-/** First letter of the month — the compact axis of the trend chart. */
+/** First letter of the month. */
 export function monthInitial(iso: string): string {
   const [, m] = iso.split("-").map(Number);
   return MONTHS_LONG[m - 1].slice(0, 1);
+}
+
+/** "sep" — the trend chart's axis: one letter made abr/ago and jun/jul twins. */
+export function monthShort(iso: string): string {
+  const [, m] = iso.split("-").map(Number);
+  return MONTHS[m - 1];
 }
 
 /* Greeting by wall-clock hour. Takes a Date so it's testable without

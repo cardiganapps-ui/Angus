@@ -73,7 +73,7 @@
   font-size: var(--text-sm); color: var(--charcoal-md); margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.drawer-head .row-chevron { margin-left: auto; color: var(--charcoal-lt); }
+.drawer-head .row-chevron { margin-left: auto; }
 
 .drawer-nav {
   flex: 1; min-height: 0;
@@ -104,6 +104,11 @@
 }
 .drawer-item:active { background: var(--accent-mist); transform: scale(0.98); }
 .drawer-item--active { background: var(--accent-pale); color: var(--accent-dark); font-weight: 700; }
+/* The ≥1024px rail is mouse-first; a row that only reacts on :active feels dead. */
+@media (hover: hover) {
+  .drawer-item:not(.drawer-item--active):hover, .drawer-head:hover { background: var(--accent-mist); }
+  .icon-btn:hover { background: var(--accent-mist); }
+}
 .drawer-item-icon {
   width: 24px; display: flex; align-items: center; justify-content: center;
   color: var(--charcoal-md); flex-shrink: 0;

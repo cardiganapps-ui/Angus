@@ -18,7 +18,7 @@ const SIGNAL_LABEL: Record<ExpoSignal, string> = {
   green: "Se pagó sola",
   amber: "Falta cobrar",
   red: "Costó más",
-  none: "Sin datos"
+  none: "Sin ingresos ni gastos ligados"
 };
 
 /* ── Expos ──
@@ -60,7 +60,11 @@ export function Expos() {
       <div className="page-header">
         <div className="eyebrow">
           {expos.length} {expos.length === 1 ? "expo" : "expos"}
-          {past.length > 0 ? ` · ${formatMXNShortSigned(totalCash)} en mano de las pasadas` : ""}
+          {past.length > 0 && totalCash < 0
+            ? ` · las pasadas dejaron ${formatMXNShort(-totalCash)} de pérdida`
+            : past.length > 0 && totalCash > 0
+              ? ` · ${formatMXNShort(totalCash)} en mano de las pasadas`
+              : ""}
         </div>
         <h1 className="page-title">Expos</h1>
       </div>

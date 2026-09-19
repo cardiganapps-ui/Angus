@@ -227,7 +227,7 @@ export function RecurringRuleSheet({
           </div>
         </div>
         <div className="input-group">
-          <label className="input-label" htmlFor="rule-interval">Cada</label>
+          <label className="input-label" htmlFor="rule-interval">Cada cuántos periodos</label>
           <input
             id="rule-interval"
             className="input"
@@ -238,6 +238,7 @@ export function RecurringRuleSheet({
             value={interval}
             onChange={(e) => setInterval(e.target.value)}
           />
+          <div className="input-help">1 = cada periodo; 2 = uno sí, uno no.</div>
         </div>
       </div>
 
@@ -273,9 +274,6 @@ export function RecurringRuleSheet({
             min={minStartDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
-          {locked && (
-            <div className="input-help">Solo hacia adelante: mover la fecha atrás recalcularía meses ya cerrados.</div>
-          )}
         </div>
         <div className="input-group">
           <label className="input-label" htmlFor="rule-end">Hasta</label>
@@ -289,6 +287,11 @@ export function RecurringRuleSheet({
           />
         </div>
       </div>
+      {locked && (
+        <div className="input-help" style={{ marginTop: -6, marginBottom: 14 }}>
+          Solo hacia adelante: mover "Desde" atrás recalcularía meses ya cerrados.
+        </div>
+      )}
 
       <div className="input-group">
         <span className="input-label">Categoría</span>

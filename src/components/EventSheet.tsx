@@ -34,7 +34,7 @@ type Scope = "one" | "future" | "all";
 const REPEAT_ITEMS: { k: Repeat; l: string }[] = [
   { k: "never", l: "Nunca" },
   { k: "weekly", l: "Semanal" },
-  { k: "biweekly", l: "Cada 14 días" },
+  { k: "biweekly", l: "Quincenal" },
   { k: "monthly", l: "Mensual" }
 ];
 const SCOPE_ITEMS: { k: Scope; l: string }[] = [

@@ -13,7 +13,8 @@
 .chart-plot { position: relative; width: 100%; }
 .chart-svg { display: block; overflow: visible; }
 
-.chart-band { fill: var(--accent-mist); }
+/* A neutral band for "this month"; the accent is kept for the column she tapped. */
+.chart-band { fill: var(--cream-dark); }
 .chart-band--open { fill: var(--accent-pale); }
 
 .chart-gridline { stroke: var(--border-lt); stroke-width: 1; shape-rendering: crispEdges; }
@@ -103,29 +104,31 @@
 .forecast-month-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .forecast-month-title { font-family: var(--font-d); font-weight: 800; color: var(--charcoal); }
 .forecast-month-net { font-family: var(--font-d); font-weight: 800; font-variant-numeric: tabular-nums; }
-.forecast-lines { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; margin-top: 6px; font-size: var(--text-xs); color: var(--charcoal-md); }
+.forecast-lines { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-top: 6px; font-size: var(--text-sm); color: var(--charcoal-md); }
 .forecast-lines b { font-weight: 600; color: var(--charcoal); font-variant-numeric: tabular-nums; text-align: right; }
-.forecast-lines .is-est { font-style: italic; }
+/* Only upright faces are self-hosted; italic would be a synthesised shear. "(estimado)" already says it. */
+.forecast-lines .is-est { color: var(--charcoal-lt); }
 .forecast-assumptions { padding: 14px 16px; font-size: var(--text-sm); color: var(--charcoal-md); line-height: 1.5; }
 .forecast-assumptions li { margin: 4px 0 4px 16px; }
 .forecast-runway { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; background: var(--amber-bg); border-radius: var(--radius); margin: 0 16px 12px; font-size: var(--text-sm); color: var(--charcoal); }
 .forecast-runway .icon { color: var(--amber); flex-shrink: 0; margin-top: 1px; }
 
 /* ── Reports ── */
-.report-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 16px; }
-.report-kpi { background: var(--white); border: 1px solid var(--border-lt); border-radius: var(--radius-lg); padding: 12px 14px; box-shadow: var(--shadow-sm); }
+/* Same tile as .kpi-card, so the four screens that show KPIs agree. */
+.report-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 16px 16px 4px; }
+.report-kpi { background: var(--white); border: 1px solid var(--border-lt); border-radius: var(--radius-lg); padding: 14px 16px; }
 .report-kpi-label { font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--charcoal-xl); }
 .report-kpi-value { font-variant-numeric: tabular-nums; font-family: var(--font-d); font-weight: 800; font-size: var(--text-xl); color: var(--charcoal); margin-top: 4px; letter-spacing: -0.2px; }
 .report-kpi-delta { font-size: var(--text-xs); color: var(--charcoal-md); margin-top: 3px; font-variant-numeric: tabular-nums; }
-.report-kpi-delta--up { color: var(--green); }
-.report-kpi-delta--down { color: var(--red); }
+.report-kpi-delta--up { color: var(--green-text); }
+.report-kpi-delta--down { color: var(--red-text); }
 .rank-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border-lt); }
 .rank-row:last-child { border-bottom: none; }
-.rank-index { width: 22px; height: 22px; border-radius: 50%; background: var(--cream); color: var(--charcoal-md); font-size: var(--text-xs); font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rank-index { width: 22px; height: 22px; border-radius: 50%; background: var(--cream-dark); color: var(--charcoal-md); font-size: var(--text-xs); font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .rank-main { flex: 1; min-width: 0; }
 .rank-label { font-weight: 600; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rank-sub { font-size: var(--text-xs); color: var(--charcoal-md); }
-.rank-amount { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--charcoal); }
+.rank-amount { font-family: var(--font-d); font-size: var(--text-lg); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--charcoal); }
 
 /* Screen-reader-only (the data table behind every chart). */
 .sr-only {

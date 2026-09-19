@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { Expense, Payment } from "../types";
 import { monthlyTrend, trendChart } from "../utils/dashboard";
 import { formatMXNShortSigned } from "../utils/money";
-import { formatMonthLong, monthInitial, monthName } from "../utils/dates";
+import { formatMonthLong, monthShort, monthName } from "../utils/dates";
 import { BarChart } from "./charts/BarChart";
 
 /* ── Cómo vienes ──
@@ -32,7 +32,7 @@ export function TrendChart({ payments, expenses, today }: { payments: Payment[];
           series={[{ key: "net", label: "Balance", color: "var(--green)", negColor: "var(--red)" }]}
           columns={chart.bars.map((bar) => ({
             key: bar.month,
-            label: monthInitial(bar.month),
+            label: monthShort(bar.month),
             title: formatMonthLong(bar.month),
             values: { net: bar.net },
             current: bar.current

@@ -113,7 +113,8 @@
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  /* No border-radius here: a bare pseudo-class outranks nothing, but it
+     loads last, and it was squaring every pill button's ring. */
 }
 .btn:focus-visible { outline-offset: 3px; }
 .fab:focus-visible { outline-color: var(--white); outline-offset: 4px; }

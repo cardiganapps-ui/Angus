@@ -43,7 +43,7 @@ export function MonthGrid({
     };
     for (const e of events) {
       if (e.cancelled) continue;
-      put(e.date, colorOf.get(e.kind) ?? "var(--charcoal-xl)");
+      put(e.date, e.courseId ? "var(--purple)" : (colorOf.get(e.kind) ?? "var(--charcoal-xl)"));
     }
     for (const m of marks) put(m.date, m.color);
     return map;

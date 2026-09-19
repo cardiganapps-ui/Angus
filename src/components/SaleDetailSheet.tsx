@@ -251,7 +251,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
               )}
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-ghost"
                 onClick={() => setEditing(true)}
                 disabled={working}
               >
@@ -297,7 +297,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
             </div>
             <div>
               <div className="money-stat-label">Pagado</div>
-              <div className="money-stat-value money-stat-value--paid">
+              <div className={`money-stat-value ${balance.paid > 0 ? "money-stat-value--paid" : ""}`}>
                 {formatMXN(balance.paid)}
               </div>
             </div>
@@ -424,7 +424,7 @@ export function SaleDetailSheet({ saleId, onClose }: { saleId: string; onClose: 
           <>
             <div className="money-list">
               {plan.map(({ installment, covered, remaining, state }) => (
-                <div className="row-item" key={installment.id} style={{ cursor: "default" }}>
+                <div className="row-item money-econ-row" key={installment.id}>
                   <div className="row-content">
                     <div className="row-title">{formatShort(installment.dueDate)}</div>
                     {covered > 0 && remaining > 0 && (

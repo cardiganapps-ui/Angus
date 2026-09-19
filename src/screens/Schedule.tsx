@@ -311,12 +311,12 @@ function AgendaList({
             style={stagger(i)}
             onClick={() => onSelect(item)}
           >
-            <span className="event-dot" style={{ background: kind.color }} />
+            <span className="event-dot" style={{ background: event.courseId ? "var(--purple)" : kind.color }} />
             <div className="row-content">
-              <div className="row-title">
-                {event.title}
+              <div className={`row-title ${event.seriesId ? "row-title--series" : ""}`}>
+                <span>{event.title}</span>
                 {event.seriesId && (
-                  <span className="row-series" aria-label="Se repite" style={{ marginLeft: 6 }}>
+                  <span className="row-series" aria-label="Se repite">
                     <Icon name="repeat" size={12} strokeWidth={2.2} />
                   </span>
                 )}

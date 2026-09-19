@@ -189,9 +189,9 @@ export function BarChart({
                   key={`band-${col.key}`}
                   className={`chart-band ${open === col.key ? "chart-band--open" : ""}`}
                   x={padL + slot * i + 2}
-                  y={4}
+                  y={PAD_TOP - 6}
                   width={Math.max(0, slot - 4)}
-                  height={height - 4}
+                  height={height - PAD_TOP + 6}
                   rx={8}
                 />
               ) : null

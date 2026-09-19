@@ -6,7 +6,7 @@ import {
   projectMargins,
   type EconomicsRow
 } from "../utils/accounting";
-import { formatMXN, formatMXNShort, formatMXNShortSigned, toCents } from "../utils/money";
+import { formatMXNShort, formatMXNShortSigned, toCents } from "../utils/money";
 import { formatShort } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
@@ -96,7 +96,7 @@ export function BalanceView({
       {clients.length > 0 && (
         <div className="section">
           <div className="section-header">
-            <span className="section-title">Clientes con saldo</span>
+            <span className="section-title">Clientes</span>
           </div>
           <div className="card">
             {clients.map((client, i) => {
@@ -127,7 +127,7 @@ export function BalanceView({
                   <div className="money-row-right">
                     {owes && (
                       <>
-                        <span className="row-amount amount-owe">{formatMXN(client.owed)}</span>
+                        <span className="row-amount amount-owe">{formatMXNShort(client.owed)}</span>
                         <span className="money-submeta">
                           {formatMXNShort(client.collected)} de {formatMXNShort(client.committed)}
                         </span>
@@ -136,7 +136,7 @@ export function BalanceView({
                     {refund && (
                       <>
                         <span className="row-amount" style={REFUND_AMOUNT}>
-                          {formatMXN(client.refundable)}
+                          {formatMXNShort(client.refundable)}
                         </span>
                         <span className="badge badge-amber">Por devolver</span>
                       </>
@@ -202,10 +202,6 @@ export function BalanceView({
         </div>
       )}
 
-      {/* Every row here is read-only data, so the floating FAB would sit
-          right on top of the last margin figure. */}
-      <div className="money-balance-tail" aria-hidden="true" />
-
       {clientId && (
         <ClientBalanceSheet contactId={clientId} onClose={() => setClientId(null)} />
       )}
@@ -237,10 +233,11 @@ function EconomicsRowItem({
         </div>
       </div>
       <div className="money-row-right">
-        <span className={`row-amount ${marginClass(margin)}`}>
-          {formatMXNShortSigned(margin)}
-        </span>
-        <span className="money-submeta">Margen</span>
+        {revenue === 0 && spent === 0 ? (
+          <span className="money-submeta">Sin movimientos</span>
+        ) : (
+          <span className={`row-amount ${marginClass(margin)}`}>{formatMXNShortSigned(margin)}</span>
+        )}
       </div>
     </div>
   );

@@ -25,6 +25,10 @@
      rubber-banded. Reserve the pill's real top edge (8px offset) PLUS a
      24px breathing gap. */
   padding-bottom: calc(var(--sab) + var(--bottom-tabs-h) + 32px);
+  /* …and the FAB floats another --fab-gap + --fab-size above the pill,
+     on top of whatever the last row put in its column. Reserve its real
+     top edge too, so the last row's right end is never under the disc. */
+  padding-bottom: calc(var(--sab) + var(--bottom-tabs-h) + var(--fab-gap) + var(--fab-size) + 16px);
   /* Reserve the floating top chrome's height so content starts below
      the glass but scrolls UNDER it (mirror of the bottom reservation
      above). 0 on 768+ where the chrome is in normal flow — and the
@@ -689,9 +693,9 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
      pill height + a 20px visual gap so the FAB never overlaps the
      tab labels. */
   position: fixed;
-  bottom: calc(var(--sab) + var(--bottom-tabs-h) + 30px);
+  bottom: calc(var(--sab) + var(--bottom-tabs-h) + var(--fab-gap));
   right: 20px;
-  width: 54px; height: 54px;
+  width: var(--fab-size); height: var(--fab-size);
   /* Tinted glass base + the tight top spec highlight (8% → fades by
      30%) that suggests sphere curvature without bleaching the brand
      color. The tint token stays ≥72% accent because of the white glyph
@@ -908,9 +912,10 @@ button.kpi-card:active {
 .row-sub { font-size: var(--text-sm); color: var(--charcoal-xl); }
 .row-right { text-align: right; flex-shrink: 0; }
 .row-amount { font-family: var(--font-d); font-size: var(--text-lg); font-weight: 700; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
-.row-chevron { color: var(--border); font-size: var(--text-md); flex-shrink: 0; margin-left: 4px; }
-.amount-owe   { color: var(--red); }
-.amount-paid  { color: var(--green); }
+/* --charcoal-xl, not --border: a disclosure chevron is an affordance, not a divider (1.45:1 read as a smudge). */
+.row-chevron { color: var(--charcoal-xl); font-size: var(--text-md); flex-shrink: 0; margin-left: 4px; }
+.amount-owe   { color: var(--red-text); }
+.amount-paid  { color: var(--green-text); }
 .amount-clear { color: var(--charcoal-xl); }
 
 /* INPUT */
@@ -938,6 +943,12 @@ button.kpi-card:active {
      150ms feels instant while still being visible. */
   transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
+/* Textareas grow by `rows`, not by a grip in the corner. */
+textarea.input { resize: none; line-height: 1.45; }
+/* Number fields: the value is the control; Chromium's spinners are noise on a phone form. */
+.input[type="number"]::-webkit-inner-spin-button,
+.input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .input:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
 .input:hover:not(:focus):not(:disabled) { border-color: var(--charcoal-xl); }
 .input::placeholder { color: var(--charcoal-xl); transition: opacity var(--dur-fast) ease; }
@@ -1097,8 +1108,8 @@ button.kpi-card:active {
 }
 .btn-secondary { background: var(--white); color: var(--charcoal-md); border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); }
 .btn-ghost { background: transparent; color: var(--accent-dark); height: 44px; padding: 0 10px; font-size: var(--text-md); transition: background-color var(--dur-fast) ease; }
-.btn-danger { background: var(--red-bg); color: var(--red); box-shadow: none; width: 100%; }
-.btn-ghost--danger { color: var(--red); }
+.btn-danger { background: var(--red-bg); color: var(--red-text); box-shadow: none; width: 100%; }
+.btn-ghost--danger { color: var(--red-text); }
 .btn-ghost--success { color: var(--green); }
 
 
@@ -1423,6 +1434,8 @@ button.row-item {
 /* Sheet body + sticky footer — Cardigan's inline recipe (PaymentModal:
    `padding: 0 20px` body; sticky footer `12px 0 22px` + border-top). */
 .sheet-body { padding: 0 20px; }
+/* A .section inside a sheet body must not stack the page gutter on the sheet's. */
+.sheet-body .section { padding-left: 0; padding-right: 0; }
 .sheet-footer {
   position: sticky; bottom: 0; background: var(--white);
   padding: 12px 20px 22px; margin-top: 8px;
@@ -1540,8 +1553,8 @@ button.row-item {
    only 3.73:1 (see the contrast rule in base.css). */
 .chip-row { display: flex; flex-wrap: wrap; gap: 10px 8px; }
 /* Grouped chip rows (expense categories): an eyebrow above each row. */
-.chip-group { margin-top: 8px; }
-.chip-group:first-of-type { margin-top: 0; }
+.chip-group { margin-top: 12px; }
+.chip-group:first-of-type { margin-top: 6px; }
 .chip-group-title {
   font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--charcoal-xl); margin-bottom: 6px;
@@ -1623,7 +1636,7 @@ button.row-item {
   flex: 1; border: none; background: transparent; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   font-family: var(--font-d); font-weight: 800; font-size: var(--text-sm);
-  color: var(--red); -webkit-tap-highlight-color: transparent;
+  color: var(--red-text); -webkit-tap-highlight-color: transparent;
   opacity: 0; transform: scale(0.9);
   transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring);
 }
@@ -1635,7 +1648,7 @@ button.row-item {
 .swipe-row-trash {
   position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
   width: 36px; height: 36px; min-height: 36px; border-radius: 50%;
-  border: none; background: var(--red-bg); color: var(--red); cursor: pointer;
+  border: none; background: var(--red-bg); color: var(--red-text); cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   opacity: 0; pointer-events: none;
   transition: opacity var(--dur-fast) var(--ease-out);
@@ -1752,7 +1765,10 @@ button.row-item {
   width: 32px; height: 32px; min-height: 32px; border-radius: 50%;
   border: none; background: var(--cream-deeper); color: var(--charcoal-md);
   display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+  position: relative;
 }
+/* 32px visual, 44px thumb — same trick as .sheet-close::after. */
+.search-field-clear::after { content: ""; position: absolute; inset: -6px; }
 .filter-row {
   display: flex; gap: 8px; overflow-x: auto;
   /* `overflow-x: auto` also clips vertically, which ate the top of a
@@ -1787,7 +1803,8 @@ button.row-item {
 .expo-signal--green { background: var(--green); }
 .expo-signal--amber { background: var(--amber); }
 .expo-signal--red { background: var(--red); }
-.expo-signal--none { background: var(--cream-deeper); }
+/* No verdict yet: a hollow ring, not a blush smudge. */
+.expo-signal--none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--border); }
 .expo-verdict { padding: 12px 14px; border-radius: var(--radius); font-size: var(--text-sm); color: var(--charcoal); line-height: 1.45; margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; }
 .expo-verdict--green { background: var(--green-bg); }
 .expo-verdict--amber { background: var(--amber-bg); }

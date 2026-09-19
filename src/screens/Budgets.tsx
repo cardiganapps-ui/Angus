@@ -2,9 +2,9 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import type { ExpenseCategory } from "../types";
-import { EXPENSE_CATEGORY, EXPENSE_CATEGORY_BADGE, labelFor } from "../data/constants";
+import { EXPENSE_CATEGORY, labelFor } from "../data/constants";
 import { budgetProgress, expensesByCategory } from "../utils/accounting";
-import { formatMXN, formatMXNShort, subtractMoney, sumMoney } from "../utils/money";
+import { formatMXNShort, subtractMoney, sumMoney } from "../utils/money";
 import { todayISO } from "../utils/dates";
 import { PeriodPicker } from "../components/PeriodPicker";
 import { currentPeriod, periodRange, type Period } from "../utils/period";
@@ -71,14 +71,14 @@ export function Budgets() {
         <div className="section">
           <div className="card money-summary">
             <div className="money-summary-head">
-              <span className="eyebrow">Presupuestado · {range.label}</span>
-              <span className="money-summary-total">{formatMXN(totalLimit)}</span>
+              <span className="eyebrow">Presupuestado</span>
+              <span className="money-summary-total">{formatMXNShort(totalLimit)}</span>
             </div>
             <div className="money-submeta">
-              Gastado {formatMXN(totalSpent)} ·{" "}
+              Gastado {formatMXNShort(totalSpent)} ·{" "}
               {totalSpent <= totalLimit
-                ? `te quedan ${formatMXN(subtractMoney(totalLimit, totalSpent))}`
-                : `te pasaste por ${formatMXN(totalSpent - totalLimit)}`}
+                ? `te quedan ${formatMXNShort(subtractMoney(totalLimit, totalSpent))}`
+                : `te pasaste por ${formatMXNShort(totalSpent - totalLimit)}`}
             </div>
           </div>
         </div>
@@ -94,6 +94,8 @@ export function Budgets() {
               icon="target"
               title="Sin presupuestos todavía"
               body="Ponle un límite mensual a materiales, renta o transporte y Angus te avisa cuando te acerques."
+              actionLabel="Poner mi primer límite"
+              onAction={() => setEditing((unbudgeted[0]?.category as ExpenseCategory | undefined) ?? "materials")}
             />
           ) : (
             rows.map((row, i) => (
@@ -105,11 +107,7 @@ export function Budgets() {
                 onClick={() => setEditing(row.category)}
               >
                 <div className="budget-row-head">
-                  <span className="budget-row-title">
-                    <span className={`badge ${EXPENSE_CATEGORY_BADGE[row.category]}`}>
-                      {labelFor(EXPENSE_CATEGORY, row.category)}
-                    </span>
-                  </span>
+                  <span className="budget-row-title">{labelFor(EXPENSE_CATEGORY, row.category)}</span>
                   <span className="budget-row-figures">
                     <strong>{formatMXNShort(row.spent)}</strong> de {formatMXNShort(row.limit)}
                   </span>
@@ -122,10 +120,10 @@ export function Budgets() {
                 </span>
                 <span className={`budget-row-remaining ${row.state === "over" ? "budget-row-remaining--over" : ""}`}>
                   {row.state === "over"
-                    ? `Te pasaste por ${formatMXN(subtractMoney(row.spent, row.limit))}`
+                    ? `Te pasaste por ${formatMXNShort(subtractMoney(row.spent, row.limit))}`
                     : row.state === "near"
-                      ? `Quedan ${formatMXN(row.remaining)} · ya vas en ${Math.round(row.ratio * 100)}%`
-                      : `Quedan ${formatMXN(row.remaining)}`}
+                      ? `Quedan ${formatMXNShort(row.remaining)} · ya vas en ${Math.round(row.ratio * 100)}%`
+                      : `Quedan ${formatMXNShort(row.remaining)}`}
                 </span>
               </button>
             ))
@@ -137,7 +135,6 @@ export function Budgets() {
         <div className="section">
           <div className="section-header">
             <span className="section-title">Sin presupuesto</span>
-            <span className="eyebrow">Toca para ponerle límite</span>
           </div>
           <div className="card">
             {unbudgeted.map((c, i) => (
@@ -150,9 +147,9 @@ export function Budgets() {
               >
                 <div className="row-content">
                   <div className="row-title">{labelFor(EXPENSE_CATEGORY, c.category)}</div>
-                  <div className="row-sub">Gastado en {range.label.toLowerCase()}</div>
+                  <div className="row-sub">Sin límite · toca para ponerle uno</div>
                 </div>
-                <span className="row-amount">{formatMXN(c.amount)}</span>
+                <span className="row-amount">{formatMXNShort(c.amount)}</span>
                 <span className="row-chevron" aria-hidden="true">
                   <Icon name="chevron-right" size={16} />
                 </span>

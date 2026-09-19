@@ -1,11 +1,10 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
-import type { Contact, Expense, Payment, Sale } from "../types";
+import type { Contact, Expense, Installment, Payment, Sale } from "../types";
 import {
   EXPENSE_CATEGORY,
   EXPENSE_CATEGORY_BADGE,
   INCOME_CATEGORY,
-  INCOME_CATEGORY_BADGE,
   SALE_STATUS,
   SALE_STATUS_BADGE,
   labelFor
@@ -14,6 +13,7 @@ import {
   expenseBreakdown,
   profitLoss,
   saleBalance,
+  installmentPlan,
   saleCountsTowardRevenue,
   saleIsClosed,
   totals
@@ -66,7 +66,7 @@ const MONEY_LINKS: { route: Route; label: string }[] = [
 ];
 
 export function Money({ navigate }: { navigate: (r: Route) => void }) {
-  const { sales, payments, expenses, contacts, projects, events, rules, removeSale, removeExpense } = useApp();
+  const { sales, payments, installments, expenses, contacts, projects, events, rules, removeSale, removeExpense } = useApp();
   const { showSuccess } = useToast();
   const [view, setView] = useState<View>(lastView);
   const [period, setPeriod] = useState<Period>(() => currentPeriod("month", todayISO()));
@@ -151,8 +151,11 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
         <SalesView
           sales={sales}
           payments={payments}
+          installments={installments}
           contacts={contacts}
+          today={today}
           onSelect={setDetailSaleId}
+          onCreate={() => setEditingSale("new")}
           onDelete={async (sale) => {
             const ok = await removeSale(sale.id);
             if (ok) showSuccess("Ingreso eliminado");
@@ -165,6 +168,7 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
           period={period}
           onPeriodChange={setPeriod}
           onSelect={setEditingExpense}
+          onCreate={() => setEditingExpense("new")}
           onDelete={async (expense) => {
             const ok = await removeExpense(expense.id);
             if (ok) showSuccess("Gasto eliminado");
@@ -223,14 +227,20 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
 function SalesView({
   sales,
   payments,
+  installments,
   contacts,
+  today,
   onSelect,
+  onCreate,
   onDelete
 }: {
   sales: Sale[];
   payments: Payment[];
+  installments: Installment[];
   contacts: Contact[];
+  today: string;
   onSelect: (id: string) => void;
+  onCreate: () => void;
   onDelete: (sale: Sale) => Promise<boolean>;
 }) {
   const [closedOpen, setClosedOpen] = useState(lastClosedOpen);
@@ -252,6 +262,8 @@ function SalesView({
             icon="banknote"
             title="Sin ingresos todavía"
             body="Registra un ingreso para llevar la cuenta de lo que ya te pagaron y lo que te deben."
+            actionLabel="Registrar un ingreso"
+            onAction={onCreate}
           />
         </div>
       </div>
@@ -278,7 +290,9 @@ function SalesView({
                 key={sale.id}
                 sale={sale}
                 payments={payments}
+                installments={installments}
                 contacts={contacts}
+                today={today}
                 index={i}
                 onSelect={onSelect}
                 onDelete={onDelete}
@@ -315,7 +329,9 @@ function SalesView({
                     key={sale.id}
                     sale={sale}
                     payments={payments}
+                    installments={installments}
                     contacts={contacts}
+                    today={today}
                     index={i}
                     tabbable={closedOpen}
                     onSelect={onSelect}
@@ -334,7 +350,9 @@ function SalesView({
 function SaleRow({
   sale,
   payments,
+  installments,
   contacts,
+  today,
   index,
   tabbable = true,
   onSelect,
@@ -342,7 +360,9 @@ function SaleRow({
 }: {
   sale: Sale;
   payments: Payment[];
+  installments: Installment[];
   contacts: Contact[];
+  today: string;
   index: number;
   /** Rows inside a collapsed fold stay out of the tab order. */
   tabbable?: boolean;
@@ -354,6 +374,14 @@ function SaleRow({
   const counting = saleCountsTowardRevenue(sale);
   const owes = counting && balance.owed > 0;
   const hasMoney = balance.paid > 0;
+  /* Red is for LATE money, not for every open balance: a confirmed
+     commission due next month is not a problem. Single-payment ingresos
+     are late once their date has passed; a plan is late when a cuota is. */
+  const late =
+    owes &&
+    (sale.paymentTerms === "single"
+      ? sale.date < today
+      : installmentPlan(sale.id, installments, payments, today).some((s) => s.state === "overdue"));
   return (
     <SwipeRow
       label={sale.title}
@@ -375,8 +403,9 @@ function SaleRow({
       <div className="row-content">
         <div className="row-title">{sale.title}</div>
         <div className="row-sub">
-          {contact ? `${contact.name} · ` : ""}
-          {formatShort(sale.date)}
+          {labelFor(INCOME_CATEGORY, sale.category)}
+          {contact ? ` · ${contact.name}` : ""}
+          {` · ${formatShort(sale.date)}`}
           {sale.paymentTerms === "installments"
             ? " · en cuotas"
             : sale.paymentTerms === "deposit_balance"
@@ -386,17 +415,12 @@ function SaleRow({
         </div>
       </div>
       <div className="money-row-right">
-        <span className="money-badges">
-          <span className={`badge ${INCOME_CATEGORY_BADGE[sale.category]}`}>
-            {labelFor(INCOME_CATEGORY, sale.category)}
-          </span>
-          <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>
-            {labelFor(SALE_STATUS, sale.status)}
-          </span>
+        <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>
+          {labelFor(SALE_STATUS, sale.status)}
         </span>
         {owes ? (
           <>
-            <span className="row-amount amount-owe">{formatMXN(balance.owed)}</span>
+            <span className={`row-amount ${late ? "amount-owe" : ""}`}>{formatMXNShort(balance.owed)}</span>
             <span className="money-submeta">
               {formatMXNShort(balance.paid)} de {formatMXNShort(sale.amount)}
             </span>
@@ -404,10 +428,10 @@ function SaleRow({
         ) : counting ? (
           <span className="row-amount amount-paid money-amount-mark">
             <Icon name="check" size={14} strokeWidth={2.4} />
-            {formatMXN(sale.amount)}
+            {formatMXNShort(sale.amount)}
           </span>
         ) : (
-          <span className="row-amount amount-clear">{formatMXN(sale.amount)}</span>
+          <span className="row-amount amount-clear">{formatMXNShort(sale.amount)}</span>
         )}
       </div>
     </button>
@@ -420,12 +444,14 @@ function ExpensesView({
   period,
   onPeriodChange,
   onSelect,
+  onCreate,
   onDelete
 }: {
   expenses: Expense[];
   period: Period;
   onPeriodChange: (p: Period) => void;
   onSelect: (expense: Expense) => void;
+  onCreate: () => void;
   onDelete: (expense: Expense) => Promise<boolean>;
 }) {
   const range = periodRange(period);
@@ -435,27 +461,35 @@ function ExpensesView({
   const breakdown = expenseBreakdown(expenses, range.from, range.to);
   const monthTotal = sumMoney(breakdown.map((c) => c.amount));
 
-  const months = groupByMonth(sorted);
+  /* One month is one list: the period label already names it, and a
+     month header under a month picker printed "septiembre 2026" three
+     times in five hundred pixels. Quarters and years keep their headers. */
+  const months: [string, Expense[]][] = period.span === "month" ? (sorted.length ? [["all", sorted]] : []) : groupByMonth(sorted);
+
+  if (expenses.length === 0) {
+    return (
+      <div className="section">
+        <div className="card">
+          <EmptyState
+            icon="receipt"
+            title="Sin gastos todavía"
+            body="Anota materiales, taller, transporte o cursos para saber cuánto te cuesta trabajar."
+            actionLabel="Anotar un gasto"
+            onAction={onCreate}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <PeriodPicker value={period} onChange={onPeriodChange} ariaLabel="Periodo de gastos" />
-      {sorted.length === 0 && expenses.length === 0 && (
-        <div className="section">
-          <div className="card">
-            <EmptyState
-              icon="receipt"
-              title="Sin gastos todavía"
-              body="Anota materiales, taller, transporte o cursos para saber cuánto te cuesta trabajar."
-            />
-          </div>
-        </div>
-      )}
       <div className="section">
         <div className="card money-summary">
           <div className="money-summary-head">
-            <span className="eyebrow">Gasto · {range.label}</span>
-            <span className="money-summary-total">{formatMXN(monthTotal)}</span>
+            <span className="eyebrow">Por categoría</span>
+            <span className="money-summary-total">{formatMXNShort(monthTotal)}</span>
           </div>
           {breakdown.length === 0 ? (
             <div className="input-help" style={{ marginTop: 0 }}>
@@ -474,17 +508,24 @@ function ExpensesView({
               </div>
             ))
           )}
+          {breakdown.length > 4 && (
+            <div className="money-submeta" style={{ marginTop: 6 }}>
+              y {breakdown.length - 4} más · {formatMXNShort(sumMoney(breakdown.slice(4).map((c) => c.amount)))}
+            </div>
+          )}
         </div>
       </div>
 
       {months.map(([key, rows]) => (
         <div className="section" key={key}>
-          <div className="section-header">
-            <span className="section-title">{formatMonthLong(key)}</span>
-            <span className="money-section-total">
-              {formatMXN(sumMoney(rows.map((e) => e.amount)))}
-            </span>
-          </div>
+          {key !== "all" && (
+            <div className="section-header">
+              <span className="section-title">{formatMonthLong(key)}</span>
+              <span className="money-section-total">
+                {formatMXNShort(sumMoney(rows.map((e) => e.amount)))}
+              </span>
+            </div>
+          )}
           <div className="card">
             {rows.map((expense, i) => (
               <SwipeRow key={expense.id} label={expense.title} onDelete={() => onDelete(expense)}>
@@ -506,7 +547,7 @@ function ExpensesView({
                   <span className={`badge ${EXPENSE_CATEGORY_BADGE[expense.category]}`}>
                     {labelFor(EXPENSE_CATEGORY, expense.category)}
                   </span>
-                  <span className="row-amount">{formatMXN(expense.amount)}</span>
+                  <span className="row-amount">{formatMXNShort(expense.amount)}</span>
                 </div>
               </button>
               </SwipeRow>

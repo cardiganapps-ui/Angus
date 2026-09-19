@@ -49,8 +49,8 @@
 }
 
 .task-due { font-weight: 700; }
-.task-due--overdue { color: var(--red); }
-.task-due--today { color: var(--amber); }
+.task-due--overdue { color: var(--red-text); }
+.task-due--today { color: var(--amber-text); }
 
 /* Five tabs in the course sheet: tighter segments so "Sesiones" still
    fits at 360px without truncating. */

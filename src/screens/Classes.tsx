@@ -91,7 +91,9 @@ export function Classes() {
                     {tuition.overdue > 0 && <span className="badge badge-red">{tuition.overdue} vencido{tuition.overdue === 1 ? "" : "s"}</span>}
                     {occupancy.full && <span className="badge badge-teal">Lleno</span>}
                   </span>
-                  {tuition.owed > 0 && <span className="row-amount amount-owe">{formatMXNShort(tuition.owed)}</span>}
+                  {tuition.owed > 0 && (
+                    <span className={`row-amount ${tuition.overdue > 0 ? "amount-owe" : ""}`}>{formatMXNShort(tuition.owed)}</span>
+                  )}
                 </div>
               </button>
               </SwipeRow>

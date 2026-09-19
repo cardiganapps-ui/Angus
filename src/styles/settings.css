@@ -31,7 +31,7 @@
   font-variant-numeric: tabular-nums;
 }
 .settings-row-value--empty { color: var(--charcoal-xl); font-weight: 500; }
-.settings-row .row-chevron { color: var(--charcoal-lt); flex-shrink: 0; }
+.settings-row .row-chevron { flex-shrink: 0; }
 
 /* A control that lives inside the card instead of opening a sheet. */
 .settings-control {

@@ -157,6 +157,8 @@ function RuleSection({
             icon="repeat"
             title={kind === "income" ? "Sin ingresos fijos" : "Sin gastos fijos"}
             body={emptyBody}
+            actionLabel={kind === "income" ? "Agregar ingreso fijo" : "Agregar gasto fijo"}
+            onAction={onAdd}
           />
         ) : (
           sorted.map((rule, i) => {
@@ -175,7 +177,7 @@ function RuleSection({
                 label={rule.title}
                 question={`¿Eliminar la regla “${rule.title}”? Los movimientos ya registrados se conservan.`}
                 onDelete={() => onDelete(rule)}
-                trashInset={58}
+                trashInset={112}
               >
               <div
                 className={`row-item list-entry-stagger ${rule.active ? "" : "row-item--paused"}`}
@@ -197,7 +199,11 @@ function RuleSection({
                   </div>
                 </button>
                 <div className="money-row-right">
-                  <span className={`badge ${badge}`}>{label}</span>
+                  {rule.active ? (
+                    <span className={`badge ${badge}`}>{label}</span>
+                  ) : (
+                    <span className="badge badge-amber">En pausa</span>
+                  )}
                   <span className={`row-amount ${kind === "income" ? "amount-paid" : ""}`}>{formatMXN(rule.amount)}</span>
                 </div>
                 <button

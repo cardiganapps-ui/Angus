@@ -146,31 +146,33 @@ export function ExpenseSheet({
         />
       </div>
 
-      <div className="input-group">
-        <label className="input-label" htmlFor="expense-amount">Monto (MXN)</label>
-        <div className="money-input-wrap">
-          <span className="money-input-symbol">$</span>
+      <div className="form-row">
+        <div className="input-group">
+          <label className="input-label" htmlFor="expense-amount">Monto (MXN)</label>
+          <div className="money-input-wrap">
+            <span className="money-input-symbol">$</span>
+            <input
+              id="expense-amount"
+              className="input money-input"
+              type="number"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label className="input-label" htmlFor="expense-date">Fecha</label>
           <input
-            id="expense-amount"
-            className="input money-input"
-            type="number"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0"
+            id="expense-date"
+            className="input"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
           />
         </div>
-      </div>
-
-      <div className="input-group">
-        <label className="input-label" htmlFor="expense-date">Fecha</label>
-        <input
-          id="expense-date"
-          className="input"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
       </div>
 
       {rule && (

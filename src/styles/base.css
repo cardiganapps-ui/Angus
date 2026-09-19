@@ -100,6 +100,16 @@
      inverts there and more of it would only wash the label out. Full
      derivation on .badge in components.css. */
   --badge-mix:   55%;
+  /* The status hues above were tuned as fills and icons. As TEXT on white
+     they miss: green 2.89:1, red 3.9:1. Mixed toward --charcoal by the
+     same --badge-mix the badge labels use, so both themes clear 4.5:1
+     wherever a hue colours type (amounts, stats, danger buttons). */
+  --green-text:  color-mix(in srgb, var(--green) var(--badge-mix), var(--charcoal));
+  --red-text:    color-mix(in srgb, var(--red) var(--badge-mix), var(--charcoal));
+  --amber-text:  color-mix(in srgb, var(--amber) var(--badge-mix), var(--charcoal));
+  /* The FAB's footprint, so .page can reserve its real top edge. */
+  --fab-size:    54px;
+  --fab-gap:     30px;
   --nav-bg:      #3A2A38;
   /* Modality dots (Agenda month view + future surfaces). Tokenized
      so dark mode + per-profession theme overrides flow uniformly
@@ -633,7 +643,6 @@ a[href^="tel:"], a[href^="mailto:"] {
 /* The brand is the studio name, which she picks — one line, clipped
    with an ellipsis between the menu button and the avatar. */
 .topbar-brand { display: block; max-width: calc(100% - 128px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-family: var(--font-d); font-size: var(--text-lg); font-weight: 800; color: var(--charcoal); letter-spacing: -0.3px; position: absolute; left: 50%; transform: translateX(-50%); transition: background var(--dur-base) ease, color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring); -webkit-tap-highlight-color: transparent; user-select: none; padding: 4px 12px; border-radius: var(--radius-pill); }
-.topbar-brand:active { background: var(--accent-pale); color: var(--accent-dark); transform: translateX(-50%) scale(0.88); }
 .topbar-left, .topbar-right { display: flex; align-items: center; gap: 6px; min-width: 36px; }
 .topbar-left { justify-content: flex-start; }
 .topbar-right { justify-content: flex-end; }

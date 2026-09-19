@@ -243,7 +243,6 @@ html[data-theme="dark"] .bottom-tabs::before {
       rgba(255, 255, 255, 0.10) 0%,
       transparent 56%);
 }
-html[data-theme="dark"] .bottom-tab { color: rgba(255, 255, 255, 0.5); }
 /* .bottom-tab--active resolves to var(--accent-dark), which is the
    LIGHT step of the ramp in this theme (#EC9CBE) — no override needed. */
 /* Static active capsule ONLY for bars without the sliding indicator
