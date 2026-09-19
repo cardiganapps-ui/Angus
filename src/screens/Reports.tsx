@@ -16,7 +16,7 @@ import {
   type Delta,
   type RankedRow
 } from "../utils/insights";
-import { formatMXN, formatMXNShort, formatMXNShortSigned } from "../utils/money";
+import { formatMXNShort, formatMXNShortSigned } from "../utils/money";
 import { addMonths, formatMonthLong, monthInitial, monthName, todayISO } from "../utils/dates";
 import { currentPeriod, periodRange, type Period } from "../utils/period";
 import { PeriodPicker } from "../components/PeriodPicker";
@@ -60,10 +60,10 @@ export function Reports() {
     const tag = `${range.from}_${range.to}`;
     const withTareas = assignments.length > 0;
     /* Every file is attempted. `&&` short-circuited here, so one refused
-       download silently cancelled the rest — she'd get "ventas" and
+       download silently cancelled the rest — she'd get "ingresos" and
        believe she had the set. */
     const files: [string, string][] = [
-      [`angus-ventas-${tag}.csv`, salesCsv(sales, payments, contacts, projects, range.from, range.to)],
+      [`angus-ingresos-${tag}.csv`, salesCsv(sales, payments, contacts, projects, range.from, range.to)],
       [`angus-pagos-${tag}.csv`, paymentsCsv(payments, sales, contacts, range.from, range.to)],
       [`angus-gastos-${tag}.csv`, expensesCsv(expenses, projects, events, range.from, range.to)],
       [`angus-cuotas-${tag}.csv`, installmentsCsv(installments, sales, payments, contacts, range.from, range.to)]
@@ -93,14 +93,13 @@ export function Reports() {
             <EmptyState
               icon="chart"
               title={`Nada que contar en ${range.label.toLowerCase()}`}
-              body="Cuando registres ventas, pagos o gastos en este periodo, aquí verás de dónde vino el dinero y a dónde fue."
+              body="Cuando registres ingresos, pagos o gastos en este periodo, aquí verás de dónde vino el dinero y a dónde fue."
             />
           </div>
         </div>
       ) : (
         <>
-          <div className="section" style={{ paddingLeft: 0, paddingRight: 0 }}>
-            <div className="report-kpis">
+          <div className="report-kpis">
               <Kpi label="Cobrado" value={formatMXNShort(summary.income)} d={delta(summary.income, prior.income)} upIsGood />
               <Kpi label="Gastado" value={formatMXNShort(summary.expenses)} d={delta(summary.expenses, prior.expenses)} upIsGood={false} />
               <Kpi label="Neto" value={formatMXNShortSigned(summary.net)} d={delta(summary.net, prior.net)} upIsGood />
@@ -112,7 +111,6 @@ export function Reports() {
                 plain
                 sub={summary.avgPiecePrice ? `precio promedio ${formatMXNShort(summary.avgPiecePrice)}` : undefined}
               />
-            </div>
           </div>
 
           {monthsInSpan > 1 && (
@@ -169,10 +167,10 @@ export function Reports() {
           />
 
           {mediums.length > 0 && (
-            <Ranked title="Por medio" rows={mediums} unit={(r) => `${r.count} ${r.count === 1 ? "venta" : "ventas"}`} />
+            <Ranked title="Por medio" rows={mediums} unit={(r) => `${r.count} ${r.count === 1 ? "ingreso" : "ingresos"}`} />
           )}
           {clients.length > 0 && (
-            <Ranked title="Quién compró" rows={clients} unit={(r) => `${r.count} ${r.count === 1 ? "venta" : "ventas"}`} />
+            <Ranked title="Quién te pagó" rows={clients} unit={(r) => `${r.count} ${r.count === 1 ? "ingreso" : "ingresos"}`} />
           )}
           {studies.length > 0 && (
             <Ranked title="Lo que invertiste en estudiar" rows={studies} unit={(r) => `${r.count} ${r.count === 1 ? "pago" : "pagos"}`} />
@@ -183,25 +181,31 @@ export function Reports() {
               <span className="section-title">Prospectos y cobros</span>
             </div>
             <div className="card">
-              <div className="money-stats" style={{ padding: 14 }}>
-                <div>
-                  <div className="money-stat-label">Ganados</div>
-                  <div className="money-stat-value money-stat-value--paid">{funnel.won}</div>
+              {funnel.won + funnel.lost > 0 ? (
+                <div className="money-stats" style={{ padding: 14 }}>
+                  <div>
+                    <div className="money-stat-label">Ganados</div>
+                    <div className={`money-stat-value ${funnel.won > 0 ? "money-stat-value--paid" : ""}`}>{funnel.won}</div>
+                  </div>
+                  <div>
+                    <div className="money-stat-label">Perdidos</div>
+                    <div className="money-stat-value">{funnel.lost}</div>
+                  </div>
+                  <div>
+                    <div className="money-stat-label">Conversión</div>
+                    <div className="money-stat-value">{funnel.conversion === null ? "—" : `${funnel.conversion}%`}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="money-stat-label">Perdidos</div>
-                  <div className="money-stat-value">{funnel.lost}</div>
+              ) : (
+                <div className="input-help" style={{ padding: "14px 14px 0", marginTop: 0 }}>
+                  Todavía no cierras ningún prospecto en {range.label.toLowerCase()}.
                 </div>
-                <div>
-                  <div className="money-stat-label">Conversión</div>
-                  <div className="money-stat-value">{funnel.conversion === null ? "—" : `${funnel.conversion}%`}</div>
-                </div>
-              </div>
+              )}
               <div className="input-help" style={{ padding: "0 14px 14px", marginTop: 0 }}>
                 {funnel.open > 0 ? `${funnel.open} ${funnel.open === 1 ? "prospecto abierto" : "prospectos abiertos"} · ` : ""}
                 {daysToCollect === null
-                  ? "Aún no hay ventas liquidadas para medir cuánto tardas en cobrar."
-                  : `Tardas en promedio ${daysToCollect} ${daysToCollect === 1 ? "día" : "días"} en cobrar una venta completa.`}
+                  ? "Aún no hay ingresos liquidados para medir cuánto tardas en cobrar."
+                  : `Tardas en promedio ${daysToCollect} ${daysToCollect === 1 ? "día" : "días"} en cobrar un ingreso completo.`}
               </div>
             </div>
           </div>
@@ -219,7 +223,7 @@ export function Reports() {
             </span>
             <div className="row-content">
               <div className="row-title">Descargar CSV · {range.label}</div>
-              <div className="row-sub">Ventas, pagos, gastos{assignments.length > 0 ? " y tareas" : ""}, listos para Excel o tu contador.</div>
+              <div className="row-sub">Ingresos, pagos, gastos{assignments.length > 0 ? " y tareas" : ""}, listos para Excel o tu contador.</div>
             </div>
             <span className="row-chevron" aria-hidden="true">
               <Icon name="chevron-right" size={16} />
@@ -248,8 +252,12 @@ function Kpi({
 }) {
   const dir = d.change > 0 ? "up" : d.change < 0 ? "down" : "flat";
   const good = dir === "flat" ? "" : (dir === "up") === upIsGood ? "report-kpi-delta--up" : "report-kpi-delta--down";
-  const text =
-    dir === "flat"
+  /* A delta against nothing restates the tile's own number ("▲ $43,500 vs.
+     periodo anterior" under "$43,500"); say there is nothing to compare. */
+  const noPrior = d.percent === null && d.change !== 0;
+  const text = noPrior
+    ? "sin periodo anterior"
+    : dir === "flat"
       ? "igual que antes"
       : `${dir === "up" ? "▲" : "▼"} ${plain ? Math.abs(d.change) : formatMXNShort(Math.abs(d.change))}${
           d.percent !== null ? ` (${Math.abs(d.percent)}%)` : ""
@@ -258,7 +266,8 @@ function Kpi({
     <div className="report-kpi">
       <div className="report-kpi-label">{label}</div>
       <div className="report-kpi-value">{value}</div>
-      <div className={`report-kpi-delta ${good}`}>{sub ? `${sub} · ` : ""}{text}</div>
+      {sub && <div className="report-kpi-delta">{sub}</div>}
+      <div className={`report-kpi-delta ${noPrior ? "" : good}`}>{text}</div>
     </div>
   );
 }
@@ -314,7 +323,7 @@ function Ranked({ title, rows, unit }: { title: string; rows: RankedRow[]; unit:
                 {unit(r)} · {Math.round(r.share * 100)}%
               </div>
             </div>
-            <span className="rank-amount">{formatMXN(r.amount)}</span>
+            <span className="rank-amount">{formatMXNShort(r.amount)}</span>
           </div>
         ))}
       </div>

@@ -5,6 +5,8 @@ import { EVENT_KIND, EVENT_KIND_BADGE, labelFor } from "../data/constants";
 import { addDays, formatDateLong, formatMonthLong, formatWithWeekday, monthRange, parseISODate, relativeDayLabel, todayISO } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
+import { SwipeRow } from "../components/SwipeRow";
+import { useToast } from "../context/ToastContext";
 import { EventSheet } from "../components/EventSheet";
 import { AssignmentSheet } from "../components/AssignmentSheet";
 import { dueLabel } from "../utils/studies";
@@ -35,7 +37,26 @@ const sortItems = (list: AgendaItem[]) =>
    pinned, then this week, then by month) and a month grid whose tap
    filters the list below it. Cancelled series slots never show. */
 export function Schedule() {
-  const { events, courses, assignments } = useApp();
+  const { events, courses, assignments, removeEvent, updateEvent, removeAssignment } = useApp();
+  const { showSuccess } = useToast();
+  /* Swipe deletes ONE thing. A series slot is cancelled rather than
+     deleted (the generator would put a deleted one straight back — same
+     as EventSheet's "Solo este"); the whole series is still edited from
+     the sheet. A tarea row is virtual, so it removes the tarea itself. */
+  const deleteItem = async (item: AgendaItem) => {
+    let ok: boolean;
+    if (item.kind === "tarea") {
+      ok = await removeAssignment(item.tarea.id);
+      if (ok) showSuccess("Tarea eliminada");
+    } else if (item.event.seriesId) {
+      ok = await updateEvent(item.event.id, { cancelled: true });
+      if (ok) showSuccess("Sesión eliminada");
+    } else {
+      ok = await removeEvent(item.event.id);
+      if (ok) showSuccess("Evento eliminado");
+    }
+    return ok;
+  };
   const [view, setView] = useState<View>(lastView);
   const [editing, setEditing] = useState<ScheduleEvent | null | { newOn: string }>(null);
   const [tarea, setTarea] = useState<Assignment | null>(null);
@@ -162,7 +183,7 @@ export function Schedule() {
                 <div className="money-list-empty">Nada agendado este día.</div>
               </div>
             ) : (
-              <AgendaList items={dayItems} onSelect={open} showDate={false} courseName={courseName} today={today} />
+              <AgendaList items={dayItems} onSelect={open} onDelete={deleteItem} showDate={false} courseName={courseName} today={today} />
             )}
           </div>
         </>
@@ -187,7 +208,7 @@ export function Schedule() {
                 <span className="section-title">{g.title}</span>
                 {g.sub && <span className="eyebrow">{g.sub}</span>}
               </div>
-              <AgendaList items={g.items} onSelect={open} showDate courseName={courseName} today={today} />
+              <AgendaList items={g.items} onSelect={open} onDelete={deleteItem} showDate courseName={courseName} today={today} />
             </div>
           ))}
           {past.length > 0 && (
@@ -195,7 +216,7 @@ export function Schedule() {
               <div className="section-header">
                 <span className="section-title">Pasados</span>
               </div>
-              <AgendaList items={past.slice(0, 12)} onSelect={open} muted showDate courseName={courseName} today={today} />
+              <AgendaList items={past.slice(0, 12)} onSelect={open} onDelete={deleteItem} muted showDate courseName={courseName} today={today} />
             </div>
           )}
         </>
@@ -217,6 +238,7 @@ export function Schedule() {
 function AgendaList({
   items,
   onSelect,
+  onDelete,
   muted,
   showDate,
   courseName,
@@ -224,6 +246,7 @@ function AgendaList({
 }: {
   items: AgendaItem[];
   onSelect: (item: AgendaItem) => void;
+  onDelete: (item: AgendaItem) => Promise<boolean>;
   muted?: boolean;
   showDate: boolean;
   courseName: (id: string | null) => string | null;
@@ -236,8 +259,13 @@ function AgendaList({
           const due = dueLabel(item.tarea, today);
           const course = courseName(item.tarea.courseId);
           return (
-            <button
+            <SwipeRow
               key={itemKey(item)}
+              label={item.tarea.title}
+              question={`¿Eliminar la tarea “${item.tarea.title}”? La pieza ligada se conserva.`}
+              onDelete={() => onDelete(item)}
+            >
+            <button
               type="button"
               className="row-item list-entry-stagger"
               style={stagger(i)}
@@ -260,25 +288,35 @@ function AgendaList({
               </div>
               <span className="badge badge-red">Tarea</span>
             </button>
+            </SwipeRow>
           );
         }
         const event = item.event;
         const kind = EVENT_KIND.find((k) => k.value === event.kind)!;
         const time = event.startTime ? `${event.startTime}${event.endTime ? `–${event.endTime}` : ""}` : "";
         return (
-          <button
+          <SwipeRow
             key={itemKey(item)}
+            label={event.title}
+            question={
+              event.seriesId
+                ? `¿Quitar esta sesión de “${event.title}”? Solo esta fecha; la serie sigue.`
+                : undefined
+            }
+            onDelete={() => onDelete(item)}
+          >
+          <button
             type="button"
             className={`row-item list-entry-stagger ${muted ? "row-item--muted" : ""}`}
             style={stagger(i)}
             onClick={() => onSelect(item)}
           >
-            <span className="event-dot" style={{ background: kind.color }} />
+            <span className="event-dot" style={{ background: event.courseId ? "var(--purple)" : kind.color }} />
             <div className="row-content">
-              <div className="row-title">
-                {event.title}
+              <div className={`row-title ${event.seriesId ? "row-title--series" : ""}`}>
+                <span>{event.title}</span>
                 {event.seriesId && (
-                  <span className="row-series" aria-label="Se repite" style={{ marginLeft: 6 }}>
+                  <span className="row-series" aria-label="Se repite">
                     <Icon name="repeat" size={12} strokeWidth={2.2} />
                   </span>
                 )}
@@ -298,6 +336,7 @@ function AgendaList({
               {event.courseId ? "Estudio" : labelFor(EVENT_KIND, event.kind)}
             </span>
           </button>
+          </SwipeRow>
         );
       })}
     </div>

@@ -210,8 +210,8 @@ export function AttendanceSheet({ group, session, onClose }: { group: ClassGroup
       )}
       {billing.toCancel.length > 0 && (
         <div className="input-help" style={{ ...WARN_TEXT, marginTop: 0, marginBottom: 12 }}>
-          Al guardar se cancela el cobro de {namesOf(billing.toCancel)}: no tomó la sesión. La venta
-          queda registrada como cancelada, no se borra, y vuelve si la marcas presente otra vez.
+          Al guardar se cancela el cobro de {namesOf(billing.toCancel)}: no tomó la sesión. El cobro
+          queda registrado como cancelado, no se borra, y vuelve si la marcas presente otra vez.
           {billing.refundable > 0 &&
             ` Ya recibiste ${formatMXN(billing.refundable)} de esos cobros: ese dinero pasa a "Por devolver".`}
         </div>

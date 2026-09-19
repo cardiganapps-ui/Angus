@@ -249,7 +249,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.note-card-sub.is-linked { color: var(--accent-dark); font-weight: 600; }
+.note-card-sub.is-linked { color: var(--charcoal-md); font-weight: 600; }
 .note-card-pressing { transform: scale(0.985); }
 .note-longpress-progress {
   position: absolute;

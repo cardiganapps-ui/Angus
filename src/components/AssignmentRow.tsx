@@ -24,7 +24,7 @@ export function AssignmentRow({
   const done = assignment.status === "done";
   const due = dueLabel(assignment, today);
   return (
-    <div className={`row-item task-row ${done ? "task-row--done" : ""}`} style={{ cursor: "default" }}>
+    <div className={`row-item row-item--static task-row ${done ? "task-row--done" : ""}`}>
       <button
         type="button"
         className="task-check-btn"

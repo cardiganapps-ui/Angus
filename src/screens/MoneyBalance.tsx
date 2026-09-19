@@ -6,7 +6,7 @@ import {
   projectMargins,
   type EconomicsRow
 } from "../utils/accounting";
-import { formatMXN, formatMXNShort, formatMXNShortSigned, toCents } from "../utils/money";
+import { formatMXNShort, formatMXNShortSigned, toCents } from "../utils/money";
 import { formatShort } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
@@ -27,7 +27,6 @@ const marginClass = (margin: number) =>
    pending/warning hue and it always ships with the words "Por devolver",
    the term Dinero already uses for the same pesos. Colour never carries
    it alone. */
-const REFUND_AMOUNT: CSSProperties = { color: "var(--amber)" };
 
 /* ── Balance ──
    The third money question: was it worth it? Per client, per piece, per
@@ -82,7 +81,7 @@ export function BalanceView({
           <EmptyState
             icon="banknote"
             title="Todavía no hay nada que comparar"
-            body="Registra ventas y gastos, y enlázalos a una pieza o a una expo: aquí verás quién te debe y qué tanto te dejó cada cosa."
+            body="Registra ingresos y gastos, y enlázalos a una pieza o a una expo: aquí verás quién te debe y qué tanto te dejó cada cosa."
           />
         </div>
       </div>
@@ -96,7 +95,7 @@ export function BalanceView({
       {clients.length > 0 && (
         <div className="section">
           <div className="section-header">
-            <span className="section-title">Clientes con saldo</span>
+            <span className="section-title">Clientes</span>
           </div>
           <div className="card">
             {clients.map((client, i) => {
@@ -120,14 +119,14 @@ export function BalanceView({
                     <div className="row-title">{contact?.name ?? "Cliente sin nombre"}</div>
                     <div className="row-sub">
                       {client.saleCount === 0
-                        ? "Sin ventas activas · su venta se canceló"
-                        : `${client.saleCount} ${client.saleCount === 1 ? "venta" : "ventas"} · ${formatMXNShort(client.committed)}`}
+                        ? "Sin ingresos activos · su ingreso se canceló"
+                        : `${client.saleCount} ${client.saleCount === 1 ? "ingreso" : "ingresos"} · ${formatMXNShort(client.committed)}`}
                     </div>
                   </div>
                   <div className="money-row-right">
                     {owes && (
                       <>
-                        <span className="row-amount amount-owe">{formatMXN(client.owed)}</span>
+                        <span className="row-amount amount-owe">{formatMXNShort(client.owed)}</span>
                         <span className="money-submeta">
                           {formatMXNShort(client.collected)} de {formatMXNShort(client.committed)}
                         </span>
@@ -135,9 +134,7 @@ export function BalanceView({
                     )}
                     {refund && (
                       <>
-                        <span className="row-amount" style={REFUND_AMOUNT}>
-                          {formatMXN(client.refundable)}
-                        </span>
+                        <span className="row-amount money-refund">{formatMXNShort(client.refundable)}</span>
                         <span className="badge badge-amber">Por devolver</span>
                       </>
                     )}
@@ -202,10 +199,6 @@ export function BalanceView({
         </div>
       )}
 
-      {/* Every row here is read-only data, so the floating FAB would sit
-          right on top of the last margin figure. */}
-      <div className="money-balance-tail" aria-hidden="true" />
-
       {clientId && (
         <ClientBalanceSheet contactId={clientId} onClose={() => setClientId(null)} />
       )}
@@ -237,10 +230,11 @@ function EconomicsRowItem({
         </div>
       </div>
       <div className="money-row-right">
-        <span className={`row-amount ${marginClass(margin)}`}>
-          {formatMXNShortSigned(margin)}
-        </span>
-        <span className="money-submeta">Margen</span>
+        {revenue === 0 && spent === 0 ? (
+          <span className="money-submeta">Sin movimientos</span>
+        ) : (
+          <span className={`row-amount ${marginClass(margin)}`}>{formatMXNShortSigned(margin)}</span>
+        )}
       </div>
     </div>
   );

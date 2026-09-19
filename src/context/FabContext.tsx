@@ -10,7 +10,7 @@ import type { IconName } from "../components/Icon";
    A screen with nothing to add (Ajustes) hides it. */
 
 export interface FabPrimary {
-  /** Dedupes against the quick actions: "sale" on Dinero replaces the generic "Nueva venta". */
+  /** Dedupes against the quick actions: "sale" on Dinero replaces the generic "Nuevo ingreso". */
   key: string;
   label: string;
   icon: IconName;

@@ -69,8 +69,8 @@
   color: var(--charcoal);
   font-variant-numeric: tabular-nums;
 }
-.money-stat-value--owed { color: var(--red); }
-.money-stat-value--paid { color: var(--green); }
+.money-stat-value--owed { color: var(--red-text); }
+.money-stat-value--paid { color: var(--green-text); }
 
 /* Inline information band inside a white card / sheet (--cream* is an
    accent here, never a wrapper background). Uses --cream-dark, not
@@ -187,6 +187,63 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── FOLD (Ingresos → Entregados y pagados) ──
+   A finished sale is still hers to look up, just not hers to act on, so
+   it collapses behind a header instead of leaving the list. The body
+   animates with grid-template-rows 0fr → 1fr: height:auto can't be
+   transitioned, and a fixed max-height would either clip the list or
+   make the ease depend on how many sales she has sold. */
+.money-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  /* Negative margin so the label lines up with .section-title while the
+     tap area still spills past it. */
+  padding: 10px 4px;
+  margin: 0 -4px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.money-fold-title {
+  font-family: var(--font-d);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--charcoal-md);
+}
+.money-fold-count {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--charcoal-xl);
+  font-variant-numeric: tabular-nums;
+  background: var(--cream-dark);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+}
+.money-fold-chevron {
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--charcoal-lt);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.money-fold-chevron.is-open { transform: rotate(180deg); }
+
+.money-fold-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-out);
+}
+.money-fold-body.is-open { grid-template-rows: 1fr; }
+.money-fold-clip { overflow: hidden; min-height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .money-fold-chevron,
+  .money-fold-body { transition: none; }
+}
+
 /* Inline destructive confirm inside a sheet (borrar un plan). */
 .money-confirm {
   display: flex;
@@ -213,13 +270,18 @@
 /* The segmented Ventas | Gastos | Balance switcher sits in its own band
    above the list, matching the .section horizontal rhythm. */
 .money-switch { padding: 12px 16px 0; }
+/* Two accent-pale pills touching read as one broken control. */
+.money-switch + .period-picker { margin-top: 16px; }
+.money-switch + .search-field { margin-top: 12px; }
+/* Money she owes OUT: amber ("pending"), never the red of money owed IN. */
+.money-refund { color: var(--amber-text); }
 
 /* ── BALANCE (¿valió la pena?) ──
    Margin is the one figure here that can go either way, so it gets its
    own semantic pair instead of borrowing .amount-owe / .amount-paid,
    which mean "still owed" and "already received". */
-.money-margin-pos { color: var(--green); }
-.money-margin-neg { color: var(--red); }
+.money-margin-pos { color: var(--green-text); }
+.money-margin-neg { color: var(--red-text); }
 
 /* Economics rows are read-only: no pointer, no hover lift — the tap
    affordance is reserved for rows that actually go somewhere. */
@@ -255,10 +317,6 @@
   white-space: nowrap;
 }
 
-/* The FAB floats into the band .page reserves for the tab pill, so the
-   last row of a read-only list needs its own clearance. */
-.money-balance-tail { height: 48px; }
-
 /* A read-only economics band inside an editing sheet sits tighter than
    a standalone panel — it's context above the form, not a section. */
 .money-panel--compact {
@@ -276,7 +334,7 @@
   border: none; background: none; color: var(--charcoal-md); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
-.period-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.period-nav-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .period-nav-btn:active:not(:disabled) { background: var(--accent-pale); color: var(--accent-dark); }
 .period-nav-label {
   flex: 1; min-height: 44px; border: none; background: none; cursor: pointer;
@@ -307,15 +365,18 @@
 .recur-band-label { font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--charcoal-xl); }
 .recur-band-value { font-family: var(--font-d); font-weight: 800; font-size: var(--text-xl); font-variant-numeric: tabular-nums; color: var(--charcoal); margin-top: 4px; }
 .recur-band-value--in { color: var(--green); }
-.recur-band-value--out { color: var(--red); }
+.recur-band-value--out { color: var(--red-text); }
 .recur-band-value--net { color: var(--charcoal); }
-.row-item--paused .row-title { color: var(--charcoal-lt); text-decoration: line-through; text-decoration-color: var(--border); }
+/* Paused, not deleted: no strike-through. The amber "En pausa" badge carries the state. */
+.row-item--paused .row-title { color: var(--charcoal-md); }
 .row-item--paused .row-amount { color: var(--charcoal-lt); }
 
 /* ── Budgets ── */
 .budget-row { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border-lt); width: 100%; text-align: left; background: none; border-left: none; border-right: none; border-top: none; cursor: pointer; font-family: var(--font); }
 .budget-row:last-child { border-bottom: none; }
 .budget-row:active { background: var(--accent-mist); }
+@media (hover: hover) { .budget-row:hover { background: var(--accent-mist); } }
+.budget-row:focus-visible { outline: none; background: var(--accent-mist); box-shadow: inset 0 0 0 2px var(--accent); }
 .budget-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .budget-row-title { font-weight: 700; color: var(--charcoal); font-size: var(--text-md); display: flex; align-items: center; gap: 8px; }
 .budget-row-figures { font-size: var(--text-sm); color: var(--charcoal-md); font-variant-numeric: tabular-nums; }
@@ -325,7 +386,7 @@
 .budget-bar-fill--near { background: var(--amber); }
 .budget-bar-fill--over { background: var(--red); }
 .budget-row-remaining { font-size: var(--text-xs); color: var(--charcoal-md); }
-.budget-row-remaining--over { color: var(--red); font-weight: 700; }
+.budget-row-remaining--over { color: var(--red-text); font-weight: 700; }
 
 .money-badges { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 .row-icon-btn {
@@ -336,6 +397,19 @@
 }
 .row-icon-btn:active { background: var(--accent-pale); color: var(--accent-dark); }
 
+/* A stat that is also a button (Expo → Presupuesto). Declared after
+   .money-stat-value so the display type wins over the UA button font. */
+.money-stat-value--btn {
+  display: block; background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--accent-dark); text-align: left;
+  font-family: var(--font-d); font-size: var(--text-lg); font-weight: 800; letter-spacing: -0.2px;
+  font-variant-numeric: tabular-nums; line-height: inherit;
+}
+/* An inline action inside a submeta line matches its size, not .see-all's. */
+.money-submeta .see-all { font-size: inherit; font-weight: 700; padding: 0; min-height: unset; }
+/* The KPI band before a segmented control needs its own breath. */
+.money-panel--band { margin-bottom: 16px; }
+
 /* "$3,200 de $12,000" inside a stat: the total steps back. */
 .money-stat-of { font-size: var(--text-xs); font-weight: 600; color: var(--charcoal-lt); }
-.btn-mini--active { background: var(--red-bg); color: var(--red); border-color: transparent; }
+.btn-mini--active { background: var(--red-bg); color: var(--red-text); border-color: transparent; }

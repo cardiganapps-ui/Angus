@@ -55,3 +55,8 @@ button.weekday-chip[aria-pressed="true"] { background: var(--accent-dark); borde
 /* Edit-scope choice (Solo este / Este y siguientes / Toda la serie) */
 .scope-panel { margin-top: 4px; }
 .scope-panel .segmented { margin-top: 8px; }
+
+/* A series title keeps its ellipsis; the repeat glyph sits after it and
+   never gets pushed out of the row by a long name. */
+.row-title--series { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.row-title--series > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

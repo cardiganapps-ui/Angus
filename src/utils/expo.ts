@@ -73,6 +73,6 @@ export function expoVerdict(report: ExpoReport, format: (n: number) => string): 
         ? `Costó ${format(report.spent)} y todavía no vende.`
         : `Costó ${format(subtractMoney(report.spent, report.revenue))} más de lo que dejó.`;
     default:
-      return "Sin gastos ni ventas ligadas todavía.";
+      return "Sin gastos ni ingresos ligados todavía.";
   }
 }

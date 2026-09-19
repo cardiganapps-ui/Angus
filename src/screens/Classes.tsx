@@ -4,6 +4,8 @@ import { activeEnrollments, groupOccupancy, groupSessions, sessionsWithoutAttend
 import { formatMXNShort, sumMoney } from "../utils/money";
 import { formatWithWeekday, todayISO } from "../utils/dates";
 import { EmptyState } from "../components/EmptyState";
+import { SwipeRow } from "../components/SwipeRow";
+import { useToast } from "../context/ToastContext";
 import { ClassGroupSheet } from "../components/ClassGroupSheet";
 import { ClassGroupDetailSheet } from "../components/ClassGroupDetailSheet";
 import { useFab } from "../context/FabContext";
@@ -14,7 +16,8 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    Her groups at a glance: next session, students vs cupo, who is
    behind on tuition, and whether a past session still needs its list. */
 export function Classes() {
-  const { groups, enrollments, attendance, events, rules, sales, payments } = useApp();
+  const { groups, enrollments, attendance, events, rules, sales, payments, removeGroup } = useApp();
+  const { showSuccess } = useToast();
   const [creating, setCreating] = useState(false);
   useFab({ key: "group", label: "Nueva clase", icon: "graduation", onPick: () => setCreating(true) });
   const [open, setOpen] = useState<string | null>(null);
@@ -62,7 +65,17 @@ export function Classes() {
         ) : (
           <div className="card">
             {rows.map(({ group, occupancy, next, untaken, tuition }, i) => (
-              <button key={group.id} type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={() => setOpen(group.id)}>
+              <SwipeRow
+                key={group.id}
+                label={group.name}
+                question={`¿Eliminar la clase “${group.name}”? Se quitan las inscripciones; las sesiones y cobros ya registrados se conservan.`}
+                onDelete={async () => {
+                  const ok = await removeGroup(group.id);
+                  if (ok) showSuccess("Clase eliminada");
+                  return ok;
+                }}
+              >
+              <button type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={() => setOpen(group.id)}>
                 <div className="row-content">
                   <div className="row-title">{group.name}</div>
                   <div className="row-sub">
@@ -78,9 +91,12 @@ export function Classes() {
                     {tuition.overdue > 0 && <span className="badge badge-red">{tuition.overdue} vencido{tuition.overdue === 1 ? "" : "s"}</span>}
                     {occupancy.full && <span className="badge badge-teal">Lleno</span>}
                   </span>
-                  {tuition.owed > 0 && <span className="row-amount amount-owe">{formatMXNShort(tuition.owed)}</span>}
+                  {tuition.owed > 0 && (
+                    <span className={`row-amount ${tuition.overdue > 0 ? "amount-owe" : ""}`}>{formatMXNShort(tuition.owed)}</span>
+                  )}
                 </div>
               </button>
+              </SwipeRow>
             ))}
           </div>
         )}

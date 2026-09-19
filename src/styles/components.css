@@ -25,6 +25,10 @@
      rubber-banded. Reserve the pill's real top edge (8px offset) PLUS a
      24px breathing gap. */
   padding-bottom: calc(var(--sab) + var(--bottom-tabs-h) + 32px);
+  /* …and the FAB floats another --fab-gap + --fab-size above the pill,
+     on top of whatever the last row put in its column. Reserve its real
+     top edge too, so the last row's right end is never under the disc. */
+  padding-bottom: calc(var(--sab) + var(--bottom-tabs-h) + var(--fab-gap) + var(--fab-size) + 16px);
   /* Reserve the floating top chrome's height so content starts below
      the glass but scrolls UNDER it (mirror of the bottom reservation
      above). 0 on 768+ where the chrome is in normal flow — and the
@@ -689,9 +693,9 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
      pill height + a 20px visual gap so the FAB never overlaps the
      tab labels. */
   position: fixed;
-  bottom: calc(var(--sab) + var(--bottom-tabs-h) + 30px);
+  bottom: calc(var(--sab) + var(--bottom-tabs-h) + var(--fab-gap));
   right: 20px;
-  width: 54px; height: 54px;
+  width: var(--fab-size); height: var(--fab-size);
   /* Tinted glass base + the tight top spec highlight (8% → fades by
      30%) that suggests sphere curvature without bleaching the brand
      color. The tint token stays ≥72% accent because of the white glyph
@@ -782,7 +786,7 @@ body:has(.sheet-overlay:not(.sheet-overlay--exit)) .fab {
 .section { padding: 16px 16px 0; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .section-title { font-family: var(--font-d); font-size: var(--text-lg); font-weight: 800; color: var(--charcoal); }
-.see-all { font-size: var(--text-md); font-weight: 600; color: var(--accent-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+.see-all { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-md); font-weight: 600; color: var(--accent-dark); background: none; border: none; cursor: pointer; padding: 4px 0; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
 
 .card { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--border-lt); overflow: hidden; }
 
@@ -905,12 +909,13 @@ button.kpi-card:active {
 .row-icon { width: 40px; height: 40px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: var(--text-lg); flex-shrink: 0; }
 .row-content { flex: 1; min-width: 0; }
 .row-title { font-size: var(--text-md); font-weight: 600; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-.row-sub { font-size: var(--text-sm); color: var(--charcoal-xl); }
+.row-sub { font-size: var(--text-sm); color: var(--charcoal-xl); font-variant-numeric: tabular-nums; }
 .row-right { text-align: right; flex-shrink: 0; }
 .row-amount { font-family: var(--font-d); font-size: var(--text-lg); font-weight: 700; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
-.row-chevron { color: var(--border); font-size: var(--text-md); flex-shrink: 0; margin-left: 4px; }
-.amount-owe   { color: var(--red); }
-.amount-paid  { color: var(--green); }
+/* --charcoal-xl, not --border: a disclosure chevron is an affordance, not a divider (1.45:1 read as a smudge). */
+.row-chevron { color: var(--charcoal-xl); font-size: var(--text-md); flex-shrink: 0; margin-left: 4px; }
+.amount-owe   { color: var(--red-text); }
+.amount-paid  { color: var(--green-text); }
 .amount-clear { color: var(--charcoal-xl); }
 
 /* INPUT */
@@ -937,6 +942,22 @@ button.kpi-card:active {
      read it as "tap didn't take, then later something happened".
      150ms feels instant while still being visible. */
   transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+/* Textareas grow by `rows`, not by a grip in the corner. */
+textarea.input { resize: none; line-height: 1.45; }
+/* Number fields: the value is the control; Chromium's spinners are noise on a phone form. */
+.input[type="number"]::-webkit-inner-spin-button,
+.input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+/* Search fields: Chromium paints its clear button in system blue, the one
+   colour this palette never uses. Keep the affordance, repaint it plum. */
+.input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
+.input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; margin-left: 8px; flex: none;
+  background: var(--charcoal-lt); cursor: pointer;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm3.54 5.05L12 10.59 8.46 7.05 7.05 8.46 10.59 12l-3.54 3.54 1.41 1.41L12 13.41l3.54 3.54 1.41-1.41L13.41 12l3.54-3.54-1.41-1.41Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm3.54 5.05L12 10.59 8.46 7.05 7.05 8.46 10.59 12l-3.54 3.54 1.41 1.41L12 13.41l3.54 3.54 1.41-1.41L13.41 12l3.54-3.54-1.41-1.41Z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .input:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
 .input:hover:not(:focus):not(:disabled) { border-color: var(--charcoal-xl); }
@@ -1097,9 +1118,9 @@ button.kpi-card:active {
 }
 .btn-secondary { background: var(--white); color: var(--charcoal-md); border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); }
 .btn-ghost { background: transparent; color: var(--accent-dark); height: 44px; padding: 0 10px; font-size: var(--text-md); transition: background-color var(--dur-fast) ease; }
-.btn-danger { background: var(--red-bg); color: var(--red); box-shadow: none; width: 100%; }
-.btn-ghost--danger { color: var(--red); }
-.btn-ghost--success { color: var(--green); }
+.btn-danger { background: var(--red-bg); color: var(--red-text); box-shadow: none; width: 100%; }
+.btn-ghost--danger { color: var(--red-text); }
+.btn-ghost--success { color: var(--green-text); }
 
 
 
@@ -1418,13 +1439,22 @@ button.row-item {
   font-family: inherit; color: inherit; padding: 13px 16px;
 }
 .row-item--muted { opacity: 0.7; }
+/* A row that is data, not a tap target: no pointer, no hover lift. */
+.row-item--static { cursor: default; }
+.row-item--static:hover, .row-item--static:active { background: transparent; }
+/* A sub-line that is itself the warning (an overdue follow-up). */
+.row-sub--overdue { color: var(--red-text); font-weight: 600; }
+/* "Sin teléfono" where a value would go — quiet, not a dash. */
+.row-empty { color: var(--charcoal-xl); font-weight: 500; }
 /* Event-kind dot — inline color comes from EVENT_KIND[].color. */
 .event-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 /* Sheet body + sticky footer — Cardigan's inline recipe (PaymentModal:
    `padding: 0 20px` body; sticky footer `12px 0 22px` + border-top). */
 .sheet-body { padding: 0 20px; }
+/* A .section inside a sheet body must not stack the page gutter on the sheet's. */
+.sheet-body .section { padding-left: 0; padding-right: 0; }
 .sheet-footer {
-  position: sticky; bottom: 0; background: var(--white);
+  position: sticky; bottom: 0; z-index: 1; background: var(--white);
   padding: 12px 20px 22px; margin-top: 8px;
   border-top: 1px solid var(--border-lt);
   display: flex; flex-direction: column; gap: 10px;
@@ -1439,6 +1469,8 @@ button.row-item {
    Port of Cardigan's single pill-tab style, used by <SegmentedControl />
    (auth Entrar/Crear cuenta, project status). */
 .segmented {
+  /* Segment z-indices stay inside the pill: they used to paint through the sticky sheet footer. */
+  isolation: isolate;
   display: flex; background: var(--accent-pale);
   border-radius: var(--radius-pill);
   padding: 3px; gap: 2px;
@@ -1540,8 +1572,8 @@ button.row-item {
    only 3.73:1 (see the contrast rule in base.css). */
 .chip-row { display: flex; flex-wrap: wrap; gap: 10px 8px; }
 /* Grouped chip rows (expense categories): an eyebrow above each row. */
-.chip-group { margin-top: 8px; }
-.chip-group:first-of-type { margin-top: 0; }
+.chip-group { margin-top: 12px; }
+.chip-group:first-of-type { margin-top: 6px; }
 .chip-group-title {
   font-size: var(--text-eyebrow); font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--charcoal-xl); margin-bottom: 6px;
@@ -1598,6 +1630,74 @@ button.row-item {
   .picker-field:hover { border-color: var(--charcoal-xl); }
 }
 .picker-field:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+/* ── SWIPE ROW ──
+   Wraps a .row-item. The red action panel sits UNDER the content, which
+   slides left to reveal it; the confirm state replaces the content in
+   the same footprint so the list never jumps. Tokens only: red is the
+   one destructive hue, and the label rides on --red-bg / --red like
+   .btn-danger, never white-on-red (3.9:1 in light). */
+.swipe-row { position: relative; overflow: hidden; touch-action: pan-y; }
+.swipe-row-content {
+  position: relative;
+  background: var(--white);
+  transition: transform var(--dur-base) var(--ease-out);
+  will-change: transform;
+}
+.swipe-row.is-dragging .swipe-row-content { transition: none; }
+/* The wrapper takes :last-child from the row, so restore its rule. */
+.swipe-row:last-child .row-item { border-bottom: none; }
+.swipe-row-actions {
+  position: absolute; inset: 0 0 0 auto; width: 96px;
+  display: flex;
+  background: var(--red-bg);
+}
+.swipe-row-delete {
+  flex: 1; border: none; background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font-family: var(--font-d); font-weight: 800; font-size: var(--text-sm);
+  color: var(--red-text); -webkit-tap-highlight-color: transparent;
+  opacity: 0; transform: scale(0.9);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring);
+}
+.swipe-row.is-open .swipe-row-delete, .swipe-row.is-dragging .swipe-row-delete { opacity: 1; transform: none; }
+.swipe-row-delete:active { transform: scale(0.95); }
+
+/* Pointer devices: a trash button on hover / keyboard focus. Touch never
+   sees it (no hover), so nothing crowds the row on a phone. */
+.swipe-row-trash {
+  position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+  width: 36px; height: 36px; min-height: 36px; border-radius: 50%;
+  border: none; background: var(--red-bg); color: var(--red-text); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) {
+  .swipe-row:hover .swipe-row-trash { opacity: 1; pointer-events: auto; }
+}
+.swipe-row-trash:focus-visible { opacity: 1; pointer-events: auto; outline: none; box-shadow: var(--focus-ring); }
+
+.swipe-row-confirm {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  min-height: 62px; padding: 12px 16px;
+  background: var(--red-bg);
+  border-bottom: 1px solid var(--border-lt);
+  animation: sheetActionsIn var(--dur-base) var(--ease-out);
+}
+.swipe-row:last-child .swipe-row-confirm { border-bottom: none; }
+.swipe-row-question {
+  flex: 1 1 160px; min-width: 0;
+  font-family: var(--font-d); font-weight: 700; font-size: var(--text-md); color: var(--charcoal);
+  overflow-wrap: anywhere;
+}
+.swipe-row-confirm-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
+.swipe-row-confirm .btn-danger { background: var(--white); }
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe-row-content, .swipe-row-delete, .swipe-row-trash { transition: none; }
+  .swipe-row-confirm { animation: none; }
+}
+
 /* PickerSheet rows: .row-item as a full-width button (UA reset), a
    accent check on the selected row, "Ninguno" in placeholder color. */
 .picker-list { margin-bottom: 8px; }
@@ -1609,6 +1709,21 @@ button.row-item {
 .picker-row-none { color: var(--charcoal-xl); font-weight: 500; }
 .picker-check { display: inline-flex; color: var(--accent); flex-shrink: 0; }
 .picker-empty { padding: 20px 16px; font-size: var(--text-md); color: var(--charcoal-xl); text-align: center; }
+/* "Crear «…»" — its own card above the list: it's an action, not one of
+   the options, and the accent reads it as the way forward. */
+.picker-create { margin-bottom: 10px; }
+.picker-create .row-title { color: var(--accent-dark); font-weight: 700; }
+.picker-create-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+  flex-shrink: 0;
+}
 
 /* ── SHEET ACTIONS ──
    <SheetActions />: both footer states (Guardar/Eliminar and the
@@ -1669,7 +1784,10 @@ button.row-item {
   width: 32px; height: 32px; min-height: 32px; border-radius: 50%;
   border: none; background: var(--cream-deeper); color: var(--charcoal-md);
   display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+  position: relative;
 }
+/* 32px visual, 44px thumb — same trick as .sheet-close::after. */
+.search-field-clear::after { content: ""; position: absolute; inset: -6px; }
 .filter-row {
   display: flex; gap: 8px; overflow-x: auto;
   /* `overflow-x: auto` also clips vertically, which ate the top of a
@@ -1677,6 +1795,10 @@ button.row-item {
      negative margin keeps the strip exactly where it was. */
   padding: 4px 16px 12px; margin-top: -4px;
   scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  /* A chip cut mid-glyph at the edge reads as a bug; a fade says "more". */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  scroll-padding-inline: 16px;
 }
 .filter-row::-webkit-scrollbar { display: none; }
 .filter-row .chip { flex-shrink: 0; }
@@ -1692,7 +1814,7 @@ button.row-item {
   transition: transform var(--dur-base) var(--ease-spring), background var(--dur-fast) var(--ease-out);
 }
 .contact-action:active { transform: scale(0.95); background: var(--accent-mist); }
-.contact-action[aria-disabled="true"] { color: var(--charcoal-xl); pointer-events: none; }
+.contact-action[aria-disabled="true"] { color: var(--charcoal-xl); opacity: 0.55; cursor: not-allowed; pointer-events: none; }
 
 /* Pipeline (lead) columns rendered as stacked sections */
 .pipeline-stage-count { font-size: var(--text-xs); font-weight: 700; color: var(--charcoal-md); }
@@ -1704,7 +1826,8 @@ button.row-item {
 .expo-signal--green { background: var(--green); }
 .expo-signal--amber { background: var(--amber); }
 .expo-signal--red { background: var(--red); }
-.expo-signal--none { background: var(--cream-deeper); }
+/* No verdict yet: a hollow ring, not a blush smudge. */
+.expo-signal--none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--border); }
 .expo-verdict { padding: 12px 14px; border-radius: var(--radius); font-size: var(--text-sm); color: var(--charcoal); line-height: 1.45; margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; }
 .expo-verdict--green { background: var(--green-bg); }
 .expo-verdict--amber { background: var(--amber-bg); }

@@ -84,7 +84,7 @@ export function PaymentSheet({
      the month it landed in — which may be a month she has already
      closed and read. */
   const deleteConfirm = payment
-    ? `¿Eliminar este pago de ${formatMXN(payment.amount)}? La venta vuelve a deber esa cantidad, las cuotas de su plan se recalculan y el mes en que entró deja de contarlo.`
+    ? `¿Eliminar este pago de ${formatMXN(payment.amount)}? El ingreso vuelve a deber esa cantidad, las cuotas de su plan se recalculan y el mes en que entró deja de contarlo.`
     : "¿Eliminar este pago?";
 
   return (

@@ -7,6 +7,7 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
@@ -30,7 +31,8 @@ export function ExpenseSheet({
   initialAmount?: number | null;
   onClose: () => void;
 }) {
-  const { addExpense, updateExpense, removeExpense, projects, events, rules, courses } = useApp();
+  const { addExpense, updateExpense, removeExpense, projects, events, rules, courses, settings } = useApp();
+  const quick = useQuickCreate();
   const { showSuccess } = useToast();
   const [title, setTitle] = useState(expense?.title ?? initialTitle ?? "");
   const [amount, setAmount] = useState(expense?.amount?.toString() ?? (initialAmount ? String(initialAmount) : ""));
@@ -102,7 +104,11 @@ export function ExpenseSheet({
   async function handleDelete() {
     if (!expense || submitting) return;
     setSubmitting(true);
-    await removeExpense(expense.id);
+    if (!(await removeExpense(expense.id))) {
+      // The store reverted and reported why; nothing was removed.
+      setSubmitting(false);
+      return;
+    }
     haptic.warn();
     showSuccess("Gasto eliminado");
     onClose();
@@ -140,31 +146,33 @@ export function ExpenseSheet({
         />
       </div>
 
-      <div className="input-group">
-        <label className="input-label" htmlFor="expense-amount">Monto (MXN)</label>
-        <div className="money-input-wrap">
-          <span className="money-input-symbol">$</span>
+      <div className="form-row">
+        <div className="input-group">
+          <label className="input-label" htmlFor="expense-amount">Monto (MXN)</label>
+          <div className="money-input-wrap">
+            <span className="money-input-symbol">$</span>
+            <input
+              id="expense-amount"
+              className="input money-input"
+              type="number"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label className="input-label" htmlFor="expense-date">Fecha</label>
           <input
-            id="expense-amount"
-            className="input money-input"
-            type="number"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0"
+            id="expense-date"
+            className="input"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
           />
         </div>
-      </div>
-
-      <div className="input-group">
-        <label className="input-label" htmlFor="expense-date">Fecha</label>
-        <input
-          id="expense-date"
-          className="input"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
       </div>
 
       {rule && (
@@ -208,18 +216,36 @@ export function ExpenseSheet({
           options={projectOptions}
           value={projectId}
           onChange={setProjectId}
+          onCreate={(name) => quick.project(name, { status: "in_progress", courseId: courseId || null })}
+          createLabel="Nueva pieza"
         />
       </div>
 
       <div className="input-group">
         <span className="input-label" id={`${uid}-expo`}>Expo</span>
-        <PickerField labelId={`${uid}-expo`} title="Expo" options={expoOptions} value={eventId} onChange={setEventId} />
+        <PickerField
+          labelId={`${uid}-expo`}
+          title="Expo"
+          options={expoOptions}
+          value={eventId}
+          onChange={setEventId}
+          onCreate={(name) => quick.expo(name, date)}
+          createLabel="Nueva expo"
+        />
       </div>
 
-      {courseOptions.length > 0 && (
+      {(settings.practice.includes("studies") || courses.length > 0) && (
         <div className="input-group">
           <span className="input-label" id={`${uid}-course`}>Curso que tomas</span>
-          <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
+          <PickerField
+            labelId={`${uid}-course`}
+            title="Curso"
+            options={courseOptions}
+            value={courseId}
+            onChange={setCourseId}
+            onCreate={(name) => quick.course(name)}
+            createLabel="Nuevo curso"
+          />
         </div>
       )}
 

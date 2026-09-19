@@ -58,11 +58,14 @@
    the timing — never by color alone. The rail is always 3px so rows
    don't shift when one of them becomes urgent. */
 .dash-attn-row {
-  border-left: 3px solid transparent;
+  /* An inset shadow, not border-left: the rows are <button>s and
+     `button.row-item { border: none }` outranked the border, so the rail
+     never rendered; the shadow also survives the card's rounded corner. */
+  box-shadow: inset 3px 0 0 transparent;
   gap: 12px;
 }
-.dash-attn-row--overdue { border-left-color: var(--red); }
-.dash-attn-row--today   { border-left-color: var(--amber); }
+button.row-item.dash-attn-row--overdue { box-shadow: inset 3px 0 0 var(--red); }
+button.row-item.dash-attn-row--today   { box-shadow: inset 3px 0 0 var(--amber); }
 
 .dash-attn-icon {
   width: 34px;
@@ -111,8 +114,8 @@
   color: var(--charcoal);
   font-variant-numeric: tabular-nums;
 }
-.dash-pulse-net--pos { color: var(--green); }
-.dash-pulse-net--neg { color: var(--red); }
+.dash-pulse-net--pos { color: var(--green-text); }
+.dash-pulse-net--neg { color: var(--red-text); }
 .dash-pulse-caption {
   font-size: var(--text-sm);
   color: var(--charcoal-md);
@@ -128,9 +131,9 @@
   color: var(--charcoal-md);
   font-variant-numeric: tabular-nums;
 }
-.dash-pulse-delta-arrow { font-size: var(--text-eyebrow); line-height: 1; }
-.dash-pulse-delta--up   .dash-pulse-delta-arrow { color: var(--green); }
-.dash-pulse-delta--down .dash-pulse-delta-arrow { color: var(--red); }
+.dash-pulse-delta-arrow { display: inline-flex; line-height: 1; }
+.dash-pulse-delta--up   .dash-pulse-delta-arrow { color: var(--green-text); }
+.dash-pulse-delta--down .dash-pulse-delta-arrow { color: var(--red-text); }
 .dash-pulse-delta--flat .dash-pulse-delta-arrow { color: var(--charcoal-xl); }
 
 /* Reuses .money-stats (the 3-up trio from the sale sheet) — this is the

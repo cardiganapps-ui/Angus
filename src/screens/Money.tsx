@@ -1,11 +1,10 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useApp } from "../context/AppContext";
-import type { Contact, Expense, Payment, Sale } from "../types";
+import type { Contact, Expense, Installment, Payment, Sale } from "../types";
 import {
   EXPENSE_CATEGORY,
   EXPENSE_CATEGORY_BADGE,
   INCOME_CATEGORY,
-  INCOME_CATEGORY_BADGE,
   SALE_STATUS,
   SALE_STATUS_BADGE,
   labelFor
@@ -14,7 +13,9 @@ import {
   expenseBreakdown,
   profitLoss,
   saleBalance,
+  installmentPlan,
   saleCountsTowardRevenue,
+  saleIsClosed,
   totals
 } from "../utils/accounting";
 import { formatMXN, formatMXNShort, formatMXNShortSigned, sumMoney } from "../utils/money";
@@ -28,10 +29,13 @@ import { SegmentedControl } from "../components/SegmentedControl";
 import { TrendChart } from "../components/TrendChart";
 import { Icon } from "../components/Icon";
 import { SaleSheet } from "../components/SaleSheet";
+import { SwipeRow } from "../components/SwipeRow";
 import { SaleDetailSheet } from "../components/SaleDetailSheet";
 import { ExpenseSheet } from "../components/ExpenseSheet";
 import { BalanceView } from "./MoneyBalance";
 import { useFab } from "../context/FabContext";
+import { haptic } from "../lib/haptics";
+import { useToast } from "../context/ToastContext";
 import type { Route } from "../hooks/useNavigation";
 
 type View = "sales" | "expenses" | "balance";
@@ -41,8 +45,13 @@ type View = "sales" | "expenses" | "balance";
    session should land where she left off. */
 let lastView: View = "sales";
 
+/* Same reasoning for the Ingresos fold: closed sales stay tucked away by
+   default, but if she opened them she shouldn't have to do it again the
+   next time she comes back to Dinero in the same session. */
+let lastClosedOpen = false;
+
 const VIEW_ITEMS = [
-  { k: "sales", l: "Ventas" },
+  { k: "sales", l: "Ingresos" },
   { k: "expenses", l: "Gastos" },
   { k: "balance", l: "Balance" }
 ];
@@ -57,7 +66,8 @@ const MONEY_LINKS: { route: Route; label: string }[] = [
 ];
 
 export function Money({ navigate }: { navigate: (r: Route) => void }) {
-  const { sales, payments, expenses, contacts, projects, events, rules } = useApp();
+  const { sales, payments, installments, expenses, contacts, projects, events, rules, removeSale, removeExpense } = useApp();
+  const { showSuccess } = useToast();
   const [view, setView] = useState<View>(lastView);
   const [period, setPeriod] = useState<Period>(() => currentPeriod("month", todayISO()));
   const [editingSale, setEditingSale] = useState<Sale | "new" | null>(null);
@@ -66,7 +76,7 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
   useFab(
     view === "expenses"
       ? { key: "expense", label: "Nuevo gasto", icon: "receipt", onPick: () => setEditingExpense("new") }
-      : { key: "sale", label: "Nueva venta", icon: "banknote", onPick: () => setEditingSale("new") }
+      : { key: "sale", label: "Nuevo ingreso", icon: "banknote", onPick: () => setEditingSale("new") }
   );
 
   const today = todayISO();
@@ -133,7 +143,7 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
           value={view}
           onChange={(k) => switchView(k as View)}
           size="md"
-          ariaLabel="Ventas o gastos"
+          ariaLabel="Ingresos o gastos"
         />
       </div>
 
@@ -141,8 +151,16 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
         <SalesView
           sales={sales}
           payments={payments}
+          installments={installments}
           contacts={contacts}
+          today={today}
           onSelect={setDetailSaleId}
+          onCreate={() => setEditingSale("new")}
+          onDelete={async (sale) => {
+            const ok = await removeSale(sale.id);
+            if (ok) showSuccess("Ingreso eliminado");
+            return ok;
+          }}
         />
       ) : view === "expenses" ? (
         <ExpensesView
@@ -150,6 +168,12 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
           period={period}
           onPeriodChange={setPeriod}
           onSelect={setEditingExpense}
+          onCreate={() => setEditingExpense("new")}
+          onDelete={async (expense) => {
+            const ok = await removeExpense(expense.id);
+            if (ok) showSuccess("Gasto eliminado");
+            return ok;
+          }}
         />
       ) : (
         <>
@@ -203,17 +227,32 @@ export function Money({ navigate }: { navigate: (r: Route) => void }) {
 function SalesView({
   sales,
   payments,
+  installments,
   contacts,
-  onSelect
+  today,
+  onSelect,
+  onCreate,
+  onDelete
 }: {
   sales: Sale[];
   payments: Payment[];
+  installments: Installment[];
   contacts: Contact[];
+  today: string;
   onSelect: (id: string) => void;
+  onCreate: () => void;
+  onDelete: (sale: Sale) => Promise<boolean>;
 }) {
+  const [closedOpen, setClosedOpen] = useState(lastClosedOpen);
   const sorted = [...sales].sort(
     (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
   );
+  /* Entregada y pagada = nothing left to do. It drops out of the working
+     list into the fold below so what's still owed, quoted or in cuotas
+     isn't buried under a year of finished commissions. */
+  const open: Sale[] = [];
+  const closed: Sale[] = [];
+  for (const sale of sorted) (saleIsClosed(sale, payments) ? closed : open).push(sale);
 
   if (sorted.length === 0) {
     return (
@@ -221,73 +260,182 @@ function SalesView({
         <div className="card">
           <EmptyState
             icon="banknote"
-            title="Sin ventas todavía"
-            body="Registra una venta para llevar la cuenta de lo que ya te pagaron y lo que te deben."
+            title="Sin ingresos todavía"
+            body="Registra un ingreso para llevar la cuenta de lo que ya te pagaron y lo que te deben."
+            actionLabel="Registrar un ingreso"
+            onAction={onCreate}
           />
         </div>
       </div>
     );
   }
 
+  function toggleClosed() {
+    haptic.tap();
+    lastClosedOpen = !closedOpen;
+    setClosedOpen(!closedOpen);
+  }
+
   return (
-    <div className="section">
-      <div className="card">
-        {sorted.map((sale, i) => {
-          const balance = saleBalance(sale, payments);
-          const contact = contacts.find((c) => c.id === sale.contactId);
-          const counting = saleCountsTowardRevenue(sale);
-          const owes = counting && balance.owed > 0;
-          return (
-            <button
-              key={sale.id}
-              type="button"
-              className="row-item list-entry-stagger"
-              style={stagger(i)}
-              onClick={() => onSelect(sale.id)}
-            >
-              <div className="row-content">
-                <div className="row-title">{sale.title}</div>
-                <div className="row-sub">
-                  {contact ? `${contact.name} · ` : ""}
-                  {formatShort(sale.date)}
-                  {sale.paymentTerms === "installments"
-                    ? " · en cuotas"
-                    : sale.paymentTerms === "deposit_balance"
-                      ? " · anticipo"
-                      : ""}
-                  {sale.recurringRuleId ? " · fijo" : ""}
-                </div>
-              </div>
-              <div className="money-row-right">
-                <span className="money-badges">
-                  <span className={`badge ${INCOME_CATEGORY_BADGE[sale.category]}`}>
-                    {labelFor(INCOME_CATEGORY, sale.category)}
-                  </span>
-                  <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>
-                    {labelFor(SALE_STATUS, sale.status)}
-                  </span>
-                </span>
-                {owes ? (
-                  <>
-                    <span className="row-amount amount-owe">{formatMXN(balance.owed)}</span>
-                    <span className="money-submeta">
-                      {formatMXNShort(balance.paid)} de {formatMXNShort(sale.amount)}
-                    </span>
-                  </>
-                ) : counting ? (
-                  <span className="row-amount amount-paid money-amount-mark">
-                    <Icon name="check" size={14} strokeWidth={2.4} />
-                    {formatMXN(sale.amount)}
-                  </span>
-                ) : (
-                  <span className="row-amount amount-clear">{formatMXN(sale.amount)}</span>
-                )}
-              </div>
-            </button>
-          );
-        })}
+    <>
+      <div className="section">
+        <div className="card">
+          {open.length === 0 ? (
+            <div className="money-list-empty">
+              Todo entregado y pagado. Lo cerrado está aquí abajo.
+            </div>
+          ) : (
+            open.map((sale, i) => (
+              <SaleRow
+                key={sale.id}
+                sale={sale}
+                payments={payments}
+                installments={installments}
+                contacts={contacts}
+                today={today}
+                index={i}
+                onSelect={onSelect}
+                onDelete={onDelete}
+              />
+            ))
+          )}
+        </div>
       </div>
-    </div>
+
+      {closed.length > 0 && (
+        <div className="section">
+          <button
+            type="button"
+            className="money-fold-head btn-tap"
+            aria-expanded={closedOpen}
+            aria-controls="ingresos-cerrados"
+            onClick={toggleClosed}
+          >
+            <span className="money-fold-title">Entregados y pagados</span>
+            <span className="money-fold-count">{closed.length}</span>
+            <span className={`money-fold-chevron ${closedOpen ? "is-open" : ""}`} aria-hidden="true">
+              <Icon name="chevron-down" size={18} strokeWidth={2.2} />
+            </span>
+          </button>
+          <div
+            id="ingresos-cerrados"
+            className={`money-fold-body ${closedOpen ? "is-open" : ""}`}
+            aria-hidden={!closedOpen}
+          >
+            <div className="money-fold-clip">
+              <div className="card" style={{ marginTop: 10 }}>
+                {closed.map((sale, i) => (
+                  <SaleRow
+                    key={sale.id}
+                    sale={sale}
+                    payments={payments}
+                    installments={installments}
+                    contacts={contacts}
+                    today={today}
+                    index={i}
+                    tabbable={closedOpen}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SaleRow({
+  sale,
+  payments,
+  installments,
+  contacts,
+  today,
+  index,
+  tabbable = true,
+  onSelect,
+  onDelete
+}: {
+  sale: Sale;
+  payments: Payment[];
+  installments: Installment[];
+  contacts: Contact[];
+  today: string;
+  index: number;
+  /** Rows inside a collapsed fold stay out of the tab order. */
+  tabbable?: boolean;
+  onSelect: (id: string) => void;
+  onDelete: (sale: Sale) => Promise<boolean>;
+}) {
+  const balance = saleBalance(sale, payments);
+  const contact = contacts.find((c) => c.id === sale.contactId);
+  const counting = saleCountsTowardRevenue(sale);
+  const owes = counting && balance.owed > 0;
+  const hasMoney = balance.paid > 0;
+  /* Red is for LATE money, not for every open balance: a confirmed
+     commission due next month is not a problem. Single-payment ingresos
+     are late once their date has passed; a plan is late when a cuota is. */
+  const late =
+    owes &&
+    (sale.paymentTerms === "single"
+      ? sale.date < today
+      : installmentPlan(sale.id, installments, payments, today).some((s) => s.state === "overdue"));
+  return (
+    <SwipeRow
+      label={sale.title}
+      question={
+        hasMoney
+          ? `¿Eliminar “${sale.title}”? Se borran también sus ${formatMXN(balance.paid)} pagados y sus cuotas.`
+          : undefined
+      }
+      onDelete={() => onDelete(sale)}
+      disabled={!tabbable}
+    >
+    <button
+      type="button"
+      className="row-item list-entry-stagger"
+      style={stagger(index)}
+      tabIndex={tabbable ? undefined : -1}
+      onClick={() => onSelect(sale.id)}
+    >
+      <div className="row-content">
+        <div className="row-title">{sale.title}</div>
+        <div className="row-sub">
+          {labelFor(INCOME_CATEGORY, sale.category)}
+          {contact ? ` · ${contact.name}` : ""}
+          {` · ${formatShort(sale.date)}`}
+          {sale.paymentTerms === "installments"
+            ? " · en cuotas"
+            : sale.paymentTerms === "deposit_balance"
+              ? " · anticipo"
+              : ""}
+          {sale.recurringRuleId ? " · fijo" : ""}
+        </div>
+      </div>
+      <div className="money-row-right">
+        <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>
+          {labelFor(SALE_STATUS, sale.status)}
+        </span>
+        {owes ? (
+          <>
+            <span className={`row-amount ${late ? "amount-owe" : ""}`}>{formatMXNShort(balance.owed)}</span>
+            <span className="money-submeta">
+              {formatMXNShort(balance.paid)} de {formatMXNShort(sale.amount)}
+            </span>
+          </>
+        ) : counting ? (
+          <span className="row-amount amount-paid money-amount-mark">
+            <Icon name="check" size={14} strokeWidth={2.4} />
+            {formatMXNShort(sale.amount)}
+          </span>
+        ) : (
+          <span className="row-amount amount-clear">{formatMXNShort(sale.amount)}</span>
+        )}
+      </div>
+    </button>
+    </SwipeRow>
   );
 }
 
@@ -295,12 +443,16 @@ function ExpensesView({
   expenses,
   period,
   onPeriodChange,
-  onSelect
+  onSelect,
+  onCreate,
+  onDelete
 }: {
   expenses: Expense[];
   period: Period;
   onPeriodChange: (p: Period) => void;
   onSelect: (expense: Expense) => void;
+  onCreate: () => void;
+  onDelete: (expense: Expense) => Promise<boolean>;
 }) {
   const range = periodRange(period);
   const sorted = [...expenses]
@@ -309,27 +461,35 @@ function ExpensesView({
   const breakdown = expenseBreakdown(expenses, range.from, range.to);
   const monthTotal = sumMoney(breakdown.map((c) => c.amount));
 
-  const months = groupByMonth(sorted);
+  /* One month is one list: the period label already names it, and a
+     month header under a month picker printed "septiembre 2026" three
+     times in five hundred pixels. Quarters and years keep their headers. */
+  const months: [string, Expense[]][] = period.span === "month" ? (sorted.length ? [["all", sorted]] : []) : groupByMonth(sorted);
+
+  if (expenses.length === 0) {
+    return (
+      <div className="section">
+        <div className="card">
+          <EmptyState
+            icon="receipt"
+            title="Sin gastos todavía"
+            body="Anota materiales, taller, transporte o cursos para saber cuánto te cuesta trabajar."
+            actionLabel="Anotar un gasto"
+            onAction={onCreate}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <PeriodPicker value={period} onChange={onPeriodChange} ariaLabel="Periodo de gastos" />
-      {sorted.length === 0 && expenses.length === 0 && (
-        <div className="section">
-          <div className="card">
-            <EmptyState
-              icon="receipt"
-              title="Sin gastos todavía"
-              body="Anota materiales, taller, transporte o cursos para saber cuánto te cuesta trabajar."
-            />
-          </div>
-        </div>
-      )}
       <div className="section">
         <div className="card money-summary">
           <div className="money-summary-head">
-            <span className="eyebrow">Gasto · {range.label}</span>
-            <span className="money-summary-total">{formatMXN(monthTotal)}</span>
+            <span className="eyebrow">Por categoría</span>
+            <span className="money-summary-total">{formatMXNShort(monthTotal)}</span>
           </div>
           {breakdown.length === 0 ? (
             <div className="input-help" style={{ marginTop: 0 }}>
@@ -348,21 +508,28 @@ function ExpensesView({
               </div>
             ))
           )}
+          {breakdown.length > 4 && (
+            <div className="money-submeta" style={{ marginTop: 6 }}>
+              y {breakdown.length - 4} más · {formatMXNShort(sumMoney(breakdown.slice(4).map((c) => c.amount)))}
+            </div>
+          )}
         </div>
       </div>
 
       {months.map(([key, rows]) => (
         <div className="section" key={key}>
-          <div className="section-header">
-            <span className="section-title">{formatMonthLong(key)}</span>
-            <span className="money-section-total">
-              {formatMXN(sumMoney(rows.map((e) => e.amount)))}
-            </span>
-          </div>
+          {key !== "all" && (
+            <div className="section-header">
+              <span className="section-title">{formatMonthLong(key)}</span>
+              <span className="money-section-total">
+                {formatMXNShort(sumMoney(rows.map((e) => e.amount)))}
+              </span>
+            </div>
+          )}
           <div className="card">
             {rows.map((expense, i) => (
+              <SwipeRow key={expense.id} label={expense.title} onDelete={() => onDelete(expense)}>
               <button
-                key={expense.id}
                 type="button"
                 className="row-item list-entry-stagger"
                 style={stagger(i)}
@@ -380,9 +547,10 @@ function ExpensesView({
                   <span className={`badge ${EXPENSE_CATEGORY_BADGE[expense.category]}`}>
                     {labelFor(EXPENSE_CATEGORY, expense.category)}
                   </span>
-                  <span className="row-amount">{formatMXN(expense.amount)}</span>
+                  <span className="row-amount">{formatMXNShort(expense.amount)}</span>
                 </div>
               </button>
+              </SwipeRow>
             ))}
           </div>
         </div>

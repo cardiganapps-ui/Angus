@@ -9,11 +9,13 @@ import {
   labelFor
 } from "../data/constants";
 import { contactOwed } from "../utils/accounting";
-import { formatMXN } from "../utils/money";
+import { formatMXNShort } from "../utils/money";
 import { formatShort, todayISO } from "../utils/dates";
 import { matches } from "../utils/text";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
+import { SwipeRow } from "../components/SwipeRow";
+import { useToast } from "../context/ToastContext";
 import { ContactSheet } from "../components/ContactSheet";
 import { ContactDetailSheet } from "../components/ContactDetailSheet";
 import { SearchField } from "../components/SearchField";
@@ -24,8 +26,8 @@ import { useFab } from "../context/FabContext";
 type View = "all" | "pipeline";
 type Filter = "all" | ContactRelationship;
 const VIEW_ITEMS = [
-  { k: "all", l: "Todos" },
-  { k: "pipeline", l: "Prospectos" }
+  { k: "all", l: "Lista" },
+  { k: "pipeline", l: "Seguimiento" }
 ];
 const STAGE_ORDER: LeadStage[] = ["new", "contacted", "negotiating", "won", "lost"];
 
@@ -36,7 +38,13 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    view that groups leads by stage with their next follow-up. Tapping a
    row opens the detail sheet (reach out, balance, sales, agenda). */
 export function Contacts() {
-  const { contacts, sales, payments } = useApp();
+  const { contacts, sales, payments, removeContact } = useApp();
+  const { showSuccess } = useToast();
+  const deleteContact = async (id: string) => {
+    const ok = await removeContact(id);
+    if (ok) showSuccess("Contacto eliminado");
+    return ok;
+  };
   const [view, setView] = useState<View>("all");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -119,10 +127,8 @@ export function Contacts() {
           stages.map((s) => (
             <div className="section" key={s.stage}>
               <div className="section-header">
-                <span className="section-title">
-                  <span className={`badge ${LEAD_STAGE_BADGE[s.stage]}`}>{labelFor(LEAD_STAGE, s.stage)}</span>
-                </span>
-                <span className="pipeline-stage-count">{s.items.length}</span>
+                <span className="section-title">{labelFor(LEAD_STAGE, s.stage)}</span>
+                <span className={`badge ${LEAD_STAGE_BADGE[s.stage]}`}>{s.items.length}</span>
               </div>
               <div className="card">
                 {s.items.map((c, i) => (
@@ -134,6 +140,7 @@ export function Contacts() {
                     detail={followUpLabel(c, today)}
                     overdue={!!c.followUpDate && c.followUpDate < today}
                     onClick={() => setDetailId(c.id)}
+                    onDelete={() => deleteContact(c.id)}
                   />
                 ))}
               </div>
@@ -179,6 +186,7 @@ export function Contacts() {
                       owed={owed}
                       detail={detail}
                       onClick={() => setDetailId(contact.id)}
+                      onDelete={() => deleteContact(contact.id)}
                     />
                   );
                 })}
@@ -232,7 +240,8 @@ function Row({
   owed,
   detail,
   overdue,
-  onClick
+  onClick,
+  onDelete
 }: {
   contact: Contact;
   i: number;
@@ -240,6 +249,7 @@ function Row({
   detail: string;
   overdue?: boolean;
   onClick: () => void;
+  onDelete: () => Promise<boolean>;
 }) {
   const badge = (
     <span className={`badge ${CONTACT_RELATIONSHIP_BADGE[contact.relationship]}`}>
@@ -247,31 +257,31 @@ function Row({
     </span>
   );
   return (
+    <SwipeRow
+      label={contact.name}
+      question={`¿Eliminar a “${contact.name}”? Sus ingresos y eventos quedan sin contacto, sus cobros fijos se detienen.`}
+      onDelete={onDelete}
+    >
     <button type="button" className="row-item list-entry-stagger" style={stagger(i)} onClick={onClick}>
       <div className="row-content">
         <div className="row-title">{contact.name}</div>
-        {owed > 0 ? (
-          <div className="row-sub row-sub-inline">
-            {badge}
-            {detail && <span className="row-sub-detail">{detail}</span>}
-          </div>
-        ) : (
-          <div className="row-sub" style={overdue ? { color: "var(--red)" } : undefined}>
-            {detail || "—"}
-          </div>
-        )}
+        {/* The badge always lives here, so it never jumps columns between
+            a contact who owes money and one who doesn't. */}
+        <div className="row-sub row-sub-inline">
+          {badge}
+          {detail && <span className={`row-sub-detail ${overdue ? "row-sub--overdue" : ""}`}>{detail}</span>}
+        </div>
       </div>
-      {owed > 0 ? (
+      {owed > 0 && (
         <div className="money-row-right">
-          <span className="row-amount amount-owe">{formatMXN(owed)}</span>
+          <span className="row-amount amount-owe">{formatMXNShort(owed)}</span>
           <span className="money-submeta">Te debe</span>
         </div>
-      ) : (
-        badge
       )}
       <span className="row-chevron" aria-hidden="true">
         <Icon name="chevron-right" size={16} />
       </span>
     </button>
+    </SwipeRow>
   );
 }

@@ -10,11 +10,12 @@ import {
   labelFor
 } from "../data/constants";
 import { describeCadence, monthlyEquivalent, nextOccurrence } from "../utils/recurrence";
-import { formatMXN, formatMXNShort, formatMXNShortSigned, subtractMoney, sumMoney } from "../utils/money";
+import { formatMXNShort, formatMXNShortSigned, subtractMoney, sumMoney } from "../utils/money";
 import { formatShort, todayISO } from "../utils/dates";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
+import { SwipeRow } from "../components/SwipeRow";
 import { RecurringRuleSheet } from "../components/RecurringRuleSheet";
 import { haptic } from "../lib/haptics";
 import { useFab } from "../context/FabContext";
@@ -26,8 +27,13 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    and when it next fires. Pausing a rule stops materialization without
    losing it; deleting keeps every row it already generated. */
 export function Recurring() {
-  const { rules, updateRule } = useApp();
+  const { rules, updateRule, removeRule } = useApp();
   const { showSuccess } = useToast();
+  const deleteRule = async (rule: RecurringRule) => {
+    const ok = await removeRule(rule.id);
+    if (ok) showSuccess("Regla eliminada");
+    return ok;
+  };
   const [editing, setEditing] = useState<RecurringRule | { kind: RecurrenceKind } | null>(null);
   useFab({ key: "rule", label: "Nueva regla", icon: "repeat", onPick: () => setEditing({ kind: "expense" }) });
   const today = todayISO();
@@ -81,9 +87,10 @@ export function Recurring() {
         rules={income}
         today={today}
         onEdit={setEditing}
+        onDelete={deleteRule}
         onToggle={togglePause}
         onAdd={() => setEditing({ kind: "income" })}
-        emptyBody="Colegiaturas, retainers, rentas de obra. Angus genera la venta cada periodo y tú marcas cuando te pagan."
+        emptyBody="Colegiaturas, retainers, rentas de obra. Angus genera el ingreso cada periodo y tú marcas cuando te pagan."
       />
       <RuleSection
         title="Gastos fijos"
@@ -91,6 +98,7 @@ export function Recurring() {
         rules={expense}
         today={today}
         onEdit={setEditing}
+        onDelete={deleteRule}
         onToggle={togglePause}
         onAdd={() => setEditing({ kind: "expense" })}
         emptyBody="Renta, apps, seguro, transporte. Se registran solos cada periodo y entran al pronóstico."
@@ -114,6 +122,7 @@ function RuleSection({
   rules,
   today,
   onEdit,
+  onDelete,
   onToggle,
   onAdd,
   emptyBody
@@ -123,6 +132,7 @@ function RuleSection({
   rules: RecurringRule[];
   today: string;
   onEdit: (r: RecurringRule) => void;
+  onDelete: (r: RecurringRule) => Promise<boolean>;
   onToggle: (r: RecurringRule) => void;
   onAdd: () => void;
   emptyBody: string;
@@ -147,6 +157,8 @@ function RuleSection({
             icon="repeat"
             title={kind === "income" ? "Sin ingresos fijos" : "Sin gastos fijos"}
             body={emptyBody}
+            actionLabel={kind === "income" ? "Agregar ingreso fijo" : "Agregar gasto fijo"}
+            onAction={onAdd}
           />
         ) : (
           sorted.map((rule, i) => {
@@ -160,8 +172,14 @@ function RuleSection({
                 ? labelFor(INCOME_CATEGORY, rule.category)
                 : labelFor(EXPENSE_CATEGORY, rule.category);
             return (
-              <div
+              <SwipeRow
                 key={rule.id}
+                label={rule.title}
+                question={`¿Eliminar la regla “${rule.title}”? Los movimientos ya registrados se conservan.`}
+                onDelete={() => onDelete(rule)}
+                trashInset={112}
+              >
+              <div
                 className={`row-item list-entry-stagger ${rule.active ? "" : "row-item--paused"}`}
                 style={{ ...stagger(i), cursor: "default" }}
               >
@@ -181,8 +199,12 @@ function RuleSection({
                   </div>
                 </button>
                 <div className="money-row-right">
-                  <span className={`badge ${badge}`}>{label}</span>
-                  <span className={`row-amount ${kind === "income" ? "amount-paid" : ""}`}>{formatMXN(rule.amount)}</span>
+                  {rule.active ? (
+                    <span className={`badge ${badge}`}>{label}</span>
+                  ) : (
+                    <span className="badge badge-amber">En pausa</span>
+                  )}
+                  <span className={`row-amount ${kind === "income" ? "amount-paid" : ""}`}>{formatMXNShort(rule.amount)}</span>
                 </div>
                 <button
                   type="button"
@@ -193,6 +215,7 @@ function RuleSection({
                   <Icon name={rule.active ? "pause" : "play"} size={16} strokeWidth={2.2} />
                 </button>
               </div>
+              </SwipeRow>
             );
           })
         )}

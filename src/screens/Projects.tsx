@@ -10,6 +10,8 @@ import {
 } from "../data/constants";
 import { formatMXNShort } from "../utils/money";
 import { EmptyState } from "../components/EmptyState";
+import { SwipeRow } from "../components/SwipeRow";
+import { useToast } from "../context/ToastContext";
 import { ProjectSheet } from "../components/ProjectSheet";
 import { SearchField } from "../components/SearchField";
 import { matches } from "../utils/text";
@@ -34,7 +36,8 @@ const stagger = (i: number) => ({ "--stagger-i": Math.min(i, 12) }) as CSSProper
    production status and availability, sort. Grouped by status so
    "what am I working on" is the first thing on screen. */
 export function Projects() {
-  const { projects, contacts, courses } = useApp();
+  const { projects, contacts, courses, removeProject } = useApp();
+  const { showSuccess } = useToast();
   const [editing, setEditing] = useState<Project | null | "new">(null);
   useFab({ key: "project", label: "Nueva pieza", icon: "palette", onPick: () => setEditing("new") });
   const [query, setQuery] = useState("");
@@ -138,8 +141,17 @@ export function Projects() {
                   .filter(Boolean)
                   .join(" · ");
                 return (
-                  <button
+                  <SwipeRow
                     key={project.id}
+                    label={project.title}
+                    question={`¿Eliminar “${project.title}”? Sus ingresos y gastos quedan sin pieza ligada.`}
+                    onDelete={async () => {
+                      const ok = await removeProject(project.id);
+                      if (ok) showSuccess("Pieza eliminada");
+                      return ok;
+                    }}
+                  >
+                  <button
                     type="button"
                     className="row-item list-entry-stagger"
                     style={stagger(i)}
@@ -147,10 +159,9 @@ export function Projects() {
                   >
                     <div className="row-content">
                       <div className="row-title">{project.title}</div>
-                      <div className="row-sub">{meta || "Sin detalles"}</div>
-                    </div>
-                    <div className="money-row-right">
-                      <span className="money-badges">
+                      {/* Badges on the sub-line, so the price sits at the same
+                          height whether or not a row carries one. */}
+                      <div className="row-sub row-sub-inline">
                         {(filtering || g.title === null) && (
                           <span className={`badge ${PROJECT_STATUS_BADGE[project.status]}`}>
                             {labelFor(PROJECT_STATUS, project.status)}
@@ -162,10 +173,12 @@ export function Projects() {
                           </span>
                         )}
                         {course && <span className="badge badge-purple">Curso</span>}
-                      </span>
-                      {project.price !== null && <span className="row-amount">{formatMXNShort(project.price)}</span>}
+                        <span className="row-sub-detail">{meta || "Sin detalles"}</span>
+                      </div>
                     </div>
+                    {project.price !== null && <span className="row-amount">{formatMXNShort(project.price)}</span>}
                   </button>
+                  </SwipeRow>
                 );
               })}
             </div>

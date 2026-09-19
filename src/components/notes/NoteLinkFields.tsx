@@ -2,6 +2,7 @@ import { useId } from "react";
 import { useApp } from "../../context/AppContext";
 import type { NoteLinks } from "../../hooks/useNotes";
 import { PickerField } from "../PickerField";
+import { useQuickCreate } from "../../hooks/useQuickCreate";
 import { courseSessions, sortAssignments } from "../../utils/studies";
 import { formatWithWeekday } from "../../utils/dates";
 import { domId } from "../../utils/id";
@@ -13,6 +14,7 @@ import { domId } from "../../utils/id";
    the list's properties sheet. */
 export function NoteLinkFields({ value, onChange }: { value: NoteLinks; onChange: (next: NoteLinks) => void }) {
   const { courses, events, assignments, projects } = useApp();
+  const quick = useQuickCreate();
   const uid = domId(useId());
   const courseId = value.courseId ?? "";
   const course = courses.find((c) => c.id === courseId) ?? null;
@@ -36,17 +38,15 @@ export function NoteLinkFields({ value, onChange }: { value: NoteLinks; onChange
     <>
       <div className="input-group">
         <span className="input-label" id={`${uid}-course`}>Curso</span>
-        {courseOptions.length > 0 ? (
-          <PickerField
-            labelId={`${uid}-course`}
-            title="Curso"
-            options={courseOptions}
-            value={courseId}
-            onChange={(v) => onChange({ ...value, courseId: v || null, eventId: null, assignmentId: null })}
-          />
-        ) : (
-          <div className="input-help">Agrega un curso en Estudios para ligar apuntes a sus sesiones y tareas.</div>
-        )}
+        <PickerField
+          labelId={`${uid}-course`}
+          title="Curso"
+          options={courseOptions}
+          value={courseId}
+          onChange={(v) => onChange({ ...value, courseId: v || null, eventId: null, assignmentId: null })}
+          onCreate={(name) => quick.course(name)}
+          createLabel="Nuevo curso"
+        />
       </div>
       {course && sessionOptions.length > 0 && (
         <div className="input-group">
@@ -54,18 +54,32 @@ export function NoteLinkFields({ value, onChange }: { value: NoteLinks; onChange
           <PickerField labelId={`${uid}-session`} title="Sesión" options={sessionOptions} value={value.eventId ?? ""} onChange={(v) => onChange({ ...value, eventId: v || null })} />
         </div>
       )}
-      {course && tareaOptions.length > 0 && (
+      {course && (
         <div className="input-group">
           <span className="input-label" id={`${uid}-tarea`}>Tarea</span>
-          <PickerField labelId={`${uid}-tarea`} title="Tarea" options={tareaOptions} value={value.assignmentId ?? ""} onChange={(v) => onChange({ ...value, assignmentId: v || null })} />
+          <PickerField
+            labelId={`${uid}-tarea`}
+            title="Tarea"
+            options={tareaOptions}
+            value={value.assignmentId ?? ""}
+            onChange={(v) => onChange({ ...value, assignmentId: v || null })}
+            onCreate={(name) => quick.assignment(name, course.id)}
+            createLabel="Nueva tarea"
+          />
         </div>
       )}
-      {projectOptions.length > 0 && (
-        <div className="input-group">
-          <span className="input-label" id={`${uid}-project`}>Pieza</span>
-          <PickerField labelId={`${uid}-project`} title="Pieza" options={projectOptions} value={value.projectId ?? ""} onChange={(v) => onChange({ ...value, projectId: v || null })} />
-        </div>
-      )}
+      <div className="input-group">
+        <span className="input-label" id={`${uid}-project`}>Pieza</span>
+        <PickerField
+          labelId={`${uid}-project`}
+          title="Pieza"
+          options={projectOptions}
+          value={value.projectId ?? ""}
+          onChange={(v) => onChange({ ...value, projectId: v || null })}
+          onCreate={(name) => quick.project(name, { courseId: value.courseId ?? null })}
+          createLabel="Nueva pieza"
+        />
+      </div>
     </>
   );
 }

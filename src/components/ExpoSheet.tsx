@@ -55,7 +55,7 @@ export function ExpoSheet({ eventId, onClose }: { eventId: string; onClose: () =
           <div className="sheet-actions">
             <div className="sheet-actions-state">
               <button type="button" className="btn btn-primary" onClick={() => setNewSale(true)}>
-                Registrar venta aquí
+                Registrar ingreso aquí
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => setNewExpense(true)}>
                 Registrar gasto
@@ -74,15 +74,15 @@ export function ExpoSheet({ eventId, onClose }: { eventId: string; onClose: () =
         </div>
 
         <div className={`expo-verdict expo-verdict--${report.signal}`}>
-          <span className={`expo-signal expo-signal--${report.signal}`} style={{ marginTop: 5 }} aria-hidden="true" />
+          {report.signal !== "none" && <span className={`expo-signal expo-signal--${report.signal}`} style={{ marginTop: 5 }} aria-hidden="true" />}
           <span>
             {upcoming && report.revenue === 0 && report.spent === 0
               ? report.budget
                 ? report.breakEvenPieces
-                  ? `Con presupuesto de ${formatMXN(report.budget)} necesitas vender ~${report.breakEvenPieces} ${report.breakEvenPieces === 1 ? "pieza" : "piezas"} al precio promedio (${formatMXNShort(avgPrice ?? 0)}) para cubrirla.`
-                  : `Presupuesto ${formatMXN(report.budget)}. Registra ventas para saber tu punto de equilibrio.`
+                  ? `Con presupuesto de ${formatMXNShort(report.budget)} necesitas vender ~${report.breakEvenPieces} ${report.breakEvenPieces === 1 ? "pieza" : "piezas"} al precio promedio (${formatMXNShort(avgPrice ?? 0)}) para cubrirla.`
+                  : `Presupuesto ${formatMXNShort(report.budget)}. Registra ventas para saber tu punto de equilibrio.`
                 : "Ponle un presupuesto para saber cuántas piezas necesitas vender."
-              : expoVerdict(report, formatMXN)}
+              : expoVerdict(report, formatMXNShort)}
             {!upcoming && report.piecesToGo !== null && report.piecesToGo > 0 && ` Faltarían ~${report.piecesToGo} ${report.piecesToGo === 1 ? "pieza" : "piezas"} al precio promedio.`}
           </span>
         </div>
@@ -95,7 +95,7 @@ export function ExpoSheet({ eventId, onClose }: { eventId: string; onClose: () =
             </div>
             <div>
               <div className="money-stat-label">Cobrado</div>
-              <div className="money-stat-value money-stat-value--paid">{formatMXNShort(report.collected)}</div>
+              <div className={`money-stat-value ${report.collected > 0 ? "money-stat-value--paid" : ""}`}>{formatMXNShort(report.collected)}</div>
             </div>
             <div>
               <div className="money-stat-label">Gastado</div>
@@ -117,7 +117,7 @@ export function ExpoSheet({ eventId, onClose }: { eventId: string; onClose: () =
             </div>
             <div>
               <div className="money-stat-label">Presupuesto</div>
-              <button type="button" className="money-stat-value btn-tap" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--accent-dark)", font: "inherit", fontWeight: 800 }} onClick={() => setBudgetOpen(true)}>
+              <button type="button" className="money-stat-value money-stat-value--btn btn-tap" onClick={() => setBudgetOpen(true)}>
                 {report.budget ? formatMXNShort(report.budget) : "Definir"}
               </button>
             </div>
@@ -132,7 +132,7 @@ export function ExpoSheet({ eventId, onClose }: { eventId: string; onClose: () =
               </div>
               <div className="money-submeta" style={{ marginTop: 6 }}>
                 {report.overBudget > 0
-                  ? `Te pasaste del presupuesto por ${formatMXN(report.overBudget)}.`
+                  ? `Te pasaste del presupuesto por ${formatMXNShort(report.overBudget)}.`
                   : `Gastado ${formatMXNShort(report.spent)} de ${formatMXNShort(report.budget)}.`}
               </div>
             </>
@@ -140,11 +140,11 @@ export function ExpoSheet({ eventId, onClose }: { eventId: string; onClose: () =
         </div>
 
         <div className="money-sheet-section">
-          <span className="money-sheet-section-title">Ventas en esta expo</span>
+          <span className="money-sheet-section-title">Ingresos en esta expo</span>
         </div>
         <div className="money-list">
           {expoSales.length === 0 ? (
-            <div className="money-list-empty">Ninguna venta ligada todavía.</div>
+            <div className="money-list-empty">Ningún ingreso ligado todavía.</div>
           ) : (
             expoSales.map((s: Sale) => {
               const b = saleBalance(s, payments);

@@ -361,7 +361,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
               <span className="dash-figure-meta">ideas y pausas</span>
             </button>
             <button type="button" className="dash-figure btn-tap" onClick={() => goTo("money")}>
-              <span className="dash-figure-label">Vendidas</span>
+              <span className="dash-figure-label">Ingresos</span>
               <span className="dash-figure-value">
                 <AnimatedNumber value={snapshot.soldThisMonth} />
               </span>
@@ -421,7 +421,11 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
           {delta && (
             <div className={`dash-pulse-delta dash-pulse-delta--${delta.direction}`}>
               <span className="dash-pulse-delta-arrow" aria-hidden="true">
-                {delta.direction === "up" ? "▲" : delta.direction === "down" ? "▼" : "▬"}
+                <Icon
+                  name={delta.direction === "up" ? "arrow-up" : delta.direction === "down" ? "arrow-down" : "minus"}
+                  size={12}
+                  strokeWidth={2.4}
+                />
               </span>
               {delta.direction === "flat"
                 ? `Igual que ${monthName(delta.previousMonth)}`
@@ -463,7 +467,7 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
                 </span>
               </div>
               <div className="money-submeta" style={REFUND_NOTE}>
-                Entró este mes, pero viene de ventas canceladas: es de tus clientes hasta que se
+                Entró este mes, pero viene de ingresos cancelados: es de tus clientes hasta que se
                 los devuelvas{goal ? " y no cuenta para tu meta" : ""}.
               </div>
             </div>
@@ -545,10 +549,10 @@ export function Home({ navigate }: { navigate: (route: Route) => void }) {
             )}
             {lastNote ? (
               <button type="button" className="row-item" onClick={() => setSheet({ kind: "note", note: lastNote })}>
-                <span className="event-dot" style={{ background: "var(--accent)" }} />
+                <span className="event-dot" style={{ background: "var(--purple)" }} />
                 <div className="row-content">
                   <div className="row-title">{lastNote.title || "Sin título"}</div>
-                  <div className="row-sub">Sigue con tu nota · {relativeTime(lastNote.updatedAt)}{notePreview(lastNote.content, 60) ? ` · ${notePreview(lastNote.content, 60)}` : ""}</div>
+                  <div className="row-sub">Sigue con tu nota · {relativeTime(lastNote.updatedAt)}{notePreview(lastNote.content, 60, lastNote.title) ? ` · ${notePreview(lastNote.content, 60, lastNote.title)}` : ""}</div>
                 </div>
                 <span className="row-chevron">
                   <Icon name="chevron-right" size={16} />

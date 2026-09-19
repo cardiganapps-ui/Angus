@@ -213,10 +213,10 @@ export function forecast({
       `Los gastos variables siguen el promedio de los últimos ${sampleMonths} meses (${formatShortInline(fromCents(avgOut))} al mes).`
     );
     assumptions.push(
-      `Las ventas nuevas siguen el promedio de lo cobrado en los últimos ${sampleMonths} meses (${formatShortInline(fromCents(avgIn))} al mes).`
+      `Los ingresos nuevos siguen el promedio de lo cobrado en los últimos ${sampleMonths} meses (${formatShortInline(fromCents(avgIn))} al mes).`
     );
   } else {
-    assumptions.push("Sin historial suficiente para estimar gastos variables ni ventas nuevas: solo se proyecta lo comprometido y lo recurrente.");
+    assumptions.push("Sin historial suficiente para estimar gastos variables ni ingresos nuevos: solo se proyecta lo comprometido y lo recurrente.");
   }
   const overdue = out[0]?.committedIn ?? 0;
   if (overdue > 0) assumptions.push("Lo que ya te deben (incluido lo vencido) se cobra dentro del mes en curso.");

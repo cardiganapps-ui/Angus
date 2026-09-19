@@ -20,10 +20,11 @@ import { Sheet } from "./Sheet";
 import { Icon } from "./Icon";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerSheet } from "./PickerSheet";
+import { SwipeRow } from "./SwipeRow";
 import { ClassGroupSheet } from "./ClassGroupSheet";
 import { AttendanceSheet } from "./AttendanceSheet";
 import { SaleDetailSheet } from "./SaleDetailSheet";
-import { ContactSheet } from "./ContactSheet";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { haptic } from "../lib/haptics";
 
 type Tab = "students" | "sessions" | "tuition";
@@ -65,10 +66,10 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
     updateRule
   } = useApp();
   const { showSuccess } = useToast();
+  const quick = useQuickCreate();
   const [tab, setTab] = useState<Tab>("students");
   const [editing, setEditing] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
-  const [newContact, setNewContact] = useState(false);
   const [session, setSession] = useState<ScheduleEvent | null>(null);
   const [saleId, setSaleId] = useState<string | null>(null);
   const closeRef = useRef<(() => void) | null>(null);
@@ -151,13 +152,17 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
     showSuccess(`${nameOf(contactId)} inscrito`);
   }
 
-  function unenroll(enrollmentId: string) {
+  /* Ends the enrollment and pauses the tuition rule. Awaited and honest:
+     the success toast used to fire before the server had answered. */
+  async function unenroll(enrollmentId: string): Promise<boolean> {
     const e = enrollments.find((x) => x.id === enrollmentId);
-    if (!e) return;
-    haptic.warn();
-    void updateEnrollment(e.id, { endedOn: today });
+    if (!e) return false;
+    const ok = await updateEnrollment(e.id, { endedOn: today });
+    if (!ok) return false;
     if (e.recurringRuleId) void updateRule(e.recurringRuleId, { active: false, endDate: today });
+    haptic.warn();
     showSuccess(`${nameOf(e.contactId)} dado de baja`);
+    return true;
   }
 
   return (
@@ -191,7 +196,7 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
           {nextSession ? ` · próxima ${formatWithWeekday(nextSession.date)}` : ""}
         </div>
 
-        <div className="money-panel">
+        <div className="money-panel money-panel--band">
           <div className="money-stats" style={{ marginBottom: 0 }}>
             <div>
               <div className="money-stat-label">Alumnos</div>
@@ -202,14 +207,14 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
             </div>
             <div>
               <div className="money-stat-label">Al corriente</div>
-              <div className="money-stat-value money-stat-value--paid">
+              <div className={`money-stat-value ${tuitionSummary.paid > 0 ? "money-stat-value--paid" : ""}`}>
                 {tuitionSummary.paid}
                 {active.length ? ` de ${active.length}` : ""}
               </div>
             </div>
             <div>
               <div className="money-stat-label">Por cobrar</div>
-              <div className={`money-stat-value ${tuitionSummary.owed > 0 ? "money-stat-value--owed" : ""}`}>
+              <div className={`money-stat-value ${tuitionSummary.overdue > 0 ? "money-stat-value--owed" : ""}`}>
                 {formatMXNShort(tuitionSummary.owed)}
               </div>
             </div>
@@ -236,7 +241,16 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
                   const rate = attendanceRate(contact.id, pastSessions, attendance);
                   const t = tuition.find((x) => x.contactId === contact.id);
                   return (
-                    <div className="row-item" key={e.id} style={{ cursor: "default" }}>
+                    /* Dar de baja goes through the same swipe + confirm as
+                       every other removal: the old bare X ended the enrollment
+                       and paused the tuition rule on a single tap. */
+                    <SwipeRow
+                      key={e.id}
+                      label={contact.name}
+                      question={`¿Dar de baja a ${contact.name}? Su cobro mensual se pausa; lo ya registrado se conserva.`}
+                      onDelete={() => unenroll(e.id)}
+                    >
+                    <div className="row-item money-econ-row">
                       <div className="row-content">
                         <div className="row-title">{contact.name}</div>
                         <div className="row-sub">
@@ -246,10 +260,8 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
                         </div>
                       </div>
                       {t && <span className={`badge ${TUITION_BADGE[t.state]}`}>{TUITION_LABEL[t.state]}</span>}
-                      <button type="button" className="row-icon-btn btn-tap" aria-label={`Dar de baja a ${contact.name}`} onClick={() => unenroll(e.id)}>
-                        <Icon name="x" size={16} strokeWidth={2.2} />
-                      </button>
                     </div>
+                    </SwipeRow>
                   );
                 })
             )}
@@ -333,25 +345,18 @@ export function ClassGroupDetailSheet({ groupId, onClose }: { groupId: string; o
       {enrolling && (
         <PickerSheet
           title="Inscribir alumno"
-          options={[{ value: "__new__", label: "+ Nuevo contacto" }, ...candidates]}
+          options={candidates}
           value=""
           placeholder="Elige un contacto"
           onSelect={(id) => {
             setEnrolling(false);
-            if (id === "__new__") setNewContact(true);
-            else if (id) void enroll(id);
+            if (id) void enroll(id);
           }}
           onClose={() => setEnrolling(false)}
-        />
-      )}
-      {newContact && (
-        <ContactSheet
-          contact={null}
-          onClose={() => setNewContact(false)}
-          onCreated={(id) => {
-            setNewContact(false);
-            void enroll(id);
-          }}
+          /* A student pays tuition through Por cobrar like any client; the
+             old path made every new alumno a "lead" and put them in the funnel. */
+          onCreate={(name) => quick.contact(name, "client")}
+          createLabel="Nuevo alumno"
         />
       )}
       {editing && (

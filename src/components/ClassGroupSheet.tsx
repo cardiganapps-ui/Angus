@@ -105,10 +105,14 @@ export function ClassGroupSheet({
     if (group) {
       void updateGroup(group.id, groupPatch);
       if (parent) {
-        void updateSeries(parent.id, seriesShape);
-        const { keep, drop, patch } = reshapeFuture(parent, seriesShape, events, todayISO());
-        for (const occ of keep) void updateEvent(occ.id, patch);
-        if (drop.length) void removeEvents(drop.map((e) => e.id));
+        // Reshape the rule first; only a rule that took the new shape may
+        // drop the dates it no longer covers (see EventSheet).
+        void updateSeries(parent.id, seriesShape).then((ok) => {
+          if (!ok) return;
+          const { keep, drop, patch } = reshapeFuture(parent, seriesShape, events, todayISO());
+          for (const occ of keep) void updateEvent(occ.id, patch);
+          if (drop.length) void removeEvents(drop.map((e) => e.id));
+        });
       } else {
         const seriesId = makeId();
         void addSeries({ id: seriesId, createdAt: todayISO(), ...seriesShape }).then((ok) => {

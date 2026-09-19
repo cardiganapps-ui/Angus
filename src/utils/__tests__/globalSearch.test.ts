@@ -286,7 +286,7 @@ describe("buildSearchIndex", () => {
     const s = index.find((e) => e.kind === "sale") as SearchEntry;
     expect(s.meta).toContain("12,000");
     expect(s.date).toBe("2026-03-10");
-    expect(s.subtitle).toContain("Confirmada");
+    expect(s.subtitle).toContain("Confirmado");
     expect(s.subtitle).toContain("Ana Ruiz");
   });
 

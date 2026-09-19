@@ -74,7 +74,7 @@ export function Forecast({ navigate }: { navigate: (r: Route) => void }) {
             <EmptyState
               icon="trending"
               title="Aún no hay nada que proyectar"
-              body="El pronóstico se arma con tus ventas por cobrar, tus ingresos y gastos fijos y el promedio de lo que gastas. Empieza por uno."
+              body="El pronóstico se arma con lo que te deben, tus ingresos y gastos fijos y el promedio de lo que gastas. Empieza por uno."
             />
           </div>
         </div>
@@ -91,7 +91,7 @@ export function Forecast({ navigate }: { navigate: (r: Route) => void }) {
             </button>
             <button type="button" className="row-item" onClick={() => go("money")}>
               <div className="row-content">
-                <div className="row-title">Registrar una venta o un gasto</div>
+                <div className="row-title">Registrar un ingreso o un gasto</div>
                 <div className="row-sub">Lo que te deben ya cuenta como comprometido.</div>
               </div>
               <span className="row-chevron" aria-hidden="true">
@@ -190,7 +190,7 @@ export function Forecast({ navigate }: { navigate: (r: Route) => void }) {
                 )}
                 {m.estimatedIn > 0 && (
                   <>
-                    <span className="is-est">Ventas nuevas (estimado)</span>
+                    <span className="is-est">Ingresos nuevos (estimado)</span>
                     <b>{formatMXNShort(m.estimatedIn)}</b>
                   </>
                 )}

@@ -36,6 +36,15 @@ export interface CloudStoreConfig<T extends Entity, Row> {
   order?: LoadOrder;
   /** Omitted = the whole table (still capped). See the note on `covers`. */
   window?: DateWindow | null;
+  /* The row's NATURAL key, for tables whose unique index is not the id:
+     (rule, period) on sales / expenses / skips, (series, date) on events,
+     (group, contact) on enrollments… A 23505 on such a table means the
+     server already holds a row with the same key under ANOTHER id — the
+     one a generator on this or a second device minted first. Judging
+     convergence by id alone read every one of those as a failed write and
+     put "Eso ya estaba guardado… la versión del servidor" on her screen
+     for a delete that had worked. Omitted = the id is the only key. */
+  sameAs?: (a: T, b: T) => boolean;
 }
 
 /** What one load actually managed to fetch. A read problem, never a write one. */
@@ -57,8 +66,11 @@ export interface CloudStore<T extends Entity> {
   /** Mutations the server hasn't acknowledged yet — inserts, patches and
       deletes alike. A child row (a cuota, a materialized expense) must
       wait for this to reach 0 before it references a parent written
-      moments ago, or the FK rejects it; the materializers wait on it so
-      they never diff against a list mid-flight. */
+      moments ago, or the FK rejects it; the materializer and the series
+      generator gate on it for every list they diff (rules, sales,
+      expenses, skips / series, events), so neither ever diffs against a
+      list mid-flight — a delete's optimistic drop used to read as a
+      missing period and be re-inserted before the server had answered. */
   inflight: number;
   /** A rejected WRITE, already reverted. */
   error: string | null;
@@ -84,6 +96,11 @@ export interface CloudStore<T extends Entity> {
   removeMany: (ids: string[]) => Promise<boolean>;
   /** Drop rows from local state only — mirrors a server-side cascade. */
   dropLocal: (predicate: (item: T) => boolean) => void;
+  /** The list as of right now, synchronously — for the line after an
+      awaited `add` that converged on a twin (see `sameAs`), where the id
+      the caller minted is NOT the one that survived and `items` from the
+      closure predates the reload. */
+  current: () => T[];
 }
 
 /* Postgres unique_violation. An insert that trips a unique index is not
@@ -241,6 +258,25 @@ export function mergeLoaded<T extends Entity>(
   return [...heldOnly, ...out];
 }
 
+/* After a 23505, which of the rows we tried to insert does the server
+   now hold? `list` is the freshly reloaded local copy, so a row counts as
+   landed when it is there by id or — for tables with a natural key — when
+   a row with the same key is, whatever its id. Pure. */
+export function settleDuplicates<T extends Entity>(
+  inserted: T[],
+  list: T[],
+  sameAs?: (a: T, b: T) => boolean
+): { landed: T[]; missing: T[] } {
+  const ids = new Set(list.map((it) => it.id));
+  const landed: T[] = [];
+  const missing: T[] = [];
+  for (const item of inserted) {
+    const there = ids.has(item.id) || (!!sameAs && list.some((it) => sameAs(it, item)));
+    (there ? landed : missing).push(item);
+  }
+  return { landed, missing };
+}
+
 const EMPTY_LOAD: LoadReport = { truncated: false, loaded: 0, total: 0, coverage: null, readError: null };
 
 // Optimistic CRUD over one Supabase table, scoped to a workspace. Every
@@ -273,13 +309,16 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   const requested = useRef<{ from: string; to: string } | null>(null);
   const ledger = useRef(new PendingLedger());
 
-  const reload = useCallback(async () => {
+  /* One read. Resolves true only when it completed AND won (a newer read
+     did not overtake it) — the convergence path below must know whether
+     the list it is about to judge is the server's copy or still its own. */
+  const read = useCallback(async (): Promise<boolean> => {
     if (!workspaceId) {
       generation.current += 1;
       commit([]);
       setLoad(EMPTY_LOAD);
       setLoading(false);
-      return;
+      return true;
     }
     const gen = ++generation.current;
     const { order, span, cap } = loadPlan(config, todayISO(), requested.current);
@@ -309,7 +348,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       } finally {
         done();
       }
-      if (gen !== generation.current) return; // a newer read already won
+      if (gen !== generation.current) return false; // a newer read already won
       if (readErr) {
         readError = readErr.message;
         break;
@@ -320,12 +359,12 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       rows.push(...page);
       if (total !== null && rows.length >= total) break;
     }
-    if (gen !== generation.current) return;
+    if (gen !== generation.current) return false;
 
     if (readError) {
       setLoad((prev) => ({ ...prev, readError }));
       setLoading(false);
-      return;
+      return false;
     }
     const fetched = rows.map(config.fromRow);
     commit(mergeLoaded(listRef.current, fetched, ledger.current.snapshot()));
@@ -337,7 +376,12 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       readError: null
     });
     setLoading(false);
+    return true;
   }, [workspaceId, config, commit]);
+
+  const reload = useCallback(async () => {
+    await read();
+  }, [read]);
 
   useEffect(() => {
     setLoading(true);
@@ -390,56 +434,64 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       commit([...next, ...listRef.current]);
       ledger.current.hold(ids, "write");
       setInflight((n) => n + 1);
+      let released = false;
+      const release = () => {
+        if (released) return;
+        released = true;
+        ledger.current.release(ids, "write");
+        setInflight((n) => n - 1);
+      };
 
-      let ok = false;
-      let converge = false;
       try {
         const { error: insertErr } = await supabase.from(config.table).insert(rows);
-        if (!insertErr) {
-          ok = true;
-        } else if (insertErr.code !== UNIQUE_VIOLATION) {
+        if (!insertErr) return true;
+        if (insertErr.code !== UNIQUE_VIOLATION) {
           const gone = new Set(ids);
           commit(listRef.current.filter((it) => !gone.has(it.id)));
           setError(insertErr.message);
-        } else {
-          // Postgres refuses the whole batch for one duplicate. Retry each
-          // row alone so one duplicate cannot mask its siblings.
-          let firstMessage: string | null = null;
-          if (rows.length > 1) {
-            for (let i = 0; i < rows.length; i++) {
-              const { error: one } = await supabase.from(config.table).insert(rows[i]);
-              if (one && one.code !== UNIQUE_VIOLATION) firstMessage ??= one.message;
-            }
-          }
-          /* Then let the server settle it. Anything still absent was refused
-             by a constraint other than the one the caller's generator is
-             keyed on, which is a real failed write, not a convergence. */
-          const present = await landedIds(ids);
-          if (present === null) {
-            // Could not confirm. Do not claim success — reload and let the
-            // server's copy decide what the list holds.
-            converge = true;
-          } else {
-            const missing = next.filter((it) => !present.has(it.id));
-            if (missing.length === 0) {
-              ok = true;
-              converge = true;
-            } else {
-              const gone = new Set(missing.map((it) => it.id));
-              commit(listRef.current.filter((it) => !gone.has(it.id)));
-              setError(firstMessage ?? insertErr.message);
-            }
+          return false;
+        }
+        // Postgres refuses the whole batch for one duplicate. Retry each
+        // row alone so one duplicate cannot mask its siblings.
+        let firstMessage: string | null = null;
+        if (rows.length > 1) {
+          for (let i = 0; i < rows.length; i++) {
+            const { error: one } = await supabase.from(config.table).insert(rows[i]);
+            if (one && one.code !== UNIQUE_VIOLATION) firstMessage ??= one.message;
           }
         }
+        /* Then let the server settle it. Released FIRST so the read's merge
+           lets the server's copy replace ours, then judged by identity — id
+           or natural key (see `sameAs`). Anything still absent was refused
+           by a constraint other than the one the caller's generator is
+           keyed on, which is a real failed write, not a convergence. */
+        release();
+        let verdict: { landed: T[]; missing: T[] } | null;
+        if (await read()) {
+          verdict = settleDuplicates(next, listRef.current, config.sameAs);
+        } else {
+          // The read failed; fall back to asking the server by id. A natural
+          // key cannot be checked this way, so a duplicate there reads as
+          // missing — the one path where the old message can still show.
+          const present = await landedIds(ids);
+          verdict =
+            present === null
+              ? null
+              : { landed: next.filter((it) => present.has(it.id)), missing: next.filter((it) => !present.has(it.id)) };
+        }
+        // Could not confirm either way. Do not claim success; the next
+        // read decides what the list holds.
+        if (verdict === null) return false;
+        if (verdict.missing.length === 0) return true;
+        const gone = new Set(verdict.missing.map((it) => it.id));
+        commit(listRef.current.filter((it) => !gone.has(it.id)));
+        setError(firstMessage ?? insertErr.message);
+        return false;
       } finally {
-        // Released before the convergence read so the server's copy wins.
-        ledger.current.release(ids, "write");
-        setInflight((n) => n - 1);
+        release();
       }
-      if (converge) await reload();
-      return ok;
     },
-    [workspaceId, config, reload, commit, landedIds]
+    [workspaceId, config, read, commit, landedIds]
   );
 
   const add = useCallback((item: T) => insertRows([item]), [insertRows]);
@@ -558,6 +610,7 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
   );
 
   const clearError = useCallback(() => setError(null), []);
+  const current = useCallback(() => listRef.current, []);
 
   /* Memoized because AppContext's `value` lists all 19 of these as
      dependencies. A fresh object literal each render made that useMemo
@@ -580,7 +633,8 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       update,
       remove,
       removeMany,
-      dropLocal
+      dropLocal,
+      current
     }),
     [
       items,
@@ -596,7 +650,8 @@ export function useCloudStore<T extends Entity, Row extends { id: string }>(
       update,
       remove,
       removeMany,
-      dropLocal
+      dropLocal,
+      current
     ]
   );
 }

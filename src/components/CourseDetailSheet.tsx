@@ -145,7 +145,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
                   Agregar sesión
                 </button>
               )}
-              <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>
+              <button type="button" className="btn btn-ghost" onClick={() => setEditing(true)}>
                 Editar curso
               </button>
             </div>
@@ -176,11 +176,16 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
               <div className={`money-stat-value ${tareas.overdue.length > 0 ? "money-stat-value--owed" : ""}`}>
                 {progress.done}
                 {progress.total ? ` / ${progress.total}` : ""}
+                {tareas.overdue.length > 0 && (
+                  <span className="money-stat-of" style={{ display: "block" }}>
+                    {tareas.overdue.length === 1 ? "1 vencida" : `${tareas.overdue.length} vencidas`}
+                  </span>
+                )}
               </div>
             </div>
             <div>
               <div className="money-stat-label">Pagado</div>
-              <div className="money-stat-value money-stat-value--paid">
+              <div className={`money-stat-value ${cost.paid > 0 ? "money-stat-value--paid" : ""}`}>
                 {formatMXNShort(cost.paid)}
                 {cost.total !== null && cost.total > 0 ? <span className="money-stat-of" style={{ display: "block" }}>de {formatMXNShort(cost.total)}</span> : null}
               </div>
@@ -226,7 +231,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
               }
             />
             {course.notes && (
-              <div className="row-item" style={{ cursor: "default" }}>
+              <div className="row-item row-item--static">
                 <div className="row-content">
                   <div className="row-sub">Notas</div>
                   <div className="row-title" style={{ fontWeight: 500, whiteSpace: "pre-wrap" }}>{course.notes}</div>
@@ -243,7 +248,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
             ) : (
               <>
                 {upcoming.slice(0, 12).map((s) => (
-                  <div key={s.id} className="row-item" style={{ cursor: "default" }}>
+                  <div key={s.id} className="row-item row-item--static">
                     <button type="button" className="row-content btn-tap" style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer" }} onClick={() => setSession(s)}>
                       <div className="row-title">{formatWithWeekday(s.date)}</div>
                       <div className="row-sub">
@@ -263,7 +268,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
                   </div>
                 )}
                 {past.slice(0, 20).map((s) => (
-                  <div key={s.id} className="row-item row-item--muted" style={{ cursor: "default" }}>
+                  <div key={s.id} className="row-item row-item--muted row-item--static">
                     <button type="button" className="row-content btn-tap" style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer" }} onClick={() => setSession(s)}>
                       <div className="row-title">{formatWithWeekday(s.date)}</div>
                       <div className="row-sub">{s.startTime ?? ""}{s.missed ? " · no fuiste" : ""}{notes.some((n) => n.eventId === s.id) ? " · con apuntes" : ""}</div>
@@ -474,7 +479,7 @@ export function CourseDetailSheet({ courseId, initialTab = "summary", onClose }:
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="row-item" style={{ cursor: "default", minHeight: 52 }}>
+    <div className="row-item row-item--static" style={{ minHeight: 52 }}>
       <div className="row-content">
         <div className="row-sub">{label}</div>
         <div className="row-title" style={{ fontWeight: 600 }}>{value}</div>

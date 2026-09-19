@@ -14,8 +14,12 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
   return formatShort(iso.slice(0, 10));
 }
 
-/** One line of a note's body without markdown syntax, for list rows ("Tema · Ideas clave · …"). */
-export function notePreview(content: string, max = 110): string {
+/** One line of a note's body without markdown syntax, for list rows
+    ("Tema · Ideas clave · …"). Cut at a word, never mid-word or on a
+    dangling " ·", with an ellipsis when something was left out; a first
+    line that merely repeats `title` is skipped. */
+export function notePreview(content: string, max = 110, title?: string): string {
+  const wanted = title?.trim().toLocaleLowerCase();
   const lines = content
     .split("\n")
     .map((l) =>
@@ -25,6 +29,14 @@ export function notePreview(content: string, max = 110): string {
         .replace(/[*~`]/g, "")
         .trim()
     )
-    .filter(Boolean);
-  return lines.join(" · ").slice(0, max);
+    .filter(Boolean)
+    .filter((l, i) => !(i === 0 && wanted && l.toLocaleLowerCase() === wanted));
+  const joined = lines.join(" · ");
+  if (joined.length <= max) return joined;
+  const cut = joined
+    .slice(0, max)
+    .replace(/\s*\S*$/, "")
+    .replace(/\s*·\s*$/, "")
+    .trim();
+  return cut ? `${cut}…` : `${joined.slice(0, max).trim()}…`;
 }

@@ -29,7 +29,7 @@ describe("salesCsv / expensesCsv", () => {
     const csv = salesCsv([sale], [payment], [{ id: "c1", name: "Marta" } as never], [{ id: "p1", title: "Pieza A" } as never], "2026-01-01", "2026-12-31");
     const lines = csv.split("\r\n");
     expect(lines[0]).toContain('"Fecha","Título","Monto","Pagado"');
-    expect(lines[1]).toBe('"2026-03-10","Retrato","5000","2500","Confirmada","Encargo","Anticipo + liquidación","Marta","Pieza A",""');
+    expect(lines[1]).toBe('"2026-03-10","Retrato","5000","2500","Confirmado","Encargo","Anticipo + liquidación","Marta","Pieza A",""');
   });
 
   it("filters by range and marks recurring expenses", () => {
@@ -74,7 +74,7 @@ describe("paymentsCsv", () => {
     const early: Payment = { id: "pm1", saleId: "s1", amount: 2500, date: "2026-03-11", method: "cash", notes: "anticipo", createdAt: "2026-03-11" };
     const late: Payment = { id: "pm2", saleId: "s1", amount: 2500, date: "2026-04-02", method: "transfer", notes: "", createdAt: "2026-04-02" };
     const lines = paymentsCsv([late, early], [sale], contacts, "2026-01-01", "2026-12-31").split("\r\n");
-    expect(lines[0]).toContain('"Fecha","Monto","Método","Venta","Cliente","Notas"');
+    expect(lines[0]).toContain('"Fecha","Monto","Método","Ingreso","Cliente","Notas"');
     expect(lines[1]).toBe('"2026-03-11","2500","Efectivo","Retrato","Marta","anticipo"');
     expect(lines[2]).toBe('"2026-04-02","2500","Transferencia","Retrato","Marta",""');
   });
@@ -112,7 +112,7 @@ describe("installmentsCsv", () => {
       { id: "pm1", saleId: "s1", amount: 4500, date: "2026-02-01", method: "cash", notes: "", createdAt: "2026-02-01" }
     ];
     const lines = installmentsCsv(plan, [sale], paid, contacts, "2026-01-01", "2026-12-31").split("\r\n");
-    expect(lines[0]).toContain('"Vence","Monto","Cubierto","Falta","Estado","Venta","Cliente"');
+    expect(lines[0]).toContain('"Vence","Monto","Cubierto","Falta","Estado","Ingreso","Cliente"');
     // 4500 fills the first cuota and half the second; the third is untouched.
     // States are as of `to`, so all three are past due by the period close.
     expect(lines[1]).toBe('"2026-02-01","3000","3000","0","Pagada","Mural","Marta"');

@@ -7,7 +7,7 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
-import { ProjectSheet } from "./ProjectSheet";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
@@ -46,6 +46,7 @@ export function AssignmentSheet({
 }) {
   const { courses, projects, addAssignment, updateAssignment, removeAssignment } = useApp();
   const { showSuccess } = useToast();
+  const quick = useQuickCreate();
   const [title, setTitle] = useState(assignment?.title ?? "");
   const [courseId, setCourseId] = useState(assignment?.courseId ?? initialCourseId ?? "");
   const [dueDate, setDueDate] = useState(assignment?.dueDate ?? initialDueDate ?? "");
@@ -55,7 +56,6 @@ export function AssignmentSheet({
   const [projectId, setProjectId] = useState(assignment?.projectId ?? "");
   const [grade, setGrade] = useState(assignment?.grade ?? "");
   const [feedback, setFeedback] = useState(assignment?.feedback ?? "");
-  const [newProject, setNewProject] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [noteOpen, setNoteOpen] = useState<Note | null>(null);
   const { notes, createNote } = useNotes();
@@ -73,10 +73,7 @@ export function AssignmentSheet({
     .filter((c) => c.status === "active" || c.status === "upcoming" || c.id === courseId)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => ({ value: c.id, label: c.name }));
-  const projectOptions = [
-    { value: "__new__", label: "+ Nueva pieza para esta tarea" },
-    ...[...projects].sort((a, b) => a.title.localeCompare(b.title)).map((p) => ({ value: p.id, label: p.title }))
-  ];
+  const projectOptions = [...projects].sort((a, b) => a.title.localeCompare(b.title)).map((p) => ({ value: p.id, label: p.title }));
   const steps = taskProgress(description);
   const canSave = title.trim().length > 0 && courseId !== "";
 
@@ -112,7 +109,11 @@ export function AssignmentSheet({
   async function handleDelete() {
     if (!assignment || submitting) return;
     setSubmitting(true);
-    await removeAssignment(assignment.id);
+    if (!(await removeAssignment(assignment.id))) {
+      // The store reverted and reported why; nothing was removed.
+      setSubmitting(false);
+      return;
+    }
     haptic.warn();
     showSuccess("Tarea eliminada");
     (onDeleted ?? onClose)();
@@ -153,10 +154,17 @@ export function AssignmentSheet({
 
         <div className="input-group">
           <span className="input-label" id={`${uid}-course`}>Curso</span>
-          {courseOptions.length > 0 ? (
-            <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
-          ) : (
-            <div className="input-help">Primero agrega el curso en Estudios; las tareas viven dentro de él.</div>
+          <PickerField
+            labelId={`${uid}-course`}
+            title="Curso"
+            options={courseOptions}
+            value={courseId}
+            onChange={setCourseId}
+            onCreate={(name) => quick.course(name)}
+            createLabel="Nuevo curso"
+          />
+          {courseOptions.length === 0 && (
+            <div className="input-help">Las tareas viven dentro de un curso; escribe su nombre y queda creado.</div>
           )}
         </div>
 
@@ -207,7 +215,18 @@ export function AssignmentSheet({
             title="Pieza"
             options={projectOptions}
             value={projectId}
-            onChange={(v) => (v === "__new__" ? setNewProject(true) : setProjectId(v))}
+            onChange={setProjectId}
+            placeholder="Ninguna"
+            onCreate={(name) =>
+              // Made for a tarea: in production, due when it is due, not inventory.
+              quick.project(name || title, {
+                status: "in_progress",
+                availability: "not_for_sale",
+                courseId: courseId || null,
+                dueDate: dueDate || null
+              })
+            }
+            createLabel="Nueva pieza para esta tarea"
           />
         </div>
 
@@ -271,18 +290,6 @@ export function AssignmentSheet({
       {noteOpen && <NoteEditor key={noteOpen.id} note={noteOpen} onClose={() => setNoteOpen(null)} />}
       {uploadOpen && assignment && <UploadSheet links={{ assignmentId: assignment.id, courseId: assignment.courseId }} onClose={() => setUploadOpen(false)} />}
       {docOpen && <DocumentViewer doc={docOpen} onClose={() => setDocOpen(null)} onDelete={removeDocument} />}
-      {newProject && (
-        <ProjectSheet
-          project={null}
-          initialTitle={title.trim()}
-          initialCourseId={courseId || undefined}
-          onCreated={(id) => {
-            setProjectId(id);
-            setNewProject(false);
-          }}
-          onClose={() => setNewProject(false)}
-        />
-      )}
     </>
   );
 }

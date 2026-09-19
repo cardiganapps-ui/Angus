@@ -209,7 +209,7 @@ export function Notes() {
                   const isSelected = selected.has(n.id);
                   const pressing = longPressingId === n.id;
                   const link = linkLabel(n);
-                  const accent = n.pinned ? "var(--amber)" : link ? "var(--accent-light)" : "transparent";
+                  const accent = n.pinned ? "var(--amber)" : link ? "var(--purple)" : "transparent";
                   return (
                     <div
                       key={n.id}

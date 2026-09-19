@@ -14,6 +14,7 @@ import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { ChipSelect } from "./ChipSelect";
 import { PickerField } from "./PickerField";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { formatShort, todayISO } from "../utils/dates";
@@ -49,7 +50,8 @@ export function RecurringRuleSheet({
   initialKind?: RecurrenceKind;
   onClose: () => void;
 }) {
-  const { addRule, updateRule, removeRule, contacts, projects, courses } = useApp();
+  const { addRule, updateRule, removeRule, contacts, projects, courses, settings } = useApp();
+  const quick = useQuickCreate();
   const { showSuccess } = useToast();
   const [kind, setKind] = useState<RecurrenceKind>(rule?.kind ?? initialKind);
   const [title, setTitle] = useState(rule?.title ?? "");
@@ -152,7 +154,11 @@ export function RecurringRuleSheet({
   async function handleDelete() {
     if (!rule || submitting) return;
     setSubmitting(true);
-    await removeRule(rule.id);
+    if (!(await removeRule(rule.id))) {
+      // The store reverted and reported why; nothing was removed.
+      setSubmitting(false);
+      return;
+    }
     haptic.warn();
     showSuccess("Regla eliminada");
     onClose();
@@ -221,7 +227,7 @@ export function RecurringRuleSheet({
           </div>
         </div>
         <div className="input-group">
-          <label className="input-label" htmlFor="rule-interval">Cada</label>
+          <label className="input-label" htmlFor="rule-interval">Cada cuántos periodos</label>
           <input
             id="rule-interval"
             className="input"
@@ -232,6 +238,7 @@ export function RecurringRuleSheet({
             value={interval}
             onChange={(e) => setInterval(e.target.value)}
           />
+          <div className="input-help">1 = cada periodo; 2 = uno sí, uno no.</div>
         </div>
       </div>
 
@@ -267,9 +274,6 @@ export function RecurringRuleSheet({
             min={minStartDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
-          {locked && (
-            <div className="input-help">Solo hacia adelante: mover la fecha atrás recalcularía meses ya cerrados.</div>
-          )}
         </div>
         <div className="input-group">
           <label className="input-label" htmlFor="rule-end">Hasta</label>
@@ -283,6 +287,11 @@ export function RecurringRuleSheet({
           />
         </div>
       </div>
+      {locked && (
+        <div className="input-help" style={{ marginTop: -6, marginBottom: 14 }}>
+          Solo hacia adelante: mover "Desde" atrás recalcularía meses ya cerrados.
+        </div>
+      )}
 
       <div className="input-group">
         <span className="input-label">Categoría</span>
@@ -316,6 +325,8 @@ export function RecurringRuleSheet({
           options={contactOptions}
           value={contactId}
           onChange={setContactId}
+          onCreate={(name) => quick.contact(name, kind === "income" ? "client" : "supplier")}
+          createLabel="Nuevo contacto"
         />
         {kind === "income" && (
           <div className="input-help">Con un contacto, cada cobro pendiente aparece en su saldo.</div>
@@ -324,10 +335,20 @@ export function RecurringRuleSheet({
 
       <div className="input-group">
         <span className="input-label" id={`${uid}-project`}>Pieza relacionada</span>
-        <PickerField labelId={`${uid}-project`} title="Pieza relacionada" options={projectOptions} value={projectId} onChange={setProjectId} />
+        <PickerField
+          labelId={`${uid}-project`}
+          title="Pieza relacionada"
+          options={projectOptions}
+          value={projectId}
+          onChange={setProjectId}
+          onCreate={(name) =>
+            quick.project(name, { status: kind === "income" ? "completed" : "in_progress", contactId: contactId || null })
+          }
+          createLabel="Nueva pieza"
+        />
       </div>
 
-      {kind === "expense" && courses.length > 0 && (
+      {kind === "expense" && (settings.practice.includes("studies") || courses.length > 0) && (
         <div className="input-group">
           <span className="input-label" id={`${uid}-course`}>Curso que tomas</span>
           <PickerField
@@ -339,6 +360,8 @@ export function RecurringRuleSheet({
               .map((c) => ({ value: c.id, label: c.name }))}
             value={courseId}
             onChange={setCourseId}
+            onCreate={(name) => quick.course(name, { startDate })}
+            createLabel="Nuevo curso"
           />
         </div>
       )}
@@ -356,7 +379,7 @@ export function RecurringRuleSheet({
 
       <div className="input-help" style={{ marginBottom: 8 }}>
         {kind === "income"
-          ? "Cada periodo Angus crea la venta por ti; tú solo marcas cuando te pagan."
+          ? "Cada periodo Angus registra el ingreso por ti; tú solo marcas cuando te pagan."
           : "Cada periodo Angus registra el gasto por ti. Cambiar el monto solo afecta los siguientes."}
       </div>
     </Sheet>

@@ -9,6 +9,8 @@ import { Sheet } from "./Sheet";
 import { SheetActions } from "./SheetActions";
 import { SegmentedControl } from "./SegmentedControl";
 import { PickerField } from "./PickerField";
+import { Icon } from "./Icon";
+import { useQuickCreate } from "../hooks/useQuickCreate";
 import { domId, makeId } from "../utils/id";
 import { useDirtyGuard } from "../hooks/useDirtyGuard";
 import { todayISO } from "../utils/dates";
@@ -41,6 +43,7 @@ export function ProjectSheet({
 }) {
   const { addProject, updateProject, removeProject, contacts, courses, sales, payments, expenses, projects, settings } =
     useApp();
+  const quick = useQuickCreate();
   const { showSuccess } = useToast();
   const [title, setTitle] = useState(project?.title ?? initialTitle ?? "");
   const [medium, setMedium] = useState(project?.medium ?? "");
@@ -82,9 +85,9 @@ export function ProjectSheet({
     .map((c) => ({ value: c.id, label: c.name }));
   // Only for a piece that already has money attached — a brand-new one
   // has nothing to report, and an empty band would just add weight.
-  const economics = project
-    ? projectMargins([project.id], sales, payments, expenses)[0]?.economics
-    : undefined;
+  const linkedMoney = project ? projectMargins([project.id], sales, payments, expenses)[0]?.economics : undefined;
+  // A quoted sale or an unpaid link produces a row of zeros — nothing to report yet.
+  const economics = linkedMoney && (linkedMoney.revenue > 0 || linkedMoney.spent > 0) ? linkedMoney : undefined;
 
   async function handleSave() {
     if (!canSave || submitting) return;
@@ -124,7 +127,11 @@ export function ProjectSheet({
   async function handleDelete() {
     if (!project || submitting) return;
     setSubmitting(true);
-    await removeProject(project.id);
+    if (!(await removeProject(project.id))) {
+      // The store reverted and reported why; nothing was removed.
+      setSubmitting(false);
+      return;
+    }
     haptic.warn();
     showSuccess("Pieza eliminada");
     onClose();
@@ -146,7 +153,7 @@ export function ProjectSheet({
           submitting={submitting}
           onSave={() => void handleSave()}
           onDelete={project ? () => void handleDelete() : undefined}
-          confirmText="¿Eliminar esta pieza? Sus ventas y gastos quedan sin pieza ligada."
+          confirmText="¿Eliminar esta pieza? Sus ingresos y gastos quedan sin pieza ligada."
         />
       }
     >
@@ -279,7 +286,7 @@ export function ProjectSheet({
       ) : (
         <div className="input-group">
           <button type="button" className="btn btn-ghost btn-mini" onClick={() => setShowSheet(true)}>
-            + Ficha de la pieza (medidas, año, edición, lugar)
+            <Icon name="plus" size={14} strokeWidth={2.4} /> Ficha de la pieza (medidas, año, edición, lugar)
           </button>
         </div>
       )}
@@ -292,13 +299,27 @@ export function ProjectSheet({
           options={contactOptions}
           value={contactId}
           onChange={setContactId}
+          onCreate={(name) =>
+            // A sold or reserved piece has a client; anyone attached to an
+            // available one is a prospect, which is ContactSheet's own default.
+            quick.contact(name, availability === "sold" || availability === "reserved" ? "client" : "lead")
+          }
+          createLabel="Nuevo contacto"
         />
       </div>
 
-      {courseOptions.length > 0 && (
+      {(settings.practice.includes("studies") || courses.length > 0) && (
         <div className="input-group">
           <span className="input-label" id={`${uid}-course`}>Para el curso</span>
-          <PickerField labelId={`${uid}-course`} title="Curso" options={courseOptions} value={courseId} onChange={setCourseId} />
+          <PickerField
+            labelId={`${uid}-course`}
+            title="Curso"
+            options={courseOptions}
+            value={courseId}
+            onChange={setCourseId}
+            onCreate={(name) => quick.course(name)}
+            createLabel="Nuevo curso"
+          />
         </div>
       )}
 
@@ -306,7 +327,7 @@ export function ProjectSheet({
         <div className="input-group">
           <div className="section-header" style={{ padding: "0 0 8px" }}>
             <span className="input-label" style={{ marginBottom: 0 }}>Fotos y archivos</span>
-            <button type="button" className="see-all btn-tap" onClick={() => setUploadOpen(true)}>+ Agregar</button>
+            <button type="button" className="see-all btn-tap" onClick={() => setUploadOpen(true)}><Icon name="plus" size={14} strokeWidth={2.4} /> Agregar</button>
           </div>
           <div className="money-list">
             <DocumentList documents={photos} onOpen={(d) => (d.kind === "link" && d.url ? window.open(d.url, "_blank", "noopener") : setDocOpen(d))} emptyBody="Fotos del proceso, de la pieza terminada, o el PDF de la ficha." />

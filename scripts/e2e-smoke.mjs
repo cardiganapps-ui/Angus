@@ -112,7 +112,7 @@ await shot("01-home");
 // The pill carries three tabs; Obra and Contactos live in the drawer.
 const tabs = [
   ["Agenda", "Nuevo evento"],
-  ["Dinero", "Nueva venta"]
+  ["Dinero", "Nuevo ingreso"]
 ];
 for (const [tab, fab] of tabs) {
   await page.click(`nav.bottom-tabs >> text=${tab}`);

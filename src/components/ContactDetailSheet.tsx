@@ -17,7 +17,7 @@ import {
   labelFor
 } from "../data/constants";
 import { saleBalance, saleCountsTowardRevenue, totals } from "../utils/accounting";
-import { formatMXN, formatMXNShort } from "../utils/money";
+import { formatMXNShort } from "../utils/money";
 import { addDays, formatShort, formatWithWeekday, todayISO } from "../utils/dates";
 import { attendanceRate, groupSessions } from "../utils/classes";
 import { Sheet } from "./Sheet";
@@ -36,7 +36,7 @@ import { haptic } from "../lib/haptics";
 type Tab = "info" | "sales" | "agenda" | "classes" | "studies";
 const TAB_ITEMS = [
   { k: "info", l: "Info" },
-  { k: "sales", l: "Ventas" },
+  { k: "sales", l: "Ingresos" },
   { k: "agenda", l: "Agenda" },
   { k: "classes", l: "Clases" },
   { k: "studies", l: "Estudios" }
@@ -165,7 +165,7 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
           <div className="money-panel money-panel--compact" style={{ marginBottom: 14 }}>
             <div className="money-stats" style={{ marginBottom: 0 }}>
               <div>
-                <div className="money-stat-label">Vendido</div>
+                <div className="money-stat-label">Acordado</div>
                 <div className="money-stat-value">{formatMXNShort(t.committed)}</div>
               </div>
               <div>
@@ -185,23 +185,23 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
         {tab === "info" && (
           <div style={{ marginTop: 14 }}>
             <div className="money-list">
-              <div className="row-item" style={{ cursor: "default" }}>
+              <div className="row-item money-econ-row">
                 <div className="row-content">
                   <div className="row-sub">Teléfono</div>
                   {/* The app disables text selection globally; these two are
                       exactly the strings she needs to long-press and paste
                       into something else, so they opt back in. */}
-                  <div className="row-title selectable">{contact.phone || "—"}</div>
+                  <div className="row-title selectable">{contact.phone || <span className="row-empty">Sin teléfono</span>}</div>
                 </div>
               </div>
-              <div className="row-item" style={{ cursor: "default" }}>
+              <div className="row-item money-econ-row">
                 <div className="row-content">
                   <div className="row-sub">Correo</div>
-                  <div className="row-title selectable">{contact.email || "—"}</div>
+                  <div className="row-title selectable">{contact.email || <span className="row-empty">Sin correo</span>}</div>
                 </div>
               </div>
               {contact.notes && (
-                <div className="row-item" style={{ cursor: "default" }}>
+                <div className="row-item money-econ-row">
                   <div className="row-content">
                     <div className="row-sub">Notas</div>
                     <div className="row-title" style={{ whiteSpace: "pre-wrap", fontWeight: 500 }}>{contact.notes}</div>
@@ -240,7 +240,7 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
         {tab === "sales" && (
           <div className="money-list" style={{ marginTop: 14 }}>
             {clientSales.length === 0 ? (
-              <div className="money-list-empty">Sin ventas con este contacto todavía.</div>
+              <div className="money-list-empty">Sin ingresos con este contacto todavía.</div>
             ) : (
               clientSales.map((sale) => {
                 const b = saleBalance(sale, payments);
@@ -253,7 +253,7 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
                     </div>
                     <div className="money-row-right">
                       <span className={`badge ${SALE_STATUS_BADGE[sale.status]}`}>{labelFor(SALE_STATUS, sale.status)}</span>
-                      <span className={`row-amount ${owes ? "amount-owe" : ""}`}>{owes ? formatMXN(b.owed) : formatMXN(sale.amount)}</span>
+                      <span className={`row-amount ${owes ? "amount-owe" : ""}`}>{owes ? formatMXNShort(b.owed) : formatMXNShort(sale.amount)}</span>
                     </div>
                   </button>
                 );
@@ -269,7 +269,7 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
               const rate = attendanceRate(contactId, sessions, attendance);
               const activeNow = enrollment.endedOn === null || enrollment.endedOn >= today;
               return (
-                <div className="row-item" key={enrollment.id} style={{ cursor: "default" }}>
+                <div className="row-item money-econ-row" key={enrollment.id}>
                   <div className="row-content">
                     <div className="row-title">{group.name}</div>
                     <div className="row-sub">
@@ -287,7 +287,7 @@ export function ContactDetailSheet({ contactId, onClose }: { contactId: string; 
         {tab === "studies" && (
           <div className="money-list" style={{ marginTop: 14 }}>
             {taught.map((c) => (
-              <div className="row-item" key={c.id} style={{ cursor: "default" }}>
+              <div className="row-item money-econ-row" key={c.id}>
                 <div className="row-content">
                   <div className="row-title">{c.name}</div>
                   <div className="row-sub">

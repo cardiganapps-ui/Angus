@@ -113,10 +113,9 @@ describe.each(GUARDED_SHEETS)("%s", (path) => {
   });
 });
 
-/* Every file that renders a PickerField. SaleSheet is owned by another
-   pass; PickerField still falls back to an .sr-only copy of its title
-   there, so it announces — it just duplicates the caption. */
+/* Every file that renders a PickerField. */
 const PICKER_CALLERS = [
+  "src/components/SaleSheet.tsx",
   "src/components/ProjectSheet.tsx",
   "src/components/ExpenseSheet.tsx",
   "src/components/EventSheet.tsx",
@@ -135,9 +134,9 @@ describe("PickerField — named by the caption above it", () => {
     expect(labelled).toBe(pickers);
   });
 
-  it("covers every caller but the one another pass owns", () => {
+  it("covers every caller", () => {
     // A new sheet with a picker should land here, not be forgotten.
-    const known = new Set([...PICKER_CALLERS, "src/components/SaleSheet.tsx"]);
+    const known = new Set(PICKER_CALLERS);
     for (const path of PICKER_CALLERS) expect(known.has(path)).toBe(true);
     expect(read("src/components/SaleSheet.tsx")).toContain("<PickerField");
   });

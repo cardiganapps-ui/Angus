@@ -73,7 +73,11 @@ export function ContactSheet({
   async function handleDelete() {
     if (!contact || submitting) return;
     setSubmitting(true);
-    await removeContact(contact.id);
+    if (!(await removeContact(contact.id))) {
+      // The store reverted and reported why; nothing was removed.
+      setSubmitting(false);
+      return;
+    }
     haptic.warn();
     showSuccess("Contacto eliminado");
     (onDeleted ?? onClose)();
@@ -95,13 +99,13 @@ export function ContactSheet({
           submitting={submitting}
           onSave={() => void handleSave()}
           onDelete={contact ? () => void handleDelete() : undefined}
-          confirmText="¿Eliminar este contacto? Sus ventas y eventos quedan sin contacto ligado, sus cobros fijos se detienen y su asistencia a clases se borra."
+          confirmText="¿Eliminar este contacto? Sus ingresos y eventos quedan sin contacto ligado, sus cobros fijos se detienen y su asistencia a clases se borra."
         />
       }
     >
       <div className="input-group">
         <label className="input-label" htmlFor="contact-name">Nombre</label>
-        <input id="contact-name" className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus={contact === null && prefersAutoFocus()} />
+        <input id="contact-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre o galería…" autoFocus={contact === null && prefersAutoFocus()} />
       </div>
 
       <div className="input-group">
@@ -124,17 +128,17 @@ export function ContactSheet({
 
       <div className="input-group">
         <label className="input-label" htmlFor="contact-email">Correo</label>
-        <input id="contact-email" className="input" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input id="contact-email" className="input" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@ejemplo.mx" />
       </div>
 
       <div className="input-group">
         <label className="input-label" htmlFor="contact-phone">Teléfono</label>
-        <input id="contact-phone" className="input" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <input id="contact-phone" className="input" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="999 123 4567" />
       </div>
 
       <div className="input-group">
         <label className="input-label" htmlFor="contact-notes">Notas</label>
-        <textarea id="contact-notes" className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea id="contact-notes" className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Cómo la conociste, qué le gusta, cómo prefiere pagar…" />
       </div>
     </Sheet>
   );

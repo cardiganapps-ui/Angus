@@ -172,9 +172,10 @@ export function tokenizeLine(raw?: string | null): LineToken {
       raw,
     };
   }
-  if ((m = raw.match(/^( *)\[( |x|X)\] (.*)$/))) {
+  // GFM writes tasks as "- [ ]"; the app's own shorthand is a bare "[ ]". Both are one task line.
+  if ((m = raw.match(/^( *)(?:[-*+] |\d+[.)] )?\[( |x|X)\] (.*)$/))) {
     const indent = m[1].length;
-    const contentStart = indent + 4;
+    const contentStart = m[0].length - m[3].length;
     return {
       block: "task",
       blockSyntax: raw.slice(0, contentStart),
@@ -563,10 +564,10 @@ export function toggleInline(line: string | null | undefined, start: number, end
    flipped. */
 export function toggleTaskOnLine(line: string | null | undefined) {
   if (!line) return { line: line ?? "", nextChecked: false };
-  const m = line.match(/^( *)\[( |x|X)\] /);
+  const m = line.match(/^( *)(?:[-*+] |\d+[.)] )?\[( |x|X)\] /);
   if (!m) return { line, nextChecked: false };
   const wasChecked = m[2].toLowerCase() === "x";
-  const next = line.slice(0, m[1].length) + (wasChecked ? "[ ] " : "[x] ") + line.slice(m[0].length);
+  const next = line.slice(0, m[0].length - 4) + (wasChecked ? "[ ] " : "[x] ") + line.slice(m[0].length);
   return { line: next, nextChecked: !wasChecked };
 }
 

@@ -81,6 +81,16 @@ export function saleBalance(sale: Sale, payments: Payment[]): SaleBalance {
   return { sale, paid, owed, credit, refundable: 0, settled: toCents(owed) === 0, progress };
 }
 
+/* "Entregada y pagada": the sale is finished on both sides — the piece
+   left the studio and the money landed. Deliberately NOT `saleBalance().settled`,
+   which is also true for a quote nobody has paid and for a cancelled sale
+   that never took a deposit. Those still need her attention; this one
+   doesn't, which is why Ingresos folds it away. */
+export function saleIsClosed(sale: Sale, payments: Payment[]): boolean {
+  if (sale.status !== "delivered") return false;
+  return toCents(saleBalance(sale, payments).owed) === 0;
+}
+
 export interface Totals {
   committed: number;
   paid: number;

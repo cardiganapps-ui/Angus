@@ -258,7 +258,7 @@ export function Onboarding() {
         <div className="onb-eyebrow">Cómo cobras</div>
         <h1 className="onb-title">¿Cómo te pagan normalmente?</h1>
         <p className="onb-lead">
-          Son solo los valores por defecto: cada venta se puede ajustar en el momento.
+          Son solo los valores por defecto: cada ingreso se puede ajustar en el momento.
         </p>
         <div className="input-group">
           <span className="input-label">Método habitual</span>

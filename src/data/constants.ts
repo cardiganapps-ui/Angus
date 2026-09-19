@@ -122,10 +122,10 @@ export const EVENT_KIND_BADGE: Record<EventKind, string> = {
    means a migration AND a decision in utils/accounting.ts about whether
    the new status counts toward revenue (see saleCountsTowardRevenue). */
 export const SALE_STATUS: { value: SaleStatus; label: string }[] = [
-  { value: "quoted", label: "Cotizada" },
-  { value: "confirmed", label: "Confirmada" },
-  { value: "delivered", label: "Entregada" },
-  { value: "cancelled", label: "Cancelada" }
+  { value: "quoted", label: "Cotizado" },
+  { value: "confirmed", label: "Confirmado" },
+  { value: "delivered", label: "Entregado" },
+  { value: "cancelled", label: "Cancelado" }
 ];
 
 export const SALE_STATUS_BADGE: Record<SaleStatus, string> = {
@@ -195,7 +195,7 @@ export const EXPENSE_CATEGORY_BADGE: Record<ExpenseCategory, string> = {
    are the work itself (teal, the "in progress" state hue); clases and
    talleres are teaching (blue, the class hue); the rest are gray. */
 export const INCOME_CATEGORY: { value: IncomeCategory; label: string }[] = [
-  { value: "piece", label: "Pieza" },
+  { value: "piece", label: "Venta" },
   { value: "commission", label: "Encargo" },
   { value: "class", label: "Clase" },
   { value: "workshop", label: "Taller" },
@@ -300,7 +300,7 @@ export const INSTALLMENT_FREQUENCY: { value: "monthly" | "biweekly"; label: stri
 ];
 
 export const QUICK_ACTION: { value: QuickAction; label: string; icon: IconName }[] = [
-  { value: "sale", label: "Nueva venta", icon: "banknote" },
+  { value: "sale", label: "Nuevo ingreso", icon: "banknote" },
   { value: "expense", label: "Nuevo gasto", icon: "receipt" },
   { value: "event", label: "Nuevo evento", icon: "calendar" },
   { value: "project", label: "Nueva pieza", icon: "palette" },
