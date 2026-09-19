@@ -226,9 +226,11 @@ deletes rows.
 
 **4.1 — ✅ DONE 2026-09-17.** `angus-e2e@cardigan.mx` exists (allow-listed,
 signed up, workspace renamed "E2E (desechable)" so the admin's switcher
-never confuses it with hers). Its password is in the agent's `.env.local`
-only; ask for it if you want to set the GitHub secrets yourself. It is
-also what the API smoke tests sign in as.
+never confuses it with hers). Its password was reset on 2026-09-19 (the
+previous one was lost with a sandbox) and lives in the agent's `.env.local`
+as `E2E_EMAIL` / `E2E_PASS` only; ask for it if you want to set the GitHub
+secrets yourself — if you already had, re-set `E2E_PASS`. It is also what
+the API smoke tests sign in as.
 
 **4.2** — GitHub → Settings → Secrets and variables → Actions:
 
